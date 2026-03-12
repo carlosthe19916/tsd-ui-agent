@@ -1,0 +1,1 @@
+-- Tests are self-contained; no seed data needed.

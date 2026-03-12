@@ -1,0 +1,3 @@
+[submodule ".modules/searchpe"]
+	path = .modules/searchpe
+	url = https://github.com/carlosthe19916/searchpe.git
