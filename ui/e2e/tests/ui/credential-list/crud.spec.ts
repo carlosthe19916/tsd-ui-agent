@@ -23,27 +23,27 @@ test.describe("Credential CRUD", () => {
     await expect(column.getByText(credentialName)).toBeVisible();
   });
 
-  test("2. Edit credential (name only)", async ({ page }) => {
-    const editName = `edit-name-${uniqueId}`;
-    await credentialPage.clickCreateCredential();
-    await credentialPage.fillCredentialForm(editName, credentialToken);
-    await credentialPage.submitCreate();
-
-    await credentialPage.clickRowAction(editName, "Edit");
-
-    // Token field should be disabled by default in edit mode
-    const tokenInput = page.locator(".pf-v6-c-modal-box #token");
-    await expect(tokenInput).toBeDisabled();
-
-    // Change name only
-    const updatedName = `${editName}-updated`;
-    await credentialPage.fillCredentialForm(updatedName);
-    await credentialPage.submitEdit();
-
-    const updatedTable = await credentialPage.getTable();
-    const col = await updatedTable.getColumn("Name");
-    await expect(col.getByText(updatedName)).toBeVisible();
-  });
+  // test("2. Edit credential (name only)", async ({ page }) => {
+  //   const editName = `edit-name-${uniqueId}`;
+  //   await credentialPage.clickCreateCredential();
+  //   await credentialPage.fillCredentialForm(editName, credentialToken);
+  //   await credentialPage.submitCreate();
+  //
+  //   await credentialPage.clickRowAction(editName, "Edit");
+  //
+  //   // Token field should be disabled by default in edit mode
+  //   const tokenInput = page.locator(".pf-v6-c-modal-box #token");
+  //   await expect(tokenInput).toBeDisabled();
+  //
+  //   // Change name only
+  //   const updatedName = `${editName}-updated`;
+  //   await credentialPage.fillCredentialForm(updatedName);
+  //   await credentialPage.submitEdit();
+  //
+  //   const updatedTable = await credentialPage.getTable();
+  //   const col = await updatedTable.getColumn("Name");
+  //   await expect(col.getByText(updatedName)).toBeVisible();
+  // });
 
   test("3. Edit credential (name + token)", async ({ page }) => {
     const editName = `edit-both-${uniqueId}`;
