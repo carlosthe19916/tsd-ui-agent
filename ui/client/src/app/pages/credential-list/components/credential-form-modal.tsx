@@ -27,7 +27,9 @@ export const CredentialFormModal: React.FC<CredentialFormModalProps> = ({
 }) => {
   if (!isOpen) return null;
 
-  return <CredentialFormModalContent credential={credential} onClose={onClose} />;
+  return (
+    <CredentialFormModalContent credential={credential} onClose={onClose} />
+  );
 };
 
 const CredentialFormModalContent: React.FC<

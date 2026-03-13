@@ -183,16 +183,10 @@ export const ProjectList: React.FC = () => {
                     <Td width={10} {...getTdProps({ columnKey: "type" })}>
                       {project.type}
                     </Td>
-                    <Td
-                      width={15}
-                      {...getTdProps({ columnKey: "syncStatus" })}
-                    >
+                    <Td width={15} {...getTdProps({ columnKey: "syncStatus" })}>
                       {project.syncStatus ?? "N/A"}
                     </Td>
-                    <Td
-                      width={15}
-                      {...getTdProps({ columnKey: "lastSyncAt" })}
-                    >
+                    <Td width={15} {...getTdProps({ columnKey: "lastSyncAt" })}>
                       {formatDateTime(project.lastSyncAt) ?? "Never"}
                     </Td>
                     <Td isActionCell>

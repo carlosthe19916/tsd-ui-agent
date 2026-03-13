@@ -175,8 +175,7 @@ export const CredentialList: React.FC = () => {
                           },
                           {
                             title: "Delete",
-                            onClick: () =>
-                              setCredentialToDelete(credential),
+                            onClick: () => setCredentialToDelete(credential),
                           },
                         ]}
                       />
@@ -196,9 +195,7 @@ export const CredentialList: React.FC = () => {
       </PageSection>
 
       <CredentialFormModal
-        credential={
-          modalState.type === "edit" ? modalState.credential : null
-        }
+        credential={modalState.type === "edit" ? modalState.credential : null}
         isOpen={modalState.type !== "closed"}
         onClose={closeModal}
       />

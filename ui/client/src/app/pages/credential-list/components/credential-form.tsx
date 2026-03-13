@@ -14,21 +14,21 @@ interface CredentialFormProps {
 export const CredentialForm: React.FC<CredentialFormProps> = ({ control }) => {
   return (
     <Form>
-        <HookFormPFTextInput
-            control={control}
-            name="name"
-            label="Name"
-            fieldId="name"
-            isRequired
-        />
-        <HookFormPFTextInput
-            control={control}
-            name="token"
-            label="Token"
-            fieldId="token"
-            isRequired
-            type="password"
-        />
+      <HookFormPFTextInput
+        control={control}
+        name="name"
+        label="Name"
+        fieldId="name"
+        isRequired
+      />
+      <HookFormPFTextInput
+        control={control}
+        name="token"
+        label="Token"
+        fieldId="token"
+        isRequired
+        type="password"
+      />
     </Form>
   );
 };
