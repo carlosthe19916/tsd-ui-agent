@@ -9,6 +9,5 @@ public class CredentialDto {
     @NotNull
     public String name;
 
-    @NotNull
     public String token;
 }

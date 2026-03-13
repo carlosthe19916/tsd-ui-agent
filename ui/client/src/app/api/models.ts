@@ -13,7 +13,7 @@ export interface GitDto {
 export interface CredentialDto {
   id?: number;
   name: string;
-  token: string;
+  token?: string;
 }
 
 export interface HubFilter {

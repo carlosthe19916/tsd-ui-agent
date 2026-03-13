@@ -7,3 +7,6 @@
 [submodule ".modules/trustify-ui"]
 	path = .modules/trustify-ui
 	url = https://github.com/guacsec/trustify-ui.git
+[submodule ".modules/tackle2-ui"]
+	path = .modules/tackle2-ui
+	url = https://github.com/konveyor/tackle2-ui.git
