@@ -4,17 +4,27 @@ import io.quarkus.panache.common.Sort;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
+import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.NotFoundException;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import org.acme.dto.SearchResultDto;
+import org.acme.dto.TaskContextDto;
 import org.acme.dto.TaskDto;
+import org.acme.mapper.TaskContextMapper;
 import org.acme.mapper.TaskMapper;
 import org.acme.models.jpa.entity.SourceType;
+import org.acme.models.jpa.entity.TaskContextEntity;
 import org.acme.models.jpa.entity.TaskEntity;
 import org.acme.models.jpa.entity.TaskStatus;
 
@@ -36,6 +46,9 @@ public class TaskResource {
 
     @Inject
     TaskMapper taskMapper;
+
+    @Inject
+    TaskContextMapper taskContextMapper;
 
     @GET
     public SearchResultDto<TaskDto> list(
@@ -140,5 +153,71 @@ public class TaskResource {
             }
         }
         return sort;
+    }
+
+    // Context sub-resource endpoints
+
+    @GET
+    @Path("/{taskId}/context")
+    public List<TaskContextDto> listContexts(@PathParam("taskId") Long taskId) {
+        TaskEntity task = (TaskEntity) TaskEntity.findByIdOptional(taskId)
+                .orElseThrow(NotFoundException::new);
+        return TaskContextEntity.<TaskContextEntity>list("task", task).stream()
+                .map(taskContextMapper::toDto)
+                .collect(Collectors.toList());
+    }
+
+    @GET
+    @Path("/{taskId}/context/{contextId}")
+    public TaskContextDto getContext(@PathParam("taskId") Long taskId, @PathParam("contextId") Long contextId) {
+        TaskEntity task = (TaskEntity) TaskEntity.findByIdOptional(taskId)
+                .orElseThrow(NotFoundException::new);
+        TaskContextEntity context = (TaskContextEntity) TaskContextEntity.findByIdOptional(contextId)
+                .orElseThrow(NotFoundException::new);
+        if (!context.task.id.equals(task.id)) {
+            throw new NotFoundException();
+        }
+        return taskContextMapper.toDto(context);
+    }
+
+    @POST
+    @Path("/{taskId}/context")
+    public Response createContext(@PathParam("taskId") Long taskId, @Valid TaskContextDto dto) {
+        TaskEntity task = (TaskEntity) TaskEntity.findByIdOptional(taskId)
+                .orElseThrow(NotFoundException::new);
+        TaskContextEntity entity = taskContextMapper.toEntity(dto, task);
+        entity.persist();
+        return Response.status(Response.Status.CREATED)
+                .entity(taskContextMapper.toDto(entity))
+                .build();
+    }
+
+    @PUT
+    @Path("/{taskId}/context/{contextId}")
+    public TaskContextDto updateContext(@PathParam("taskId") Long taskId, @PathParam("contextId") Long contextId,
+            @Valid TaskContextDto dto) {
+        TaskEntity task = (TaskEntity) TaskEntity.findByIdOptional(taskId)
+                .orElseThrow(NotFoundException::new);
+        TaskContextEntity context = (TaskContextEntity) TaskContextEntity.findByIdOptional(contextId)
+                .orElseThrow(NotFoundException::new);
+        if (!context.task.id.equals(task.id)) {
+            throw new NotFoundException();
+        }
+        taskContextMapper.updateEntity(dto, context);
+        return taskContextMapper.toDto(context);
+    }
+
+    @DELETE
+    @Path("/{taskId}/context/{contextId}")
+    public Response deleteContext(@PathParam("taskId") Long taskId, @PathParam("contextId") Long contextId) {
+        TaskEntity task = (TaskEntity) TaskEntity.findByIdOptional(taskId)
+                .orElseThrow(NotFoundException::new);
+        TaskContextEntity context = (TaskContextEntity) TaskContextEntity.findByIdOptional(contextId)
+                .orElseThrow(NotFoundException::new);
+        if (!context.task.id.equals(task.id)) {
+            throw new NotFoundException();
+        }
+        context.delete();
+        return Response.noContent().build();
     }
 }

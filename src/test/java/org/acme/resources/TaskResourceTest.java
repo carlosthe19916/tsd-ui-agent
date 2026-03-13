@@ -6,6 +6,8 @@ import io.restassured.http.ContentType;
 import org.acme.dto.CredentialDto;
 import org.acme.dto.GitDto;
 import org.acme.dto.ProjectDto;
+import org.acme.dto.TaskContextDto;
+import org.acme.models.jpa.entity.ContextType;
 import org.acme.models.jpa.entity.GitPlatform;
 import org.acme.models.jpa.entity.SourceType;
 import org.acme.models.jpa.entity.TaskStatus;
@@ -22,6 +24,7 @@ import java.util.concurrent.TimeUnit;
 import static io.restassured.RestAssured.given;
 import static org.awaitility.Awaitility.await;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.any;
@@ -297,5 +300,163 @@ class TaskResourceTest {
                 .statusCode(200)
                 .body("meta.count", is(0))
                 .body("data", empty());
+    }
+
+    // Context sub-resource tests
+
+    private int createTaskAndReturnId() {
+        int projectId = createProjectAndSync(SourceType.GITHUB, List.of(
+                issue("ctx-" + System.nanoTime(), "Context test task", TaskStatus.OPEN, null, null)
+        ));
+
+        return given()
+                .queryParam("projectId", projectId)
+                .when().get("/tasks")
+                .then()
+                .statusCode(200)
+                .extract().path("data[0].id");
+    }
+
+    private static TaskContextDto taskContext(String name, ContextType type) {
+        TaskContextDto dto = new TaskContextDto();
+        dto.name = name;
+        dto.type = type;
+        return dto;
+    }
+
+    @Test
+    void testCreateContext() {
+        int taskId = createTaskAndReturnId();
+
+        TaskContextDto ctx = taskContext("my-context", ContextType.MARKDOWN);
+        ctx.description = "A test context";
+        ctx.content = "# Hello";
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(ctx)
+                .when().post("/tasks/{taskId}/context", taskId)
+                .then()
+                .statusCode(201)
+                .body("id", notNullValue())
+                .body("name", is("my-context"))
+                .body("description", is("A test context"))
+                .body("type", is("MARKDOWN"))
+                .body("content", is("# Hello"));
+    }
+
+    @Test
+    void testListContexts() {
+        int taskId = createTaskAndReturnId();
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(taskContext("ctx-1", ContextType.MARKDOWN))
+                .when().post("/tasks/{taskId}/context", taskId)
+                .then()
+                .statusCode(201);
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(taskContext("ctx-2", ContextType.GIT_REPOSITORY))
+                .when().post("/tasks/{taskId}/context", taskId)
+                .then()
+                .statusCode(201);
+
+        given()
+                .when().get("/tasks/{taskId}/context", taskId)
+                .then()
+                .statusCode(200)
+                .body("size()", is(2));
+    }
+
+    @Test
+    void testGetContext() {
+        int taskId = createTaskAndReturnId();
+
+        int contextId = given()
+                .contentType(ContentType.JSON)
+                .body(taskContext("get-ctx", ContextType.MARKDOWN))
+                .when().post("/tasks/{taskId}/context", taskId)
+                .then()
+                .statusCode(201)
+                .extract().path("id");
+
+        given()
+                .when().get("/tasks/{taskId}/context/{contextId}", taskId, contextId)
+                .then()
+                .statusCode(200)
+                .body("name", is("get-ctx"))
+                .body("type", is("MARKDOWN"));
+    }
+
+    @Test
+    void testUpdateContext() {
+        int taskId = createTaskAndReturnId();
+
+        int contextId = given()
+                .contentType(ContentType.JSON)
+                .body(taskContext("before-update", ContextType.MARKDOWN))
+                .when().post("/tasks/{taskId}/context", taskId)
+                .then()
+                .statusCode(201)
+                .extract().path("id");
+
+        TaskContextDto updated = taskContext("after-update", ContextType.GIT_REPOSITORY);
+        updated.repositoryUrl = "https://github.com/test/repo";
+        updated.branch = "main";
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(updated)
+                .when().put("/tasks/{taskId}/context/{contextId}", taskId, contextId)
+                .then()
+                .statusCode(200)
+                .body("name", is("after-update"))
+                .body("type", is("GIT_REPOSITORY"))
+                .body("repositoryUrl", is("https://github.com/test/repo"))
+                .body("branch", is("main"));
+    }
+
+    @Test
+    void testDeleteContext() {
+        int taskId = createTaskAndReturnId();
+
+        int contextId = given()
+                .contentType(ContentType.JSON)
+                .body(taskContext("to-delete", ContextType.MARKDOWN))
+                .when().post("/tasks/{taskId}/context", taskId)
+                .then()
+                .statusCode(201)
+                .extract().path("id");
+
+        given()
+                .when().delete("/tasks/{taskId}/context/{contextId}", taskId, contextId)
+                .then()
+                .statusCode(204);
+
+        given()
+                .when().get("/tasks/{taskId}/context/{contextId}", taskId, contextId)
+                .then()
+                .statusCode(404);
+    }
+
+    @Test
+    void testGetContextWrongTask() {
+        int taskId1 = createTaskAndReturnId();
+        int taskId2 = createTaskAndReturnId();
+
+        int contextId = given()
+                .contentType(ContentType.JSON)
+                .body(taskContext("wrong-task-ctx", ContextType.MARKDOWN))
+                .when().post("/tasks/{taskId}/context", taskId1)
+                .then()
+                .statusCode(201)
+                .extract().path("id");
+
+        given()
+                .when().get("/tasks/{taskId}/context/{contextId}", taskId2, contextId)
+                .then()
+                .statusCode(404);
     }
 }
