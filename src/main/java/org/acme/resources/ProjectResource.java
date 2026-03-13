@@ -1,5 +1,6 @@
 package org.acme.resources;
 
+import io.quarkus.narayana.jta.QuarkusTransaction;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -23,7 +24,9 @@ import org.acme.mapper.GitContextMapper;
 import org.acme.mapper.ProjectMapper;
 import org.acme.models.jpa.entity.GitContextEntity;
 import org.acme.models.jpa.entity.ProjectEntity;
+import org.acme.models.jpa.entity.SyncStatus;
 import org.acme.services.ProjectService;
+import org.acme.services.TaskSyncService;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -43,6 +46,9 @@ public class ProjectResource {
 
     @Inject
     ProjectService projectService;
+
+    @Inject
+    TaskSyncService taskSyncService;
 
     @GET
     public List<ProjectDto> list() {
@@ -99,6 +105,33 @@ public class ProjectResource {
         entity.credential.username = dto.username;
         entity.credential.persist();
         return projectMapper.toDto(entity);
+    }
+
+    @POST
+    @Path("/{id}/sync")
+    @Transactional(Transactional.TxType.NEVER)
+    public Response sync(@PathParam("id") Long id) {
+        ProjectDto[] result = new ProjectDto[1];
+        boolean[] conflict = new boolean[1];
+        QuarkusTransaction.requiringNew().run(() -> {
+            ProjectEntity entity = (ProjectEntity) ProjectEntity.findByIdOptional(id)
+                    .orElseThrow(NotFoundException::new);
+            if (entity.syncStatus == SyncStatus.SYNCHRONIZATION_IN_PROGRESS) {
+                conflict[0] = true;
+                result[0] = projectMapper.toDto(entity);
+                return;
+            }
+            entity.syncStatus = SyncStatus.SYNCHRONIZATION_IN_PROGRESS;
+            entity.persist();
+            result[0] = projectMapper.toDto(entity);
+        });
+        if (conflict[0]) {
+            return Response.status(Response.Status.CONFLICT)
+                    .entity(result[0])
+                    .build();
+        }
+        taskSyncService.triggerSync(id);
+        return Response.accepted(result[0]).build();
     }
 
     @DELETE

@@ -3,6 +3,9 @@ package org.acme.dto;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import org.acme.models.jpa.entity.SourceType;
+import org.acme.models.jpa.entity.SyncStatus;
+
+import java.time.Instant;
 
 public class ProjectDto {
 
@@ -28,4 +31,8 @@ public class ProjectDto {
     @NotNull
     @Valid
     public CredentialDto credential;
+
+    public SyncStatus syncStatus;
+
+    public Instant lastSyncAt;
 }

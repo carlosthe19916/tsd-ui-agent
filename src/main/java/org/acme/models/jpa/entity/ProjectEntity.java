@@ -14,6 +14,7 @@ import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import jakarta.validation.constraints.NotNull;
 
+import java.time.Instant;
 import java.util.Objects;
 
 @Entity
@@ -52,6 +53,13 @@ public class ProjectEntity extends PanacheEntityBase {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "credential_id", nullable = false)
     public CredentialEntity credential;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "sync_status")
+    public SyncStatus syncStatus = SyncStatus.NOT_SYNCHRONIZED;
+
+    @Column(name = "last_sync_at")
+    public Instant lastSyncAt;
 
     @Version
     public int version;

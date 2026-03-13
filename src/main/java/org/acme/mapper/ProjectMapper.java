@@ -21,6 +21,8 @@ public class ProjectMapper {
         dto.type = entity.type;
         dto.git = toGitDto(entity.git);
         dto.credential = toCredentialDto(entity.credential);
+        dto.syncStatus = entity.syncStatus;
+        dto.lastSyncAt = entity.lastSyncAt;
         return dto;
     }
 
