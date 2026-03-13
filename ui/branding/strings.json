@@ -1,0 +1,16 @@
+{
+  "application": {
+    "title": "TSD UI Agent",
+    "name": "TSD UI Agent",
+    "description": "TSD UI Agent"
+  },
+  "about": {
+    "displayName": "TSD UI Agent",
+    "documentationUrl": ""
+  },
+  "masthead": {
+    "leftTitle": {
+      "text": "TSD UI Agent"
+    }
+  }
+}

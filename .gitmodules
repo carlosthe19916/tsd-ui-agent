@@ -1,3 +1,9 @@
 [submodule ".modules/searchpe"]
 	path = .modules/searchpe
 	url = https://github.com/carlosthe19916/searchpe.git
+[submodule ".modules/pulp-2-ui"]
+	path = .modules/pulp-2-ui
+	url = https://github.com/pulp/pulp-ui-2.git
+[submodule ".modules/trustify-ui"]
+	path = .modules/trustify-ui
+	url = https://github.com/guacsec/trustify-ui.git

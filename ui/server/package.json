@@ -1,0 +1,25 @@
+{
+  "name": "@tsd-ui/server",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "clean": "rimraf ./dist",
+    "clean:all": "rimraf ./dist ./node_modules",
+    "lint": "biome check --error-on-warnings .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format .",
+    "format:fix": "biome format --write .",
+    "prebuild": "npm run clean",
+    "build": "cross-env NODE_ENV=production rollup -c",
+    "start:dev": "cross-env NODE_ENV=development ROLLUP_RUN=true rollup -c -w",
+    "start": "npm run build && node --enable-source-maps dist/index.js"
+  },
+  "dependencies": {
+    "cookie": "^1.0.2",
+    "ejs": "^4.0.0",
+    "express": "^5.1.0",
+    "http-terminator": "^3.2.0"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "name": "@tsd-ui/common",
+  "description": "ESM module for code common to client and server",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "types": "./dist",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "scripts": {
+    "clean": "rimraf ./dist",
+    "clean:all": "rimraf ./dist ./node_modules",
+    "lint": "biome check --error-on-warnings .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format .",
+    "format:fix": "biome format --write .",
+    "prebuild": "npm run clean",
+    "build": "cross-env NODE_ENV=production rollup -c",
+    "start:dev": "cross-env NODE_ENV=development rollup -c --watch"
+  }
+}
