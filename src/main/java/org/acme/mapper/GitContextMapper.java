@@ -3,7 +3,7 @@ package org.acme.mapper;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.acme.dto.GitContextDto;
 import org.acme.models.jpa.entity.GitContextEntity;
-import org.acme.models.jpa.entity.GitEntity;
+import org.acme.models.jpa.entity.ProjectEntity;
 
 @ApplicationScoped
 public class GitContextMapper {
@@ -20,7 +20,7 @@ public class GitContextMapper {
         return dto;
     }
 
-    public GitContextEntity toEntity(GitContextDto dto, GitEntity git) {
+    public GitContextEntity toEntity(GitContextDto dto, ProjectEntity project) {
         GitContextEntity entity = new GitContextEntity();
         entity.name = dto.name;
         entity.description = dto.description;
@@ -28,7 +28,7 @@ public class GitContextMapper {
         entity.content = dto.content;
         entity.repositoryUrl = dto.repositoryUrl;
         entity.branch = dto.branch;
-        entity.git = git;
+        entity.project = project;
         return entity;
     }
 

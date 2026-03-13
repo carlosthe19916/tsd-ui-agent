@@ -1,0 +1,298 @@
+import * as React from "react";
+
+import {
+  Dropdown,
+  DropdownGroup,
+  DropdownItem,
+  DropdownList,
+  MenuToggle,
+  type SelectOptionProps,
+  ToolbarGroup,
+  ToolbarItem,
+  ToolbarToggleGroup,
+} from "@patternfly/react-core";
+import FilterIcon from "@patternfly/react-icons/dist/esm/icons/filter-icon";
+
+import { FilterControl } from "./FilterControl";
+
+export enum FilterType {
+  select = "select",
+  multiselect = "multiselect",
+  asyncMultiselect = "asyncMultiselect",
+  search = "search",
+  numsearch = "numsearch",
+  dateRange = "dateRange",
+  autocompleteLabel = "autocompleteLabel",
+  toggle = "toggle",
+}
+
+export type FilterValue = string[] | undefined | null;
+
+export interface FilterSelectOptionProps {
+  optionProps?: SelectOptionProps;
+  value: string;
+  label?: string;
+  chipLabel?: string;
+  groupLabel?: string;
+}
+
+export interface IBasicFilterCategory<
+  /** The actual API objects we're filtering */
+  TItem,
+  TFilterCategoryKey extends string, // Unique identifiers for each filter category (inferred from key properties if possible)
+> {
+  /** For use in the filterValues state object. Must be unique per category. */
+  categoryKey: TFilterCategoryKey;
+  /** Title of the filter as displayed in the filter selection dropdown and filter chip groups. */
+  title: string;
+  /** Type of filter component to use to select the filter's content. */
+  type: FilterType;
+  /** Optional grouping to display this filter in the filter selection dropdown. */
+  filterGroup?: string;
+  /** For client side filtering, return the value of `TItem` the filter will be applied against. */
+  getItemValue?: (item: TItem) => string | boolean; // For client-side filtering
+  /** For server-side filtering, defaults to `key` if omitted. Does not need to be unique if the server supports joining repeated filters. */
+  serverFilterField?: string;
+  /**
+   * For server-side filtering, return the search value for currently selected filter items.
+   * Defaults to using the UI state's value if omitted.
+   */
+  getServerFilterValue?: (filterValue: FilterValue) => string[] | undefined;
+  /** For client side filtering, provide custom algorithm for testing if the value of `TItem` matches the filter value. */
+  matcher?: (filter: string, item: TItem) => boolean;
+  /**
+   * Main operator for filter value. Defaults depends on the implementation of each categorykey
+   */
+  operator?: "=" | "!=" | "~" | ">" | ">=" | "<" | "<=";
+  /**
+   * For dynamic operator. Returns the operator value based on the filterValue
+   */
+  getOperator?: (
+    filterValue: FilterValue,
+  ) => "=" | "!=" | "~" | ">" | ">=" | "<" | "<=";
+  /**
+   * Whether or not it will always be
+   */
+  showOutsideDropdown?: boolean;
+}
+
+export interface IMultiselectFilterCategory<
+  TItem,
+  TFilterCategoryKey extends string,
+> extends IBasicFilterCategory<TItem, TFilterCategoryKey> {
+  /** The full set of options to select from for this filter. */
+  selectOptions: FilterSelectOptionProps[];
+  /** Option search input field placeholder text. */
+  placeholderText?: string;
+  /** How to connect multiple selected options together. Defaults to "AND". */
+  logicOperator?: "AND" | "OR";
+}
+
+export interface IAsyncMultiselectFilterCategory<
+  TItem,
+  TFilterCategoryKey extends string,
+> extends IMultiselectFilterCategory<TItem, TFilterCategoryKey> {
+  // Callback for the InputText. Use React.callback to avoid re-rendering
+  onInputValueChange?: (value: string) => void;
+}
+
+export interface ISelectFilterCategory<TItem, TFilterCategoryKey extends string>
+  extends IBasicFilterCategory<TItem, TFilterCategoryKey> {
+  selectOptions: FilterSelectOptionProps[];
+}
+
+export interface ISearchFilterCategory<TItem, TFilterCategoryKey extends string>
+  extends IBasicFilterCategory<TItem, TFilterCategoryKey> {
+  placeholderText: string;
+}
+
+export interface IToggleFilterCategory<TItem, TFilterCategoryKey extends string>
+  extends IBasicFilterCategory<TItem, TFilterCategoryKey> {
+  label: string;
+}
+
+export type FilterCategory<TItem, TFilterCategoryKey extends string> =
+  | IMultiselectFilterCategory<TItem, TFilterCategoryKey>
+  | IAsyncMultiselectFilterCategory<TItem, TFilterCategoryKey>
+  | ISelectFilterCategory<TItem, TFilterCategoryKey>
+  | ISearchFilterCategory<TItem, TFilterCategoryKey>
+  | IToggleFilterCategory<TItem, TFilterCategoryKey>
+  | IBasicFilterCategory<TItem, TFilterCategoryKey>;
+
+export type IFilterValues<TFilterCategoryKey extends string> = Partial<
+  Record<TFilterCategoryKey, FilterValue>
+>;
+
+export const getFilterLogicOperator = <
+  TItem,
+  TFilterCategoryKey extends string,
+>(
+  filterCategory?: FilterCategory<TItem, TFilterCategoryKey>,
+  defaultOperator: "AND" | "OR" = "OR",
+) =>
+  (filterCategory &&
+    (filterCategory as IMultiselectFilterCategory<TItem, TFilterCategoryKey>)
+      .logicOperator) ||
+  defaultOperator;
+
+export interface IFilterToolbarProps<TItem, TFilterCategoryKey extends string> {
+  filterCategories: FilterCategory<TItem, TFilterCategoryKey>[];
+  filterValues: IFilterValues<TFilterCategoryKey>;
+  setFilterValues: (values: IFilterValues<TFilterCategoryKey>) => void;
+  beginToolbarItems?: React.JSX.Element;
+  endToolbarItems?: React.JSX.Element;
+  pagination?: React.JSX.Element;
+  showFiltersSideBySide?: boolean;
+  isDisabled?: boolean;
+}
+
+export const FilterToolbar = <TItem, TFilterCategoryKey extends string>({
+  filterCategories,
+  filterValues,
+  setFilterValues,
+  pagination,
+  showFiltersSideBySide = false,
+  isDisabled = false,
+}: React.PropsWithChildren<
+  IFilterToolbarProps<TItem, TFilterCategoryKey>
+>): React.JSX.Element | null => {
+  const filteredFilterCategories = showFiltersSideBySide
+    ? filterCategories
+    : filterCategories.filter((item) => !item.showOutsideDropdown);
+
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] =
+    React.useState(false);
+  const [currentFilterCategoryKey, setCurrentFilterCategoryKey] =
+    React.useState(
+      filteredFilterCategories[0]?.categoryKey as
+        | TFilterCategoryKey
+        | undefined,
+    );
+
+  const onCategorySelect = (
+    category: FilterCategory<TItem, TFilterCategoryKey>,
+  ) => {
+    setCurrentFilterCategoryKey(category.categoryKey);
+    setIsCategoryDropdownOpen(false);
+  };
+
+  const setFilterValue = (
+    category: FilterCategory<TItem, TFilterCategoryKey>,
+    newValue: FilterValue,
+  ) => setFilterValues({ ...filterValues, [category.categoryKey]: newValue });
+
+  const currentFilterCategory = filteredFilterCategories.find(
+    (category) => category.categoryKey === currentFilterCategoryKey,
+  );
+
+  const filterGroups = filteredFilterCategories.reduce((groups, category) => {
+    if (category.filterGroup && !groups.includes(category.filterGroup)) {
+      groups.push(category.filterGroup);
+    }
+    return groups;
+  }, [] as string[]);
+
+  const renderDropdownItems = () => {
+    if (filterGroups.length) {
+      return filterGroups.map((filterGroup) => (
+        <DropdownGroup label={filterGroup} key={filterGroup}>
+          <DropdownList>
+            {filteredFilterCategories
+              .filter(
+                (filterCategory) => filterCategory.filterGroup === filterGroup,
+              )
+              .map((filterCategory) => {
+                return (
+                  <DropdownItem
+                    id={`filter-category-${filterCategory.categoryKey}`}
+                    key={filterCategory.categoryKey}
+                    onClick={() => onCategorySelect(filterCategory)}
+                  >
+                    {filterCategory.title}
+                  </DropdownItem>
+                );
+              })}
+          </DropdownList>
+        </DropdownGroup>
+      ));
+    }
+
+    return filteredFilterCategories.map((category) => (
+      <DropdownItem
+        id={`filter-category-${category.categoryKey}`}
+        key={category.categoryKey}
+        onClick={() => onCategorySelect(category)}
+      >
+        {category.title}
+      </DropdownItem>
+    ));
+  };
+
+  return (
+    <>
+      <ToolbarToggleGroup
+        variant="filter-group"
+        toggleIcon={<FilterIcon />}
+        breakpoint="2xl"
+        gap={showFiltersSideBySide ? { default: "gapMd" } : undefined}
+      >
+        {!showFiltersSideBySide && (
+          <ToolbarItem>
+            <Dropdown
+              toggle={(toggleRef) => (
+                <MenuToggle
+                  aria-label="filtered-by"
+                  ref={toggleRef}
+                  onClick={() =>
+                    setIsCategoryDropdownOpen(!isCategoryDropdownOpen)
+                  }
+                  isDisabled={isDisabled}
+                >
+                  <FilterIcon /> {currentFilterCategory?.title}
+                </MenuToggle>
+              )}
+              isOpen={isCategoryDropdownOpen}
+            >
+              {renderDropdownItems()}
+            </Dropdown>
+          </ToolbarItem>
+        )}
+
+        {filteredFilterCategories.map((category) => (
+          <FilterControl<TItem, TFilterCategoryKey>
+            key={category.categoryKey}
+            category={category}
+            filterValue={filterValues[category.categoryKey]}
+            setFilterValue={(newValue) => setFilterValue(category, newValue)}
+            showToolbarItem={
+              showFiltersSideBySide ||
+              currentFilterCategory?.categoryKey === category.categoryKey
+            }
+            isDisabled={isDisabled}
+          />
+        ))}
+      </ToolbarToggleGroup>
+      {!showFiltersSideBySide && (
+        <ToolbarGroup variant="filter-group" alignSelf="center">
+          {filterCategories
+            .filter((item) => item.showOutsideDropdown)
+            .map((category) => (
+              <FilterControl<TItem, TFilterCategoryKey>
+                key={category.categoryKey}
+                category={category}
+                filterValue={filterValues[category.categoryKey]}
+                setFilterValue={(newValue) =>
+                  setFilterValue(category, newValue)
+                }
+                showToolbarItem
+                isDisabled={isDisabled}
+              />
+            ))}
+        </ToolbarGroup>
+      )}
+      {pagination ? (
+        <ToolbarItem variant="pagination">{pagination}</ToolbarItem>
+      ) : null}
+    </>
+  );
+};

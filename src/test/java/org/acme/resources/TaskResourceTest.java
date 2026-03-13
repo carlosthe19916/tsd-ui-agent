@@ -9,7 +9,6 @@ import org.acme.dto.PlanDto;
 import org.acme.dto.ProjectDto;
 import org.acme.dto.TaskContextDto;
 import org.acme.models.jpa.entity.ContextType;
-import org.acme.models.jpa.entity.GitPlatform;
 import org.acme.models.jpa.entity.PlanStatus;
 import org.acme.models.jpa.entity.PlanType;
 import org.acme.models.jpa.entity.SourceType;
@@ -58,21 +57,26 @@ class TaskResourceTest {
         }
 
         GitDto git = new GitDto();
-        git.name = "task-git-" + System.nanoTime();
         git.url = "https://github.com/test/repo";
-        git.platform = GitPlatform.GITHUB;
 
         CredentialDto cred = new CredentialDto();
         cred.name = "task-cred-" + System.nanoTime();
-        cred.type = type;
         cred.token = "test-token";
+
+        int credId = given()
+                .contentType(ContentType.JSON)
+                .body(cred)
+                .when().post("/credentials")
+                .then()
+                .statusCode(201)
+                .extract().path("id");
 
         ProjectDto dto = new ProjectDto();
         dto.name = "task-project-" + System.nanoTime();
         dto.url = "https://github.com/owner/repo";
         dto.type = type;
         dto.git = git;
-        dto.credential = cred;
+        dto.credentialId = (long) credId;
 
         int id = given()
                 .contentType(ContentType.JSON)

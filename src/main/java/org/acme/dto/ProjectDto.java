@@ -14,8 +14,6 @@ public class ProjectDto {
     @NotNull
     public String name;
 
-    public String description;
-
     @NotNull
     public String url;
 
@@ -29,8 +27,7 @@ public class ProjectDto {
     public GitDto git;
 
     @NotNull
-    @Valid
-    public CredentialDto credential;
+    public Long credentialId;
 
     public SyncStatus syncStatus;
 

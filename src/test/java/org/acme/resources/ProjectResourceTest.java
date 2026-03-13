@@ -7,41 +7,38 @@ import org.acme.dto.GitContextDto;
 import org.acme.dto.GitDto;
 import org.acme.dto.ProjectDto;
 import org.acme.models.jpa.entity.ContextType;
-import org.acme.models.jpa.entity.GitPlatform;
 import org.acme.models.jpa.entity.SourceType;
 import org.junit.jupiter.api.Test;
 
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 
 @QuarkusTest
 class ProjectResourceTest {
 
-    private static GitDto git(String name, String url, GitPlatform platform) {
+    private static GitDto git(String url) {
         GitDto dto = new GitDto();
-        dto.name = name;
         dto.url = url;
-        dto.platform = platform;
         return dto;
     }
 
     private static GitDto defaultGit() {
-        return git("test-git", "https://github.com/test", GitPlatform.GITHUB);
+        return git("https://github.com/test");
     }
 
-    private static CredentialDto credential(String name, SourceType type, String token) {
-        CredentialDto dto = new CredentialDto();
-        dto.name = name;
-        dto.type = type;
-        dto.token = token;
-        return dto;
-    }
-
-    private static CredentialDto defaultCredential() {
-        return credential("test-cred", SourceType.GITHUB, "test-token");
+    private static int createCredential() {
+        CredentialDto cred = new CredentialDto();
+        cred.name = "test-cred";
+        cred.token = "test-token";
+        return given()
+                .contentType(ContentType.JSON)
+                .body(cred)
+                .when().post("/credentials")
+                .then()
+                .statusCode(201)
+                .extract().path("id");
     }
 
     private static ProjectDto project(String name, String url, SourceType type) {
@@ -50,14 +47,13 @@ class ProjectResourceTest {
         dto.url = url;
         dto.type = type;
         dto.git = defaultGit();
-        dto.credential = defaultCredential();
+        dto.credentialId = (long) createCredential();
         return dto;
     }
 
     @Test
     void testCreateProject() {
         ProjectDto dto = project("my-project", "https://example.com", SourceType.GITHUB);
-        dto.description = "A test project";
         dto.query = "label=bug";
 
         given()
@@ -68,24 +64,16 @@ class ProjectResourceTest {
                 .statusCode(201)
                 .body("id", notNullValue())
                 .body("name", is("my-project"))
-                .body("description", is("A test project"))
                 .body("url", is("https://example.com"))
                 .body("query", is("label=bug"))
                 .body("type", is("GITHUB"))
-                .body("git.id", notNullValue())
-                .body("git.name", is("test-git"))
                 .body("git.url", is("https://github.com/test"))
-                .body("git.platform", is("GITHUB"))
-                .body("credential.id", notNullValue())
-                .body("credential.name", is("test-cred"))
-                .body("credential.type", is("GITHUB"))
-                .body("credential.token", nullValue());
+                .body("credentialId", notNullValue());
     }
 
     @Test
     void testCreateProjectValidationFails() {
         ProjectDto dto = new ProjectDto();
-        dto.description = "missing required fields";
 
         given()
                 .contentType(ContentType.JSON)
@@ -109,9 +97,13 @@ class ProjectResourceTest {
     }
 
     @Test
-    void testCreateProjectCredentialValidationFails() {
-        ProjectDto dto = project("bad-cred", "https://example.com", SourceType.GITHUB);
-        dto.credential = new CredentialDto(); // missing required fields on credential
+    void testCreateProjectMissingCredentialFails() {
+        ProjectDto dto = new ProjectDto();
+        dto.name = "no-cred";
+        dto.url = "https://example.com";
+        dto.type = SourceType.GITHUB;
+        dto.git = defaultGit();
+        // credentialId is null
 
         given()
                 .contentType(ContentType.JSON)
@@ -122,20 +114,20 @@ class ProjectResourceTest {
     }
 
     @Test
-    void testCreateProjectMissingCredentialFails() {
+    void testCreateProjectNonExistentCredentialFails() {
         ProjectDto dto = new ProjectDto();
-        dto.name = "no-cred";
+        dto.name = "bad-cred-ref";
         dto.url = "https://example.com";
         dto.type = SourceType.GITHUB;
         dto.git = defaultGit();
-        // credential is null
+        dto.credentialId = 999999L;
 
         given()
                 .contentType(ContentType.JSON)
                 .body(dto)
                 .when().post("/projects")
                 .then()
-                .statusCode(400);
+                .statusCode(404);
     }
 
     @Test
@@ -156,9 +148,17 @@ class ProjectResourceTest {
 
     @Test
     void testGetProject() {
+        int credId = createCredential();
+        ProjectDto dto = new ProjectDto();
+        dto.name = "get-project";
+        dto.url = "https://example.com";
+        dto.type = SourceType.GITHUB;
+        dto.git = defaultGit();
+        dto.credentialId = (long) credId;
+
         int id = given()
                 .contentType(ContentType.JSON)
-                .body(project("get-project", "https://example.com", SourceType.GITHUB))
+                .body(dto)
                 .when().post("/projects")
                 .then()
                 .statusCode(201)
@@ -169,10 +169,7 @@ class ProjectResourceTest {
                 .then()
                 .statusCode(200)
                 .body("name", is("get-project"))
-                .body("git.id", notNullValue())
-                .body("git.name", is("test-git"))
-                .body("credential.id", notNullValue())
-                .body("credential.name", is("test-cred"));
+                .body("credentialId", is(credId));
     }
 
     @Test
@@ -194,10 +191,8 @@ class ProjectResourceTest {
                 .extract();
 
         int id = createResponse.path("id");
-        int gitId = createResponse.path("git.id");
-        int credId = createResponse.path("credential.id");
+        int credId = createResponse.path("credentialId");
 
-        // Update only project fields — git and credential should stay unchanged
         ProjectDto updated = project("after-update", "https://updated.com", SourceType.JIRA);
 
         given()
@@ -209,10 +204,7 @@ class ProjectResourceTest {
                 .body("name", is("after-update"))
                 .body("url", is("https://updated.com"))
                 .body("type", is("JIRA"))
-                .body("git.id", is(gitId))
-                .body("git.name", is("test-git"))
-                .body("credential.id", is(credId))
-                .body("credential.name", is("test-cred"));
+                .body("credentialId", is(credId));
     }
 
     @Test
@@ -235,7 +227,8 @@ class ProjectResourceTest {
                 .statusCode(201)
                 .extract().path("id");
 
-        GitDto newGit = git("updated-git", "https://gitlab.com/test", GitPlatform.GITHUB);
+        GitDto newGit = git("https://gitlab.com/test");
+        newGit.branch = "develop";
 
         given()
                 .contentType(ContentType.JSON)
@@ -243,34 +236,8 @@ class ProjectResourceTest {
                 .when().put("/projects/{id}/git", id)
                 .then()
                 .statusCode(200)
-                .body("git.name", is("updated-git"))
-                .body("git.url", is("https://gitlab.com/test"));
-    }
-
-    @Test
-    void testUpdateCredential() {
-        var response = given()
-                .contentType(ContentType.JSON)
-                .body(project("cred-update-project", "https://example.com", SourceType.GITHUB))
-                .when().post("/projects")
-                .then()
-                .statusCode(201)
-                .extract();
-
-        int id = response.path("id");
-        int credId = response.path("credential.id");
-
-        CredentialDto updatedCred = credential("updated-cred", SourceType.JIRA, "updated-token");
-
-        given()
-                .contentType(ContentType.JSON)
-                .body(updatedCred)
-                .when().put("/projects/{id}/credential", id)
-                .then()
-                .statusCode(200)
-                .body("credential.id", is(credId))
-                .body("credential.name", is("updated-cred"))
-                .body("credential.type", is("JIRA"));
+                .body("git.url", is("https://gitlab.com/test"))
+                .body("git.branch", is("develop"));
     }
 
     @Test

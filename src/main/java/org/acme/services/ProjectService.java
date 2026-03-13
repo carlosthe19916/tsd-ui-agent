@@ -2,6 +2,7 @@ package org.acme.services;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.transaction.Transactional;
+import jakarta.ws.rs.NotFoundException;
 import org.acme.dto.ProjectDto;
 import org.acme.models.jpa.entity.CredentialEntity;
 import org.acme.models.jpa.entity.GitEntity;
@@ -13,21 +14,14 @@ public class ProjectService {
 
     public ProjectEntity create(ProjectDto dto) {
         GitEntity git = new GitEntity();
-        git.name = dto.git.name;
         git.url = dto.git.url;
-        git.platform = dto.git.platform;
-        git.persist();
+        git.branch = dto.git.branch;
 
-        CredentialEntity credential = new CredentialEntity();
-        credential.name = dto.credential.name;
-        credential.type = dto.credential.type;
-        credential.token = dto.credential.token;
-        credential.username = dto.credential.username;
-        credential.persist();
+        CredentialEntity credential = (CredentialEntity) CredentialEntity.findByIdOptional(dto.credentialId)
+                .orElseThrow(NotFoundException::new);
 
         ProjectEntity entity = new ProjectEntity();
         entity.name = dto.name;
-        entity.description = dto.description;
         entity.url = dto.url;
         entity.query = dto.query;
         entity.type = dto.type;
@@ -40,7 +34,6 @@ public class ProjectService {
 
     public ProjectEntity update(ProjectEntity entity, ProjectDto dto) {
         entity.name = dto.name;
-        entity.description = dto.description;
         entity.url = dto.url;
         entity.query = dto.query;
         entity.type = dto.type;

@@ -6,7 +6,6 @@ import io.restassured.http.ContentType;
 import org.acme.dto.CredentialDto;
 import org.acme.dto.GitDto;
 import org.acme.dto.ProjectDto;
-import org.acme.models.jpa.entity.GitPlatform;
 import org.acme.models.jpa.entity.SourceType;
 import org.acme.models.jpa.entity.TaskStatus;
 import org.acme.services.sync.ExternalIssue;
@@ -47,18 +46,21 @@ class ProjectSyncResourceTest {
 
     private static GitDto defaultGit() {
         GitDto dto = new GitDto();
-        dto.name = "sync-git";
         dto.url = "https://github.com/test/repo";
-        dto.platform = GitPlatform.GITHUB;
         return dto;
     }
 
-    private static CredentialDto defaultCredential() {
-        CredentialDto dto = new CredentialDto();
-        dto.name = "sync-cred";
-        dto.type = SourceType.GITHUB;
-        dto.token = "test-token";
-        return dto;
+    private static int createCredential() {
+        CredentialDto cred = new CredentialDto();
+        cred.name = "sync-cred";
+        cred.token = "test-token";
+        return given()
+                .contentType(ContentType.JSON)
+                .body(cred)
+                .when().post("/credentials")
+                .then()
+                .statusCode(201)
+                .extract().path("id");
     }
 
     private int createProject() {
@@ -67,7 +69,7 @@ class ProjectSyncResourceTest {
         dto.url = "https://github.com/owner/repo";
         dto.type = SourceType.GITHUB;
         dto.git = defaultGit();
-        dto.credential = defaultCredential();
+        dto.credentialId = (long) createCredential();
         return given()
                 .contentType(ContentType.JSON)
                 .body(dto)

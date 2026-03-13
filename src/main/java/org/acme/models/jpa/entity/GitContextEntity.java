@@ -47,8 +47,8 @@ public class GitContextEntity extends PanacheEntityBase {
 
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "git_id", nullable = false)
-    public GitEntity git;
+    @JoinColumn(name = "project_id", nullable = false)
+    public ProjectEntity project;
 
     @Version
     public int version;

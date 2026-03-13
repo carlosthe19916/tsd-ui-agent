@@ -35,7 +35,7 @@ public class JiraIssueFetcher implements IssueFetcher {
             AsynchronousJiraRestClientFactory factory = new AsynchronousJiraRestClientFactory();
             URI jiraUri = URI.create(project.url);
             JiraRestClient client = factory.createWithBasicHttpAuthentication(
-                    jiraUri, project.credential.username, project.credential.token);
+                    jiraUri, "", project.credential.token);
 
             try {
                 String jql = (project.query != null && !project.query.isBlank())

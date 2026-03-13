@@ -3,8 +3,6 @@ package org.acme.models.jpa.entity;
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -24,14 +22,6 @@ public class CredentialEntity extends PanacheEntityBase {
     @NotNull
     @Column(name = "name")
     public String name;
-
-    @NotNull
-    @Enumerated(EnumType.STRING)
-    @Column(name = "type")
-    public SourceType type;
-
-    @Column(name = "username")
-    public String username;
 
     @NotNull
     @Column(name = "token")
