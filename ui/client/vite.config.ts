@@ -98,6 +98,7 @@ export default defineConfig({
       "/api": {
         target: TSD_ENV.TSD_API_URL || "http://localhost:8080",
         changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ""),
       },
     },
   },
