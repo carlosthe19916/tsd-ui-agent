@@ -107,10 +107,7 @@ export default defineConfig({
     setupFiles: "./test-setup.ts",
     server: {
       deps: {
-        inline: [
-          "@patternfly/react-styles",
-          "@tsd-ui/common",
-        ],
+        inline: ["@patternfly/react-styles", "@tsd-ui/common"],
       },
     },
     coverage: {
