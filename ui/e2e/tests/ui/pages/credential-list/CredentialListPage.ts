@@ -50,17 +50,15 @@ export class CredentialListPage {
   }
 
   async submitCreate() {
-    await this._page
-      .locator(".pf-v6-c-modal-box")
-      .getByRole("button", { name: "Create" })
-      .click();
+    const modal = this._page.locator(".pf-v6-c-modal-box");
+    await modal.getByRole("button", { name: "Create" }).click();
+    await expect(modal).not.toBeVisible();
   }
 
   async submitEdit() {
-    await this._page
-      .locator(".pf-v6-c-modal-box")
-      .getByRole("button", { name: "Save" })
-      .click();
+    const modal = this._page.locator(".pf-v6-c-modal-box");
+    await modal.getByRole("button", { name: "Save" }).click();
+    await expect(modal).not.toBeVisible();
   }
 
   async cancelModal() {

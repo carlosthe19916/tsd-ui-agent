@@ -18,8 +18,6 @@ test.describe("Credential CRUD", () => {
     await credentialPage.fillCredentialForm(credentialName, credentialToken);
     await credentialPage.submitCreate();
 
-    await expect(page.locator(".pf-v6-c-modal-box")).not.toBeVisible();
-
     const table = await credentialPage.getTable();
     const column = await table.getColumn("Name");
     await expect(column.getByText(credentialName)).toBeVisible();
@@ -30,7 +28,6 @@ test.describe("Credential CRUD", () => {
     await credentialPage.clickCreateCredential();
     await credentialPage.fillCredentialForm(editName, credentialToken);
     await credentialPage.submitCreate();
-    await expect(page.locator(".pf-v6-c-modal-box")).not.toBeVisible();
 
     await credentialPage.clickRowAction(editName, "Edit");
 
@@ -42,7 +39,6 @@ test.describe("Credential CRUD", () => {
     const updatedName = `${editName}-updated`;
     await credentialPage.fillCredentialForm(updatedName);
     await credentialPage.submitEdit();
-    await expect(page.locator(".pf-v6-c-modal-box")).not.toBeVisible();
 
     const updatedTable = await credentialPage.getTable();
     const col = await updatedTable.getColumn("Name");
@@ -54,7 +50,6 @@ test.describe("Credential CRUD", () => {
     await credentialPage.clickCreateCredential();
     await credentialPage.fillCredentialForm(editName, credentialToken);
     await credentialPage.submitCreate();
-    await expect(page.locator(".pf-v6-c-modal-box")).not.toBeVisible();
 
     await credentialPage.clickRowAction(editName, "Edit");
 
@@ -67,7 +62,6 @@ test.describe("Credential CRUD", () => {
     const updatedName = `${editName}-both`;
     await credentialPage.fillCredentialForm(updatedName, "new-token-value");
     await credentialPage.submitEdit();
-    await expect(page.locator(".pf-v6-c-modal-box")).not.toBeVisible();
 
     const updatedTable = await credentialPage.getTable();
     const col = await updatedTable.getColumn("Name");
@@ -79,7 +73,6 @@ test.describe("Credential CRUD", () => {
     await credentialPage.clickCreateCredential();
     await credentialPage.fillCredentialForm(deleteName, credentialToken);
     await credentialPage.submitCreate();
-    await expect(page.locator(".pf-v6-c-modal-box")).not.toBeVisible();
 
     await credentialPage.clickRowAction(deleteName, "Delete");
 
@@ -108,12 +101,10 @@ test.describe("Credential CRUD", () => {
     await credentialPage.clickCreateCredential();
     await credentialPage.fillCredentialForm(filterName1, credentialToken);
     await credentialPage.submitCreate();
-    await expect(page.locator(".pf-v6-c-modal-box")).not.toBeVisible();
 
     await credentialPage.clickCreateCredential();
     await credentialPage.fillCredentialForm(filterName2, credentialToken);
     await credentialPage.submitCreate();
-    await expect(page.locator(".pf-v6-c-modal-box")).not.toBeVisible();
 
     await credentialPage.applyNameFilter(filterName1);
     await page.waitForTimeout(500);
