@@ -26,9 +26,7 @@ export class CredentialListPage {
   }
 
   async clickCreateCredential() {
-    await this._page
-      .getByRole("button", { name: "Create credential" })
-      .click();
+    await this._page.getByRole("button", { name: "Create credential" }).click();
   }
 
   async fillCredentialForm(name: string, token?: string) {

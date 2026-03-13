@@ -48,7 +48,7 @@ export const SidebarApp: React.FC = () => {
             >
               Projects
             </NavLink>
-          </li>          
+          </li>
         </NavList>
       </Nav>
     );
