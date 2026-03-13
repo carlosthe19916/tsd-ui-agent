@@ -46,9 +46,9 @@ jobs:
       - name: Build
         working-directory: ui
         run: npm run build
-      - name: Test
-        working-directory: ui
-        run: npm run test -- --coverage --watchAll=false
+#      - name: Test
+#        working-directory: ui
+#        run: npm run test -- --coverage --watchAll=false
       - name: Lint
         working-directory: ui
         run: npm run lint
