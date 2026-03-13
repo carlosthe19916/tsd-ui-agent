@@ -50,12 +50,12 @@ services:
         condition: service_started
 
   playwright:
-    image: ${PLAYWRIGHT_IMAGE:?PLAYWRIGHT_IMAGE is required}:${PLAYWRIGHT_VERSION:?PLAYWRIGHT_VERSION is required}${UBUNTU_VERSION_ALIAS}
+    image: mcr.microsoft.com/playwright:v1.58.2-jammy
     ports:
       - "5000:5000"
     network_mode: host
-    working_dir: ${PLAYWRIGHT_HOME:-/home/pwuser}
+    working_dir: /home/pwuser
     command:
       - /bin/sh
       - -c
-      - npx -y playwright@${PLAYWRIGHT_VERSION:?PLAYWRIGHT_VERSION is required} run-server --port ${PLAYWRIGHT_PORT:-5000}
+      - npx -y playwright@1.58.2 run-server --port 5000

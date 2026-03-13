@@ -6,7 +6,7 @@
   "scripts": {
     "clean": "rimraf ./dist && npm run clean -ws --if-present",
     "clean:all": "npm run clean:all -ws --if-present && rimraf ./dist ./node_modules",
-    "dist": "rimraf ./dist && copyfiles -e 'node_modules/**' '**/package.json' '*/dist/**/*' ./dist",
+    "dist": "rimraf ./dist && copyfiles -e 'node_modules/**' entrypoint.sh '**/package.json' '*/dist/**/*' ./dist",
     "lint": "npm run lint -ws --if-present",
     "lint:fix": "npm run lint:fix -ws --if-present",
     "format": "npm run format -ws --if-present",
