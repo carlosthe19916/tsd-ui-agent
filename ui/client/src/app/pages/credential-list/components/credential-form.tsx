@@ -1,7 +1,7 @@
 import type React from "react";
 import type { Control } from "react-hook-form";
 
-import { Form } from "@patternfly/react-core";
+import { Checkbox, Form } from "@patternfly/react-core";
 
 import { HookFormPFTextInput } from "@app/components/HookFormPFFields";
 
@@ -9,9 +9,17 @@ import type { CredentialFormValues } from "./useCredentialForm";
 
 interface CredentialFormProps {
   control: Control<CredentialFormValues>;
+  isEditing: boolean;
+  isTokenEnabled: boolean;
+  onToggleToken: (checked: boolean) => void;
 }
 
-export const CredentialForm: React.FC<CredentialFormProps> = ({ control }) => {
+export const CredentialForm: React.FC<CredentialFormProps> = ({
+  control,
+  isEditing,
+  isTokenEnabled,
+  onToggleToken,
+}) => {
   return (
     <Form>
       <HookFormPFTextInput
@@ -26,9 +34,18 @@ export const CredentialForm: React.FC<CredentialFormProps> = ({ control }) => {
         name="token"
         label="Token"
         fieldId="token"
-        isRequired
+        isRequired={!isEditing || isTokenEnabled}
         type="password"
+        isDisabled={isEditing && !isTokenEnabled}
       />
+      {isEditing && (
+        <Checkbox
+          id="update-token"
+          label="Update token"
+          isChecked={isTokenEnabled}
+          onChange={(_event, checked) => onToggleToken(checked)}
+        />
+      )}
     </Form>
   );
 };

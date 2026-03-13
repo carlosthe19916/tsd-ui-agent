@@ -14,6 +14,7 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.core.Response;
 import org.acme.dto.CredentialDto;
 import org.acme.mapper.CredentialMapper;
@@ -49,6 +50,9 @@ public class CredentialResource {
 
     @POST
     public Response create(@Valid CredentialDto dto) {
+        if (dto.token == null) {
+            throw new BadRequestException("Token is required");
+        }
         CredentialEntity entity = credentialMapper.toEntity(dto);
         entity.persist();
         return Response.status(Response.Status.CREATED)

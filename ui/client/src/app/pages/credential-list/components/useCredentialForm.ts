@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -14,9 +15,14 @@ export interface CredentialFormValues {
   token: string;
 }
 
-const schema = yup.object({
+const createSchema = yup.object({
   name: yup.string().required("Name is required"),
   token: yup.string().required("Token is required"),
+});
+
+const editTokenDisabledSchema = yup.object({
+  name: yup.string().required("Name is required"),
+  token: yup.string().defined(),
 });
 
 const mapCredentialToFormValues = (
@@ -30,7 +36,7 @@ const mapCredentialToFormValues = (
   }
   return {
     name: credential.name,
-    token: credential.token,
+    token: credential.token ?? "",
   };
 };
 
@@ -39,9 +45,13 @@ export const useCredentialForm = (
   onClose: () => void,
 ) => {
   const isEditing = !!credential?.id;
+  const [isTokenEnabled, setIsTokenEnabled] = useState(!isEditing);
 
   const createMutation = useCreateCredentialMutation(onClose);
   const updateMutation = useUpdateCredentialMutation(onClose);
+
+  const schema =
+    isEditing && !isTokenEnabled ? editTokenDisabledSchema : createSchema;
 
   const form = useForm<CredentialFormValues>({
     defaultValues: mapCredentialToFormValues(credential),
@@ -53,7 +63,9 @@ export const useCredentialForm = (
     const dto: CredentialDto = {
       ...(isEditing && { id: credential.id }),
       name: values.name,
-      token: values.token,
+      ...((!isEditing || isTokenEnabled) && values.token
+        ? { token: values.token }
+        : {}),
     };
 
     if (isEditing) {
@@ -70,5 +82,13 @@ export const useCredentialForm = (
 
   const isCancelDisabled = form.formState.isSubmitting;
 
-  return { form, onSubmit, isSubmitDisabled, isCancelDisabled };
+  return {
+    form,
+    onSubmit,
+    isSubmitDisabled,
+    isCancelDisabled,
+    isEditing,
+    isTokenEnabled,
+    setIsTokenEnabled,
+  };
 };

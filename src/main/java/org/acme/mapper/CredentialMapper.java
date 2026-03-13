@@ -23,6 +23,8 @@ public class CredentialMapper {
 
     public void updateEntity(CredentialDto dto, CredentialEntity entity) {
         entity.name = dto.name;
-        entity.token = dto.token;
+        if (dto.token != null) {
+            entity.token = dto.token;
+        }
     }
 }

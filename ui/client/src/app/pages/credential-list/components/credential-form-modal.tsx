@@ -35,9 +35,15 @@ export const CredentialFormModal: React.FC<CredentialFormModalProps> = ({
 const CredentialFormModalContent: React.FC<
   Omit<CredentialFormModalProps, "isOpen">
 > = ({ credential, onClose }) => {
-  const isEditing = !!credential?.id;
-  const { form, onSubmit, isSubmitDisabled, isCancelDisabled } =
-    useCredentialForm(credential, onClose);
+  const {
+    form,
+    onSubmit,
+    isSubmitDisabled,
+    isCancelDisabled,
+    isEditing,
+    isTokenEnabled,
+    setIsTokenEnabled,
+  } = useCredentialForm(credential, onClose);
 
   return (
     <Modal
@@ -50,7 +56,12 @@ const CredentialFormModalContent: React.FC<
         title={isEditing ? "Edit credential" : "Create credential"}
       />
       <ModalBody>
-        <CredentialForm control={form.control} />
+        <CredentialForm
+          control={form.control}
+          isEditing={isEditing}
+          isTokenEnabled={isTokenEnabled}
+          onToggleToken={setIsTokenEnabled}
+        />
       </ModalBody>
       <ModalFooter>
         <Button
