@@ -1,0 +1,79 @@
+name: CI (e2e)
+
+on:
+  push:
+    branches:
+      - "main"
+      - "release/*"
+  pull_request:
+    branches:
+      - "main"
+      - "release/*"
+  workflow_call:
+  merge_group:
+
+concurrency:
+  group: ci-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-upload-for-e2e-ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: save tsd-ui-agent-ui image
+        run: |
+          docker build ui/ -t ghcr.io/${{ github.repository_owner }}/tsd-ui-agent-ui:pr-test -f ui/Dockerfile
+          docker save -o /tmp/tsd-ui-agent-ui.tar ghcr.io/${{ github.repository_owner }}/tsd-ui-agent-ui:pr-test
+
+      - name: Upload tsd-ui-agent-ui image as artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: tsd-ui-agent-ui
+          path: /tmp/tsd-ui-agent-ui.tar
+          retention-days: 1
+
+  discover-envs-for-e2e-ci:
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.set-outputs.outputs.image_tag }}
+    steps:
+      - name: Extract vars for Pull Request
+        shell: bash
+        if: ${{ github.event_name == 'pull_request' || github.event_name == 'merge_group' }}
+        env:
+          base_ref: ${{ github.event.pull_request.base.ref || github.event.merge_group.base_ref }}
+        run: |
+          branch=$base_ref
+          branch=$(echo ${branch#refs/heads/})
+          image_tag="latest"
+          if [[ "$branch" != "main" ]]; then
+            image_tag="${branch#release/}"
+          fi
+          echo "image_tag=$image_tag" >> $GITHUB_ENV
+      - name: Extract vars for Push
+        shell: bash
+        if: ${{ github.event_name != 'pull_request' && github.event_name != 'merge_group' }}
+        run: |
+          branch=$(echo ${GITHUB_REF#refs/heads/})
+          image_tag="latest"
+          if [[ "$branch" != "main" ]]; then
+            image_tag="${branch#release/}"
+          fi
+          echo "image_tag=$image_tag" >> $GITHUB_ENV
+      - name: Set outputs
+        id: set-outputs
+        run: |
+          echo ${{ env.image_tag }}
+          echo "image_tag=${{ env.image_tag }}" >> "$GITHUB_OUTPUT"
+
+  run-e2e-ci:
+    needs:
+      - build-and-upload-for-e2e-ci
+      - discover-envs-for-e2e-ci
+    uses: ./.github/workflows/ci-e2e-template.yaml
+    with:
+      artifact: tsd-ui-agent-ui
+      ui_image: ghcr.io/${{ github.repository_owner }}/tsd-ui-agent-ui:pr-test
+      server_image: ghcr.io/${{ github.repository_owner }}/tsd-ui-agent:${{ needs.discover-envs-for-e2e-ci.outputs.image_tag }}
