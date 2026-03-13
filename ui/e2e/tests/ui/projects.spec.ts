@@ -3,9 +3,7 @@ import { expect, test } from "@playwright/test";
 test.describe("Projects page", () => {
   test("navigates to /projects and heading is visible", async ({ page }) => {
     await page.goto("/projects");
-    await expect(
-      page.getByRole("heading", { name: "Projects" }),
-    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Projects" })).toBeVisible();
   });
 
   test("Create project button is visible", async ({ page }) => {
@@ -66,7 +64,9 @@ test.describe("Projects page", () => {
     await dialog.getByRole("button", { name: "Create" }).click();
 
     // Verify in table
-    await expect(page.getByRole("cell", { name: "Test Project" })).toBeVisible();
+    await expect(
+      page.getByRole("cell", { name: "Test Project" }),
+    ).toBeVisible();
     await expect(
       page.getByRole("cell", { name: "https://example.com" }),
     ).toBeVisible();
@@ -77,7 +77,9 @@ test.describe("Projects page", () => {
 
     const editDialog = page.getByRole("dialog", { name: "Edit project" });
     await expect(editDialog).toBeVisible();
-    await editDialog.getByLabel("Name", { exact: true }).fill("Updated Project");
+    await editDialog
+      .getByLabel("Name", { exact: true })
+      .fill("Updated Project");
     await editDialog.getByRole("button", { name: "Save" }).click();
 
     await expect(
