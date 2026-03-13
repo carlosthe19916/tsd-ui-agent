@@ -44,10 +44,14 @@ jobs:
         working-directory: ui
         run: npm ci --no-audit
       - name: Build
+        working-directory: ui
         run: npm run build
       - name: Test
+        working-directory: ui
         run: npm run test -- --coverage --watchAll=false
       - name: Lint
+        working-directory: ui
         run: npm run lint
       - name: Format
+        working-directory: ui
         run: npm run format
