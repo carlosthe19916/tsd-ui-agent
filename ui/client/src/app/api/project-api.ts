@@ -1,57 +1,22 @@
-import type { ProjectDto } from "./models";
+import axios from "axios";
+
+import type { New, ProjectDto } from "./models";
 
 const BASE_URL = "/api/projects";
 
-export const getProjects = async (): Promise<ProjectDto[]> => {
-  const response = await fetch(BASE_URL);
-  if (!response.ok) {
-    throw new Error("Failed to fetch projects");
-  }
-  return response.json();
-};
+export const getProjects = () =>
+  axios.get<ProjectDto[]>(BASE_URL).then((response) => response.data);
 
-export const getProjectById = async (id: number): Promise<ProjectDto> => {
-  const response = await fetch(`${BASE_URL}/${id}`);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch project ${id}`);
-  }
-  return response.json();
-};
+export const getProjectById = (id: number) =>
+  axios.get<ProjectDto>(`${BASE_URL}/${id}`).then((response) => response.data);
 
-export const createProject = async (
-  project: ProjectDto,
-): Promise<ProjectDto> => {
-  const response = await fetch(BASE_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(project),
-  });
-  if (!response.ok) {
-    throw new Error("Failed to create project");
-  }
-  return response.json();
-};
+export const createProject = (project: New<ProjectDto>) =>
+  axios.post<ProjectDto>(BASE_URL, project).then((response) => response.data);
 
-export const updateProject = async (
-  id: number,
-  project: ProjectDto,
-): Promise<ProjectDto> => {
-  const response = await fetch(`${BASE_URL}/${id}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(project),
-  });
-  if (!response.ok) {
-    throw new Error("Failed to update project");
-  }
-  return response.json();
-};
+export const updateProject = (id: number, project: ProjectDto) =>
+  axios
+    .put<ProjectDto>(`${BASE_URL}/${id}`, project)
+    .then((response) => response.data);
 
-export const deleteProject = async (id: number): Promise<void> => {
-  const response = await fetch(`${BASE_URL}/${id}`, {
-    method: "DELETE",
-  });
-  if (!response.ok) {
-    throw new Error("Failed to delete project");
-  }
-};
+export const deleteProject = (id: number) =>
+  axios.delete<void>(`${BASE_URL}/${id}`);

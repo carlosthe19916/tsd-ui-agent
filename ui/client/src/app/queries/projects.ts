@@ -6,7 +6,7 @@ import {
   getProjects,
   updateProject,
 } from "@app/api/project-api";
-import type { ProjectDto } from "@app/api/models";
+import type { New, ProjectDto } from "@app/api/models";
 
 const PROJECT_QUERY_KEY = "projects";
 
@@ -20,7 +20,7 @@ export const useFetchProjects = () => {
 export const useCreateProjectMutation = (onSuccess?: () => void) => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (project: ProjectDto) => createProject(project),
+    mutationFn: (project: New<ProjectDto>) => createProject(project),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [PROJECT_QUERY_KEY] });
       onSuccess?.();

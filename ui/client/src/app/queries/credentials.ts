@@ -6,7 +6,7 @@ import {
   getCredentials,
   updateCredential,
 } from "@app/api/credential-api";
-import type { CredentialDto } from "@app/api/models";
+import type { CredentialDto, New } from "@app/api/models";
 
 const CREDENTIAL_QUERY_KEY = "credentials";
 
@@ -20,7 +20,8 @@ export const useFetchCredentials = () => {
 export const useCreateCredentialMutation = (onSuccess?: () => void) => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (credential: CredentialDto) => createCredential(credential),
+    mutationFn: (credential: New<CredentialDto>) =>
+      createCredential(credential),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [CREDENTIAL_QUERY_KEY] });
       onSuccess?.();

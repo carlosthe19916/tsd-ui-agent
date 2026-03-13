@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 
-import type { ProjectDto } from "@app/api/models";
+import type { New, ProjectDto } from "@app/api/models";
 import {
   useCreateProjectMutation,
   useUpdateProjectMutation,
@@ -70,8 +70,7 @@ export const useProjectForm = (
   });
 
   const onSubmit = form.handleSubmit((values: ProjectFormValues) => {
-    const dto: ProjectDto = {
-      ...(isEditing && { id: project.id }),
+    const dto: New<ProjectDto> = {
       name: values.name,
       url: values.url,
       query: values.query || undefined,
@@ -84,7 +83,7 @@ export const useProjectForm = (
     };
 
     if (isEditing) {
-      updateMutation.mutate(dto);
+      updateMutation.mutate({ ...dto, id: project.id });
     } else {
       createMutation.mutate(dto);
     }

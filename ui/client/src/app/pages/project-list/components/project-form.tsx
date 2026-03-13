@@ -21,41 +21,55 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ control }) => {
 
   return (
     <Form>
-      <FormSection title="Project Info">
-        <HookFormPFTextInput
-          control={control}
-          name="name"
-          label="Name"
-          fieldId="name"
-          isRequired
-        />
-        <HookFormPFTextInput
-          control={control}
-          name="url"
-          label="URL"
-          fieldId="url"
-          isRequired
-        />
-        <HookFormPFTextInput
-          control={control}
-          name="query"
-          label="Query"
-          fieldId="query"
-        />
-        <HookFormPFSelect
-          control={control}
-          name="type"
-          label="Type"
-          fieldId="type"
-          isRequired
-        >
-          <FormSelectOption value="" label="Select a type" isDisabled />
-          <FormSelectOption value="JIRA" label="JIRA" />
-          <FormSelectOption value="GITHUB" label="GITHUB" />
-        </HookFormPFSelect>
-      </FormSection>
+      <HookFormPFTextInput
+        control={control}
+        name="name"
+        label="Name"
+        fieldId="name"
+        isRequired
+      />
+      <HookFormPFSelect
+        control={control}
+        name="type"
+        label="Type"
+        fieldId="type"
+        isRequired
+      >
+        <FormSelectOption value="" label="Select a type" isDisabled />
+        <FormSelectOption value="JIRA" label="JIRA" />
+        <FormSelectOption value="GITHUB" label="GITHUB" />
+      </HookFormPFSelect>
+      <HookFormPFTextInput
+        control={control}
+        name="url"
+        label="URL"
+        fieldId="url"
+        isRequired
+      />
+      <HookFormPFTextInput
+        control={control}
+        name="query"
+        label="Query"
+        fieldId="query"
+      />
+      <HookFormPFSelect
+        control={control}
+        name="credentialId"
+        label="Credential"
+        fieldId="credentialId"
+        isRequired
+      >
+        <FormSelectOption value="" label="Select a credential" isDisabled />
+        {credentials?.map((cred) => (
+          <FormSelectOption
+            key={cred.id}
+            value={String(cred.id)}
+            label={cred.name}
+          />
+        ))}
+      </HookFormPFSelect>
 
-      <FormSection title="Git Info">
+      <FormSection title="Git">
         <HookFormPFTextInput
           control={control}
           name="gitUrl"
@@ -69,25 +83,6 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ control }) => {
           label="Git Branch"
           fieldId="gitBranch"
         />
-      </FormSection>
-
-      <FormSection title="Credential">
-        <HookFormPFSelect
-          control={control}
-          name="credentialId"
-          label="Credential"
-          fieldId="credentialId"
-          isRequired
-        >
-          <FormSelectOption value="" label="Select a credential" isDisabled />
-          {credentials?.map((cred) => (
-            <FormSelectOption
-              key={cred.id}
-              value={String(cred.id)}
-              label={cred.name}
-            />
-          ))}
-        </HookFormPFSelect>
       </FormSection>
     </Form>
   );
