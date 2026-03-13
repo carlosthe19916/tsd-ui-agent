@@ -5,10 +5,13 @@ import io.quarkus.test.InjectMock;
 import io.restassured.http.ContentType;
 import org.acme.dto.CredentialDto;
 import org.acme.dto.GitDto;
+import org.acme.dto.PlanDto;
 import org.acme.dto.ProjectDto;
 import org.acme.dto.TaskContextDto;
 import org.acme.models.jpa.entity.ContextType;
 import org.acme.models.jpa.entity.GitPlatform;
+import org.acme.models.jpa.entity.PlanStatus;
+import org.acme.models.jpa.entity.PlanType;
 import org.acme.models.jpa.entity.SourceType;
 import org.acme.models.jpa.entity.TaskStatus;
 import org.acme.services.sync.ExternalIssue;
@@ -458,5 +461,128 @@ class TaskResourceTest {
                 .when().get("/tasks/{taskId}/context/{contextId}", taskId2, contextId)
                 .then()
                 .statusCode(404);
+    }
+
+    // Plan sub-resource tests
+
+    private static PlanDto planDto(PlanStatus status, PlanType type, String content) {
+        PlanDto dto = new PlanDto();
+        dto.status = status;
+        dto.type = type;
+        dto.content = content;
+        return dto;
+    }
+
+    @Test
+    void testCreatePlan() {
+        int taskId = createTaskAndReturnId();
+
+        PlanDto plan = planDto(PlanStatus.IN_PROGRESS, PlanType.MANUAL, "# My Plan");
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(plan)
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(201)
+                .body("id", notNullValue())
+                .body("status", is("IN_PROGRESS"))
+                .body("type", is("MANUAL"))
+                .body("content", is("# My Plan"))
+                .body("createdAt", notNullValue())
+                .body("updatedAt", notNullValue());
+    }
+
+    @Test
+    void testGetPlan() {
+        int taskId = createTaskAndReturnId();
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(planDto(PlanStatus.APPROVED, PlanType.AUTO, "# Auto Plan"))
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(201);
+
+        given()
+                .when().get("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(200)
+                .body("status", is("APPROVED"))
+                .body("type", is("AUTO"))
+                .body("content", is("# Auto Plan"));
+    }
+
+    @Test
+    void testGetPlanNotFound() {
+        int taskId = createTaskAndReturnId();
+
+        given()
+                .when().get("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(404);
+    }
+
+    @Test
+    void testUpdatePlan() {
+        int taskId = createTaskAndReturnId();
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(planDto(PlanStatus.IN_PROGRESS, PlanType.MANUAL, "# Draft"))
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(201);
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(planDto(PlanStatus.APPROVED, PlanType.SEMI_MANUAL, "# Final"))
+                .when().put("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(200)
+                .body("status", is("APPROVED"))
+                .body("type", is("SEMI_MANUAL"))
+                .body("content", is("# Final"));
+    }
+
+    @Test
+    void testDeletePlan() {
+        int taskId = createTaskAndReturnId();
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(planDto(PlanStatus.IN_PROGRESS, PlanType.MANUAL, "# To delete"))
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(201);
+
+        given()
+                .when().delete("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(204);
+
+        given()
+                .when().get("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(404);
+    }
+
+    @Test
+    void testCreatePlanConflict() {
+        int taskId = createTaskAndReturnId();
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(planDto(PlanStatus.IN_PROGRESS, PlanType.MANUAL, "# First"))
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(201);
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(planDto(PlanStatus.APPROVED, PlanType.AUTO, "# Second"))
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(409);
     }
 }

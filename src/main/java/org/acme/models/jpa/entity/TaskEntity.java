@@ -72,6 +72,10 @@ public class TaskEntity extends PanacheEntityBase {
     @JoinColumn(name = "project_id", nullable = false)
     public ProjectEntity project;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "plan_id", unique = true)
+    public PlanEntity plan;
+
     @Version
     public int version;
 

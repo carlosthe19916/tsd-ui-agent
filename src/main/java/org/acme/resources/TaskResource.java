@@ -18,11 +18,14 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import org.acme.dto.PlanDto;
 import org.acme.dto.SearchResultDto;
 import org.acme.dto.TaskContextDto;
 import org.acme.dto.TaskDto;
+import org.acme.mapper.PlanMapper;
 import org.acme.mapper.TaskContextMapper;
 import org.acme.mapper.TaskMapper;
+import org.acme.models.jpa.entity.PlanEntity;
 import org.acme.models.jpa.entity.SourceType;
 import org.acme.models.jpa.entity.TaskContextEntity;
 import org.acme.models.jpa.entity.TaskEntity;
@@ -49,6 +52,9 @@ public class TaskResource {
 
     @Inject
     TaskContextMapper taskContextMapper;
+
+    @Inject
+    PlanMapper planMapper;
 
     @GET
     public SearchResultDto<TaskDto> list(
@@ -218,6 +224,61 @@ public class TaskResource {
             throw new NotFoundException();
         }
         context.delete();
+        return Response.noContent().build();
+    }
+
+    // Plan sub-resource endpoints
+
+    @GET
+    @Path("/{taskId}/plan")
+    public PlanDto getPlan(@PathParam("taskId") Long taskId) {
+        TaskEntity task = (TaskEntity) TaskEntity.findByIdOptional(taskId)
+                .orElseThrow(NotFoundException::new);
+        if (task.plan == null) {
+            throw new NotFoundException();
+        }
+        return planMapper.toDto(task.plan);
+    }
+
+    @POST
+    @Path("/{taskId}/plan")
+    public Response createPlan(@PathParam("taskId") Long taskId, @Valid PlanDto dto) {
+        TaskEntity task = (TaskEntity) TaskEntity.findByIdOptional(taskId)
+                .orElseThrow(NotFoundException::new);
+        if (task.plan != null) {
+            return Response.status(Response.Status.CONFLICT).build();
+        }
+        PlanEntity plan = planMapper.toEntity(dto);
+        plan.persist();
+        task.plan = plan;
+        return Response.status(Response.Status.CREATED)
+                .entity(planMapper.toDto(plan))
+                .build();
+    }
+
+    @PUT
+    @Path("/{taskId}/plan")
+    public PlanDto updatePlan(@PathParam("taskId") Long taskId, @Valid PlanDto dto) {
+        TaskEntity task = (TaskEntity) TaskEntity.findByIdOptional(taskId)
+                .orElseThrow(NotFoundException::new);
+        if (task.plan == null) {
+            throw new NotFoundException();
+        }
+        planMapper.updateEntity(dto, task.plan);
+        return planMapper.toDto(task.plan);
+    }
+
+    @DELETE
+    @Path("/{taskId}/plan")
+    public Response deletePlan(@PathParam("taskId") Long taskId) {
+        TaskEntity task = (TaskEntity) TaskEntity.findByIdOptional(taskId)
+                .orElseThrow(NotFoundException::new);
+        if (task.plan == null) {
+            throw new NotFoundException();
+        }
+        PlanEntity plan = task.plan;
+        task.plan = null;
+        plan.delete();
         return Response.noContent().build();
     }
 }
