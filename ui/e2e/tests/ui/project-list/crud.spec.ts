@@ -55,7 +55,7 @@ test.describe("Project CRUD", () => {
     await projectPage.clickRowAction(projectName, "Edit");
 
     const updatedName = `${projectName}-updated`;
-    const modal = projectPage["_page"].locator(".pf-v6-c-modal-box");
+    const modal = projectPage._page.locator(".pf-v6-c-modal-box");
     await expect(modal).toBeVisible();
     const nameInput = modal.locator("#name");
     await nameInput.clear();
@@ -75,6 +75,7 @@ test.describe("Project CRUD", () => {
       name: projectName,
       type: "JIRA",
       url: "https://jira.example.com",
+      query: "project=TEST",
       credentialName,
       gitUrl: "https://github.com/example/repo.git",
     });
@@ -85,8 +86,8 @@ test.describe("Project CRUD", () => {
     const dialog = await projectPage.getConfirmDialog();
     await dialog.clickConfirm();
 
-    await projectPage["_page"].waitForTimeout(500);
-    const nameCell = projectPage["_page"].locator(`td[data-label="Name"]`, {
+    await projectPage._page.waitForTimeout(500);
+    const nameCell = projectPage._page.locator(`td[data-label="Name"]`, {
       hasText: projectName,
     });
     await expect(nameCell).not.toBeVisible();
@@ -109,6 +110,7 @@ test.describe("Project CRUD", () => {
       name: filterName1,
       type: "JIRA",
       url: "https://jira.example.com",
+      query: "project=TEST",
       credentialName,
       gitUrl: "https://github.com/example/repo.git",
     });
@@ -143,6 +145,7 @@ test.describe("Project CRUD", () => {
       name: cancelName,
       type: "JIRA",
       url: "https://jira.example.com",
+      query: "project=TEST",
       credentialName,
       gitUrl: "https://github.com/example/repo.git",
     });

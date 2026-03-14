@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 
-import type { New, ProjectDto } from "@app/api/models";
+import type { New, ProjectDto, SourceType } from "@app/api/models";
 import {
   useCreateProjectMutation,
   useUpdateProjectMutation,
@@ -13,7 +13,7 @@ export interface ProjectFormValues {
   name: string;
   apiUrl: string;
   query: string;
-  type: string;
+  type: SourceType | "";
   gitUrl: string;
   gitBranch: string;
   credentialId: string;
@@ -22,8 +22,17 @@ export interface ProjectFormValues {
 const schema = yup.object({
   name: yup.string().required("Name is required"),
   apiUrl: yup.string().required("API URL is required"),
-  query: yup.string().defined(),
-  type: yup.string().required("Type is required"),
+  query: yup
+    .string()
+    .when("type", ([typeVal], schema) =>
+      typeVal === "JIRA"
+        ? schema.required("Query is required for Jira projects")
+        : schema.defined(),
+    ),
+  type: yup
+    .string()
+    .oneOf(["JIRA", "GITHUB"] as const, "Type is required")
+    .required("Type is required"),
   gitUrl: yup
     .string()
     .required("Git URL is required")
@@ -80,7 +89,7 @@ export const useProjectForm = (
       name: values.name,
       apiUrl: values.apiUrl,
       query: values.query || undefined,
-      type: values.type as ProjectDto["type"],
+      type: values.type as SourceType,
       git: {
         url: values.gitUrl,
         branch: values.gitBranch || undefined,

@@ -55,11 +55,13 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ control }) => {
   const isTestQueryEnabled = !!type && !!apiUrl && !!query && !!credentialId;
 
   // Clear test result when relevant fields change
+  // biome-ignore lint/correctness/useExhaustiveDependencies: deps trigger reset on field change
   React.useEffect(() => {
     setTestResult(null);
   }, [type, apiUrl, credentialId]);
 
   // Clear test query result when relevant fields change
+  // biome-ignore lint/correctness/useExhaustiveDependencies: deps trigger reset on field change
   React.useEffect(() => {
     setTestQueryResult(null);
   }, [type, apiUrl, query, credentialId]);
@@ -157,7 +159,13 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ control }) => {
           "https://issues.redhat.com/",
           "https://api.github.com/repos/carlosthe19916/tsd-ui-agent",
         ]}
-        placeholder={type === "JIRA" ? "https://<company>.atlassian.net/" : type === "GITHUB" ? "https://api.github.com/repos/{org}/{repo}" : "API URL"}
+        placeholder={
+          type === "JIRA"
+            ? "https://<company>.atlassian.net/"
+            : type === "GITHUB"
+              ? "https://api.github.com/repos/{org}/{repo}"
+              : "API URL"
+        }
       />
       <HookFormPFGroupController
         control={control}
@@ -225,6 +233,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ control }) => {
         name="query"
         label="Query"
         fieldId="query"
+        isRequired={type === "JIRA"}
         renderInput={({ field }) => (
           <>
             <InputGroup>

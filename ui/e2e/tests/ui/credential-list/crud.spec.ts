@@ -12,7 +12,7 @@ test.describe("Credential CRUD", () => {
     credentialPage = await CredentialListPage.build(page);
   });
 
-  test("1. Create credential", async ({ page }) => {
+  test("1. Create credential", async () => {
     const credentialName = `create-${uniqueId}`;
     await credentialPage.clickCreateCredential();
     await credentialPage.fillCredentialForm(credentialName, credentialToken);

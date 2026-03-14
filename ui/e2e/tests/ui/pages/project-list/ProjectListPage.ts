@@ -14,7 +14,7 @@ interface ProjectFormData {
 }
 
 export class ProjectListPage {
-  private readonly _page: Page;
+  readonly _page: Page;
 
   private constructor(page: Page) {
     this._page = page;
@@ -49,14 +49,10 @@ export class ProjectListPage {
 
     await modal.locator("#type").selectOption(data.type);
 
-    const urlInput = modal.locator("#url");
-    await urlInput.clear();
-    await urlInput.fill(data.url);
+    await this.fillTypeahead(modal, "apiUrl", data.url);
 
     if (data.query !== undefined) {
-      const queryInput = modal.locator("#query");
-      await queryInput.clear();
-      await queryInput.fill(data.query);
+      await this.fillTypeahead(modal, "query", data.query);
     }
 
     await modal
@@ -106,6 +102,24 @@ export class ProjectListPage {
       .first();
     await row.locator(`button[aria-label="Kebab toggle"]`).click();
     await this._page.getByRole("menuitem", { name: action }).click();
+  }
+
+  private async fillTypeahead(
+    container: ReturnType<Page["locator"]>,
+    fieldId: string,
+    value: string,
+  ) {
+    const input = container.locator(`#${fieldId}-typeahead-input input`);
+    const clearButton = container
+      .locator(`#${fieldId}-typeahead-select`)
+      .locator('button[aria-label="Clear input value"]');
+
+    if (await clearButton.isVisible()) {
+      await clearButton.click();
+    }
+
+    await input.fill(value);
+    await input.press("Tab");
   }
 
   async applyNameFilter(name: string) {
