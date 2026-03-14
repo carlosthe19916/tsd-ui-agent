@@ -23,8 +23,8 @@ public class GitEntity extends PanacheEntityBase {
     @Column(name = "url")
     public String url;
 
-    @Column(name = "branch")
-    public String branch;
+    @Column(name = "local_path")
+    public String localPath;
 
     @Version
     public int version;

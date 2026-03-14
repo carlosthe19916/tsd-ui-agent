@@ -8,7 +8,6 @@ import { useCreateGitMutation, useUpdateGitMutation } from "@app/queries/gits";
 
 export interface GitFormValues {
   url: string;
-  branch: string;
 }
 
 const schema = yup.object({
@@ -19,27 +18,24 @@ const schema = yup.object({
       /^(https?:\/\/.+|git@[^:]+:.+|git:\/\/.+)$/,
       "Must be a valid Git URL (e.g. https://github.com/org/repo.git or git@github.com:org/repo.git)",
     ),
-  branch: yup.string().defined(),
 });
 
 const mapGitToFormValues = (git: GitDto | null): GitFormValues => {
   if (!git) {
     return {
       url: "",
-      branch: "",
     };
   }
   return {
     url: git.url,
-    branch: git.branch ?? "",
   };
 };
 
 export const useGitForm = (git: GitDto | null, onClose: () => void) => {
   const isEditing = !!git?.id;
 
-  const createMutation = useCreateGitMutation(onClose);
-  const updateMutation = useUpdateGitMutation(onClose);
+  const { mutateAsync: createGit } = useCreateGitMutation(onClose);
+  const { mutateAsync: updateGit } = useUpdateGitMutation(onClose);
 
   const form = useForm<GitFormValues>({
     defaultValues: mapGitToFormValues(git),
@@ -52,15 +48,13 @@ export const useGitForm = (git: GitDto | null, onClose: () => void) => {
       const dto: GitDto = {
         id: git.id,
         url: values.url,
-        branch: values.branch || undefined,
       };
-      updateMutation.mutate(dto);
+      return updateGit(dto);
     } else {
       const dto: New<GitDto> = {
         url: values.url,
-        branch: values.branch || undefined,
       };
-      createMutation.mutate(dto);
+      return createGit(dto);
     }
   });
 

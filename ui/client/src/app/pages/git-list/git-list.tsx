@@ -58,18 +58,16 @@ export const GitList: React.FC = () => {
     isLoading: isFetching,
     columnNames: {
       url: "URL",
-      branch: "Branch",
     },
     hasActionsColumn: true,
     isSortEnabled: true,
-    sortableColumns: ["url", "branch"],
+    sortableColumns: ["url"],
     initialSort: {
       columnKey: "url",
       direction: "asc",
     },
     getSortValues: (item) => ({
       url: item.url,
-      branch: item.branch ?? "",
     }),
     isPaginationEnabled: true,
     isFilterEnabled: true,
@@ -98,7 +96,6 @@ export const GitList: React.FC = () => {
       getTrProps,
       getTdProps,
     },
-    expansionDerivedState: { isCellExpanded },
   } = tableControls;
 
   return (
@@ -135,7 +132,6 @@ export const GitList: React.FC = () => {
             <Tr>
               <TableHeaderContentWithControls {...tableControls}>
                 <Th {...getThProps({ columnKey: "url" })} />
-                <Th {...getThProps({ columnKey: "branch" })} />
               </TableHeaderContentWithControls>
             </Tr>
           </Thead>
@@ -145,7 +141,7 @@ export const GitList: React.FC = () => {
             numRenderedColumns={numRenderedColumns}
           >
             {currentPageItems?.map((git, rowIndex) => (
-              <Tbody key={git.id} isExpanded={isCellExpanded(git)}>
+              <Tbody key={git.id}>
                 <Tr {...getTrProps({ item: git })}>
                   <TableRowContentWithControls
                     {...tableControls}
@@ -153,18 +149,11 @@ export const GitList: React.FC = () => {
                     rowIndex={rowIndex}
                   >
                     <Td
-                      width={70}
+                      width={100}
                       modifier="breakWord"
                       {...getTdProps({ columnKey: "url" })}
                     >
                       {git.url}
-                    </Td>
-                    <Td
-                      width={30}
-                      modifier="breakWord"
-                      {...getTdProps({ columnKey: "branch" })}
-                    >
-                      {git.branch || "default"}
                     </Td>
                     <Td isActionCell>
                       <ActionsColumn
@@ -205,7 +194,7 @@ export const GitList: React.FC = () => {
           isOpen
           title="Delete git repository"
           titleIconVariant="warning"
-          message={`Are you sure you want to delete the git repository "${gitToDelete.url}"?`}
+          message={`Are you sure you want to delete the git repository "${gitToDelete.url}"? This will also remove the local clone.`}
           confirmBtnLabel="Delete"
           cancelBtnLabel="Cancel"
           confirmBtnVariant={ButtonVariant.danger}

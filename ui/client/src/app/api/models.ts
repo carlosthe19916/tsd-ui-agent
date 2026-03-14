@@ -11,7 +11,6 @@ export type SyncStatus =
 export interface GitDto {
   id: number;
   url: string;
-  branch?: string;
 }
 
 export interface CredentialDto {

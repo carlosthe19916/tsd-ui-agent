@@ -18,6 +18,7 @@ import jakarta.ws.rs.core.Response;
 import org.acme.dto.GitDto;
 import org.acme.mapper.GitMapper;
 import org.acme.models.jpa.entity.GitEntity;
+import org.acme.services.GitService;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -31,6 +32,9 @@ public class GitResource {
 
     @Inject
     GitMapper gitMapper;
+
+    @Inject
+    GitService gitService;
 
     @GET
     public List<GitDto> list() {
@@ -49,8 +53,7 @@ public class GitResource {
 
     @POST
     public Response create(@Valid GitDto dto) {
-        GitEntity entity = gitMapper.toEntity(dto);
-        entity.persist();
+        GitEntity entity = gitService.create(dto);
         return Response.status(Response.Status.CREATED)
                 .entity(gitMapper.toDto(entity))
                 .build();
@@ -61,9 +64,8 @@ public class GitResource {
     public GitDto update(@PathParam("id") Long id, @Valid GitDto dto) {
         GitEntity entity = (GitEntity) GitEntity.findByIdOptional(id)
                 .orElseThrow(NotFoundException::new);
-        gitMapper.updateEntity(dto, entity);
-        entity.persist();
-        return gitMapper.toDto(entity);
+        GitEntity updated = gitService.update(dto, entity);
+        return gitMapper.toDto(updated);
     }
 
     @DELETE
@@ -71,7 +73,7 @@ public class GitResource {
     public Response delete(@PathParam("id") Long id) {
         GitEntity entity = (GitEntity) GitEntity.findByIdOptional(id)
                 .orElseThrow(NotFoundException::new);
-        entity.delete();
+        gitService.delete(entity);
         return Response.noContent().build();
     }
 }
