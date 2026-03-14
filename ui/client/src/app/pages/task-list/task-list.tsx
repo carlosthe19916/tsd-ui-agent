@@ -39,25 +39,19 @@ import InProgressIcon from "@patternfly/react-icons/dist/esm/icons/in-progress-i
 import PendingIcon from "@patternfly/react-icons/dist/esm/icons/pending-icon";
 import SortAmountDownIcon from "@patternfly/react-icons/dist/esm/icons/sort-amount-down-icon";
 import SortAmountUpIcon from "@patternfly/react-icons/dist/esm/icons/sort-amount-up-icon";
+import BookOpenIcon from "@patternfly/react-icons/dist/esm/icons/book-open-icon";
 
 import type { TaskDto, TaskStatus } from "@app/api/models";
+import { ConfirmDialog } from "@app/components/ConfirmDialog";
 import { ConditionalDataListBody } from "@app/components/DataListControls";
 import { FilterToolbar } from "@app/components/FilterToolbar";
 import { SimplePagination } from "@app/components/SimplePagination";
+import { useUpdateTaskPlanMutation } from "@app/queries/tasks";
 import { formatDateTime } from "@app/utils/utils";
+import { ButtonVariant } from "@patternfly/react-core";
 
+import { ManualPlanModal } from "./components/manual-plan-modal";
 import { TaskSearchContext, TaskSearchProvider } from "./task-context";
-
-const statusLabel = (status: TaskStatus) => {
-  switch (status) {
-    case "OPEN":
-      return <Label color="green">Open</Label>;
-    case "IN_PROGRESS":
-      return <Label color="blue">In Progress</Label>;
-    case "CLOSED":
-      return <Label color="grey">Closed</Label>;
-  }
-};
 
 const statusIcon = (status: TaskStatus) => {
   switch (status) {
@@ -92,6 +86,14 @@ const TaskListContent: React.FC = () => {
 
   const [isSortByOpen, setIsSortByOpen] = React.useState(false);
   const [openKebabId, setOpenKebabId] = React.useState<number | null>(null);
+  const [planModalTask, setPlanModalTask] = React.useState<TaskDto | null>(
+    null,
+  );
+  const [approveTask, setApproveTask] = React.useState<TaskDto | null>(null);
+
+  const updatePlanMutation = useUpdateTaskPlanMutation(() =>
+    setApproveTask(null),
+  );
 
   return (
     <>
@@ -217,8 +219,45 @@ const TaskListContent: React.FC = () => {
                         </FlexItem>
                       </Flex>
                     </DataListCell>,
-                    <DataListCell key="status" width={1}>
-                      {statusLabel(task.status)}
+                    <DataListCell key="plan" width={1}>
+                      <Flex
+                        direction={{ default: "column" }}
+                        gap={{ default: "gapXs" }}
+                      >
+                        <FlexItem>
+                          {task.plan ? (
+                            <Button
+                              variant="link"
+                              isInline
+                              onClick={() => setPlanModalTask(task)}
+                            >
+                              <Icon size="md" isInline>
+                                {task.plan.status === "APPROVED" ? (
+                                  <CheckCircleIcon color="var(--pf-t--global--color--status--success--default)" />
+                                ) : (
+                                  <BookOpenIcon />
+                                )}
+                              </Icon>{" "}
+                              {task.plan.status === "APPROVED"
+                                ? "Approved"
+                                : "In progress"}
+                            </Button>
+                          ) : (
+                            "No plan"
+                          )}
+                        </FlexItem>
+                        {task.plan?.status === "IN_PROGRESS" && (
+                          <FlexItem>
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              onClick={() => setApproveTask(task)}
+                            >
+                              Approve
+                            </Button>
+                          </FlexItem>
+                        )}
+                      </Flex>
                     </DataListCell>,
                     <DataListCell key="dates" width={2}>
                       <Flex
@@ -278,6 +317,12 @@ const TaskListContent: React.FC = () => {
                       >
                         View
                       </DropdownItem>
+                      <DropdownItem
+                        key="manual-plan"
+                        onClick={() => setPlanModalTask(task)}
+                      >
+                        Manual plan
+                      </DropdownItem>
                     </DropdownList>
                   </Dropdown>
                 </DataListAction>
@@ -304,6 +349,33 @@ const TaskListContent: React.FC = () => {
         idPrefix="tasks-table"
         isTop={false}
         paginationProps={paginationProps}
+      />
+
+      <ManualPlanModal
+        task={planModalTask}
+        isOpen={planModalTask !== null}
+        onClose={() => setPlanModalTask(null)}
+      />
+
+      <ConfirmDialog
+        isOpen={approveTask !== null}
+        title="Approve plan"
+        titleIconVariant="warning"
+        message="Are you sure you want to approve this plan?"
+        confirmBtnLabel="Approve"
+        cancelBtnLabel="Cancel"
+        confirmBtnVariant={ButtonVariant.primary}
+        inProgress={updatePlanMutation.isPending}
+        onConfirm={() => {
+          if (approveTask?.plan) {
+            updatePlanMutation.mutate({
+              taskId: approveTask.id,
+              plan: { ...approveTask.plan, status: "APPROVED" },
+            });
+          }
+        }}
+        onClose={() => setApproveTask(null)}
+        onCancel={() => setApproveTask(null)}
       />
     </>
   );
