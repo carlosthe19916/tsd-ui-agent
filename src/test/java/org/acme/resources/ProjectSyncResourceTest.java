@@ -61,7 +61,9 @@ class ProjectSyncResourceTest {
         dto.apiUrl = "https://github.com/owner/repo";
         dto.type = SourceType.GITHUB;
         dto.git = defaultGit();
-        dto.credentialId = (long) createCredential();
+        CredentialDto credDto = new CredentialDto();
+        credDto.id = (long) createCredential();
+        dto.credential = credDto;
         return given()
                 .contentType(ContentType.JSON)
                 .body(dto)

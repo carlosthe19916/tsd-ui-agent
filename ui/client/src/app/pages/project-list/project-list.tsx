@@ -95,8 +95,7 @@ export const ProjectList: React.FC = () => {
       apiUrl: "API URL",
       type: "Type",
       syncStatus: "Sync Status",
-      gitUrl: "Git URL",
-      gitBranch: "Git Branch",
+      lastSync: "Last Sync",
     },
     hasActionsColumn: true,
     isSortEnabled: true,
@@ -206,8 +205,7 @@ export const ProjectList: React.FC = () => {
                 <Th {...getThProps({ columnKey: "apiUrl" })} />
                 <Th {...getThProps({ columnKey: "type" })} />
                 <Th {...getThProps({ columnKey: "syncStatus" })} />
-                <Th {...getThProps({ columnKey: "gitUrl" })} />
-                <Th {...getThProps({ columnKey: "gitBranch" })} />
+                <Th {...getThProps({ columnKey: "lastSync" })} />
               </TableHeaderContentWithControls>
             </Tr>
           </Thead>
@@ -245,15 +243,8 @@ export const ProjectList: React.FC = () => {
                     <Td width={10} {...getTdProps({ columnKey: "syncStatus" })}>
                       <SyncStatus status={project.syncStatus} />
                     </Td>
-                    <Td
-                      width={20}
-                      modifier="breakWord"
-                      {...getTdProps({ columnKey: "gitUrl" })}
-                    >
-                      {project.git?.url}
-                    </Td>
-                    <Td width={10} {...getTdProps({ columnKey: "gitBranch" })}>
-                      {project.git?.branch || "default"}
+                    <Td width={10} {...getTdProps({ columnKey: "lastSync" })}>
+                      {formatDateTime(project.lastSyncAt) ?? "Never"}
                     </Td>
                     <Td isActionCell>
                       <ActionsColumn
@@ -284,10 +275,24 @@ export const ProjectList: React.FC = () => {
                           <DescriptionList>
                             <DescriptionListGroup>
                               <DescriptionListTerm>
-                                Last Sync
+                                Credential
                               </DescriptionListTerm>
                               <DescriptionListDescription>
-                                {formatDateTime(project.lastSyncAt) ?? "Never"}
+                                {project.credential?.name}
+                              </DescriptionListDescription>
+                            </DescriptionListGroup>
+                            <DescriptionListGroup>
+                              <DescriptionListTerm>Git URL</DescriptionListTerm>
+                              <DescriptionListDescription>
+                                {project.git?.url}
+                              </DescriptionListDescription>
+                            </DescriptionListGroup>
+                            <DescriptionListGroup>
+                              <DescriptionListTerm>
+                                Git Branch
+                              </DescriptionListTerm>
+                              <DescriptionListDescription>
+                                {project.git?.branch || "default"}
                               </DescriptionListDescription>
                             </DescriptionListGroup>
                           </DescriptionList>

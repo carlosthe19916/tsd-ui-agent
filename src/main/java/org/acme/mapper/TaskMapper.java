@@ -19,7 +19,8 @@ public class TaskMapper {
         dto.title = entity.title;
         dto.description = entity.description;
         dto.status = entity.status;
-        dto.labels = entity.labels;
+        dto.externalStatus = entity.externalStatus;
+
         dto.type = entity.type;
         dto.createdAt = entity.createdAt;
         dto.updatedAt = entity.updatedAt;

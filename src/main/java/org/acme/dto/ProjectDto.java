@@ -30,7 +30,8 @@ public class ProjectDto {
     public GitDto git;
 
     @NotNull
-    public Long credentialId;
+    @Valid
+    public CredentialDto credential;
 
     public SyncStatus syncStatus;
 

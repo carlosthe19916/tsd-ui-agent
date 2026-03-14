@@ -57,7 +57,8 @@ export interface TaskDto {
   title: string;
   description: string;
   status: TaskStatus;
-  labels: string;
+  externalStatus: string;
+
   type: SourceType;
   createdAt: string;
   updatedAt: string;
@@ -76,7 +77,7 @@ export interface ProjectDto {
   query?: string;
   type: SourceType;
   git: GitDto;
-  credentialId: number;
+  credential: CredentialDto;
   syncStatus?: SyncStatus;
   lastSyncAt?: string;
 }

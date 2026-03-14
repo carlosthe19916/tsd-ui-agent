@@ -1,7 +1,6 @@
 package org.acme.services.sync.camel.processor;
 
 import jakarta.enterprise.context.ApplicationScoped;
-import org.acme.models.jpa.entity.TaskStatus;
 import org.acme.services.sync.ExternalIssue;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
@@ -13,13 +12,10 @@ import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.util.List;
-import java.util.Set;
 
 @ApplicationScoped
 public class JiraIssueMapper implements Processor {
 
-    private static final Set<String> CLOSED_STATUSES = Set.of("done", "closed", "resolved");
-    private static final Set<String> IN_PROGRESS_STATUSES = Set.of("in progress");
     private static final DateTimeFormatter JIRA_DATE = new DateTimeFormatterBuilder()
             .appendPattern("yyyy-MM-dd'T'HH:mm:ss.SSS")
             .appendOffset("+HHmm", "Z")
@@ -44,11 +40,7 @@ public class JiraIssueMapper implements Processor {
         ext.url = baseUrl + "/browse/" + issue.key();
         ext.title = fields.summary();
         ext.description = extractText(fields.description());
-        ext.status = fields.status() != null ? mapJiraStatus(fields.status().name()) : TaskStatus.OPEN;
-
-        if (fields.labels() != null && !fields.labels().isEmpty()) {
-            ext.labels = String.join(",", fields.labels());
-        }
+        ext.externalStatus = fields.status() != null ? fields.status().name() : null;
 
         ext.createdAt = fields.created() != null ? parseJiraDate(fields.created()) : null;
         ext.updatedAt = fields.updated() != null ? parseJiraDate(fields.updated()) : null;
@@ -81,11 +73,4 @@ public class JiraIssueMapper implements Processor {
         }
     }
 
-    private TaskStatus mapJiraStatus(String statusName) {
-        if (statusName == null) return TaskStatus.OPEN;
-        String lower = statusName.toLowerCase();
-        if (CLOSED_STATUSES.contains(lower)) return TaskStatus.CLOSED;
-        if (IN_PROGRESS_STATUSES.contains(lower)) return TaskStatus.IN_PROGRESS;
-        return TaskStatus.OPEN;
-    }
 }

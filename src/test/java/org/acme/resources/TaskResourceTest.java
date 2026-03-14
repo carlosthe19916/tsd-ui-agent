@@ -65,7 +65,9 @@ class TaskResourceTest {
         dto.apiUrl = "https://github.com/owner/repo";
         dto.type = type;
         dto.git = git;
-        dto.credentialId = (long) credId;
+        CredentialDto credDto = new CredentialDto();
+        credDto.id = (long) credId;
+        dto.credential = credDto;
 
         int id = given()
                 .contentType(ContentType.JSON)

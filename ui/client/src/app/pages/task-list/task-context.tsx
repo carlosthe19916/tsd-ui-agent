@@ -21,7 +21,7 @@ interface ITaskSearchContext {
   tableControls: ITableControls<
     TaskDto,
     "projectName" | "title" | "status" | "createdAt" | "updatedAt",
-    "projectName" | "title" | "status" | "createdAt" | "updatedAt",
+    "title" | "createdAt" | "updatedAt",
     "" | "status" | "projectId",
     string
   >;
@@ -57,13 +57,7 @@ export const TaskSearchProvider: React.FunctionComponent<ITaskProvider> = ({
     },
     isPaginationEnabled: true,
     isSortEnabled: true,
-    sortableColumns: [
-      "projectName",
-      "title",
-      "status",
-      "createdAt",
-      "updatedAt",
-    ],
+    sortableColumns: ["title", "createdAt", "updatedAt"],
     initialSort: {
       columnKey: "createdAt",
       direction: "desc",
@@ -98,15 +92,14 @@ export const TaskSearchProvider: React.FunctionComponent<ITaskProvider> = ({
         })),
       },
     ],
-    isExpansionEnabled: false,
+    isExpansionEnabled: true,
+    expandableVariant: "single",
   });
 
   const hubRequestParams = getHubRequestParams({
     ...tableControlState,
     hubSortFieldKeys: {
-      projectName: "project.name",
       title: "title",
-      status: "status",
       createdAt: "createdAt",
       updatedAt: "updatedAt",
     },

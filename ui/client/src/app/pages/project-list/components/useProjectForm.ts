@@ -65,7 +65,7 @@ const mapProjectToFormValues = (
     type: project.type,
     gitUrl: project.git.url,
     gitBranch: project.git.branch ?? "",
-    credentialId: project.credentialId?.toString() ?? "",
+    credentialId: project.credential?.id?.toString() ?? "",
   };
 };
 
@@ -94,7 +94,7 @@ export const useProjectForm = (
         url: values.gitUrl,
         branch: values.gitBranch || undefined,
       },
-      credentialId: Number(values.credentialId),
+      credential: { id: Number(values.credentialId), name: "" },
     };
 
     if (isEditing) {

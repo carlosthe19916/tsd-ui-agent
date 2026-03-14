@@ -61,8 +61,8 @@ public class TaskSyncService {
                     task.url = issue.url;
                     task.title = issue.title;
                     task.description = issue.description;
-                    task.status = issue.status;
-                    task.labels = issue.labels;
+                    task.externalStatus = issue.externalStatus;
+
                     task.createdAt = issue.createdAt;
                     task.updatedAt = issue.updatedAt;
                     task.persist();

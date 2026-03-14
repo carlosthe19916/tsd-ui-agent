@@ -45,10 +45,10 @@ public class TaskEntity extends PanacheEntityBase {
     @NotNull
     @Enumerated(EnumType.STRING)
     @Column(name = "status")
-    public TaskStatus status;
+    public TaskStatus status = TaskStatus.OPEN;
 
-    @Column(name = "labels")
-    public String labels;
+    @Column(name = "external_status")
+    public String externalStatus;
 
     @NotNull
     @Enumerated(EnumType.STRING)

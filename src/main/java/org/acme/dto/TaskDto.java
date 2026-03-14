@@ -13,7 +13,8 @@ public class TaskDto {
     public String title;
     public String description;
     public TaskStatus status;
-    public String labels;
+    public String externalStatus;
+
     public SourceType type;
     public Instant createdAt;
     public Instant updatedAt;
