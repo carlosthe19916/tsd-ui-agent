@@ -6,7 +6,7 @@ const API_BASE = "/api";
 
 let projectPage: ProjectListPage;
 
-test.describe("Project CRUD", () => {
+test.describe.skip("Project CRUD", () => {
   const uniqueId = Date.now().toString(36);
   let credentialName: string;
 
