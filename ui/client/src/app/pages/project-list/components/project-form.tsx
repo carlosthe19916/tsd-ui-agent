@@ -6,7 +6,6 @@ import {
   Alert,
   Button,
   Form,
-  FormSection,
   FormSelect,
   FormSelectOption,
   InputGroup,
@@ -274,22 +273,6 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ control }) => {
         )}
       />
 
-      <FormSection title="Git">
-        <HookFormPFTextInput
-          control={control}
-          name="gitUrl"
-          label="Git URL"
-          fieldId="gitUrl"
-          isRequired
-          placeholder={"https://github.com/carlosthe19916/tsd-ui-agent.git"}
-        />
-        <HookFormPFTextInput
-          control={control}
-          name="gitBranch"
-          label="Git Branch"
-          fieldId="gitBranch"
-        />
-      </FormSection>
     </Form>
   );
 };

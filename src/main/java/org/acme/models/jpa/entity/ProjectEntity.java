@@ -5,7 +5,6 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.Embedded;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
@@ -41,9 +40,6 @@ public class ProjectEntity extends PanacheEntityBase {
     @Enumerated(EnumType.STRING)
     @Column(name = "type")
     public SourceType type;
-
-    @Embedded
-    public GitEntity git;
 
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY)

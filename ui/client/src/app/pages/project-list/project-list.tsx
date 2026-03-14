@@ -281,20 +281,6 @@ export const ProjectList: React.FC = () => {
                                 {project.credential?.name}
                               </DescriptionListDescription>
                             </DescriptionListGroup>
-                            <DescriptionListGroup>
-                              <DescriptionListTerm>Git URL</DescriptionListTerm>
-                              <DescriptionListDescription>
-                                {project.git?.url}
-                              </DescriptionListDescription>
-                            </DescriptionListGroup>
-                            <DescriptionListGroup>
-                              <DescriptionListTerm>
-                                Git Branch
-                              </DescriptionListTerm>
-                              <DescriptionListDescription>
-                                {project.git?.branch || "default"}
-                              </DescriptionListDescription>
-                            </DescriptionListGroup>
                           </DescriptionList>
                         </div>
                       </ExpandableRowContent>

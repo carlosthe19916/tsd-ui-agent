@@ -14,8 +14,6 @@ export interface ProjectFormValues {
   apiUrl: string;
   query: string;
   type: SourceType | "";
-  gitUrl: string;
-  gitBranch: string;
   credentialId: string;
 }
 
@@ -33,14 +31,6 @@ const schema = yup.object({
     .string()
     .oneOf(["JIRA", "GITHUB"] as const, "Type is required")
     .required("Type is required"),
-  gitUrl: yup
-    .string()
-    .required("Git URL is required")
-    .matches(
-      /^(https?:\/\/.+|git@[^:]+:.+|git:\/\/.+)$/,
-      "Must be a valid Git URL (e.g. https://github.com/org/repo.git)",
-    ),
-  gitBranch: yup.string().defined(),
   credentialId: yup.string().required("Credential is required"),
 });
 
@@ -53,8 +43,6 @@ const mapProjectToFormValues = (
       apiUrl: "",
       query: "",
       type: "",
-      gitUrl: "",
-      gitBranch: "",
       credentialId: "",
     };
   }
@@ -63,8 +51,6 @@ const mapProjectToFormValues = (
     apiUrl: project.apiUrl,
     query: project.query ?? "",
     type: project.type,
-    gitUrl: project.git.url,
-    gitBranch: project.git.branch ?? "",
     credentialId: project.credential?.id?.toString() ?? "",
   };
 };
@@ -90,10 +76,6 @@ export const useProjectForm = (
       apiUrl: values.apiUrl,
       query: values.query || undefined,
       type: values.type as SourceType,
-      git: {
-        url: values.gitUrl,
-        branch: values.gitBranch || undefined,
-      },
       credential: { id: Number(values.credentialId), name: "" },
     };
 

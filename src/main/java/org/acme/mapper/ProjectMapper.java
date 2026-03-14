@@ -2,10 +2,8 @@ package org.acme.mapper;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import org.acme.dto.CredentialDto;
-import org.acme.dto.GitDto;
 import org.acme.dto.ProjectDto;
 import org.acme.models.jpa.entity.CredentialEntity;
-import org.acme.models.jpa.entity.GitEntity;
 import org.acme.models.jpa.entity.ProjectEntity;
 
 @ApplicationScoped
@@ -18,7 +16,6 @@ public class ProjectMapper {
         dto.apiUrl = entity.apiUrl;
         dto.query = entity.query;
         dto.type = entity.type;
-        dto.git = toGitDto(entity.git);
         dto.credential = toCredentialDto(entity.credential);
         dto.syncStatus = entity.syncStatus;
         dto.lastSyncAt = entity.lastSyncAt;
@@ -32,10 +29,4 @@ public class ProjectMapper {
         return dto;
     }
 
-    private GitDto toGitDto(GitEntity entity) {
-        GitDto dto = new GitDto();
-        dto.url = entity.url;
-        dto.branch = entity.branch;
-        return dto;
-    }
 }

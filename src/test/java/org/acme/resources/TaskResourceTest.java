@@ -4,7 +4,6 @@ import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.InjectMock;
 import io.restassured.http.ContentType;
 import org.acme.dto.CredentialDto;
-import org.acme.dto.GitDto;
 import org.acme.dto.PlanDto;
 import org.acme.dto.ProjectDto;
 import org.acme.dto.TaskContextDto;
@@ -45,8 +44,6 @@ class TaskResourceTest {
     private int createProjectAndSync(SourceType type, List<ExternalIssue> issues) {
         when(syncManager.fetchIssues(any())).thenReturn(issues);
 
-        GitDto git = new GitDto();
-        git.url = "https://github.com/test/repo";
 
         CredentialDto cred = new CredentialDto();
         cred.name = "task-cred-" + System.nanoTime();
@@ -64,7 +61,6 @@ class TaskResourceTest {
         dto.name = "task-project-" + System.nanoTime();
         dto.apiUrl = "https://github.com/owner/repo";
         dto.type = type;
-        dto.git = git;
         CredentialDto credDto = new CredentialDto();
         credDto.id = (long) credId;
         dto.credential = credDto;
