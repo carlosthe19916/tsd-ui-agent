@@ -67,8 +67,9 @@ export const SelectFilterControl = <TItem, TFilterCategoryKey extends string>({
     setIsFilterDropdownOpen(false);
   };
 
-  const onFilterClear = (chip: string) => {
-    const newValue = filterValue?.filter((val) => val !== chip);
+  const onFilterClear = (chip: string | ToolbarLabel) => {
+    const chipKey = typeof chip === "string" ? chip : chip.key;
+    const newValue = filterValue?.filter((val) => val !== chipKey);
     setFilterValue(newValue?.length ? newValue : null);
   };
 
@@ -101,7 +102,7 @@ export const SelectFilterControl = <TItem, TFilterCategoryKey extends string>({
     <ToolbarFilter
       id={`filter-control-${category.categoryKey}`}
       labels={chips}
-      deleteLabel={(_, chip) => onFilterClear(chip as string)}
+      deleteLabel={(_, chip) => onFilterClear(chip)}
       categoryName={category.title}
       showToolbarItem={showToolbarItem}
     >

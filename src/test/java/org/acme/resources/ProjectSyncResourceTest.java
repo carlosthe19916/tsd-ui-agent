@@ -61,7 +61,9 @@ class ProjectSyncResourceTest {
         dto.apiUrl = "https://github.com/owner/repo";
         dto.type = SourceType.GITHUB;
         dto.git = defaultGit();
-        dto.credentialId = (long) createCredential();
+        CredentialDto credDto = new CredentialDto();
+        credDto.id = (long) createCredential();
+        dto.credential = credDto;
         return given()
                 .contentType(ContentType.JSON)
                 .body(dto)
@@ -76,7 +78,7 @@ class ProjectSyncResourceTest {
         ext.externalId = id;
         ext.url = "https://github.com/owner/repo/issues/" + id;
         ext.title = title;
-        ext.status = status;
+        ext.externalStatus = status.name();
         ext.createdAt = Instant.now();
         ext.updatedAt = Instant.now();
         return ext;

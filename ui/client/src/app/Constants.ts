@@ -9,4 +9,5 @@ export const DEFAULT_REFETCH_INTERVAL = 5000;
 export const TablePersistenceKeyPrefixes = {
   credentials: "cr",
   projects: "pj",
+  tasks: "tk",
 };

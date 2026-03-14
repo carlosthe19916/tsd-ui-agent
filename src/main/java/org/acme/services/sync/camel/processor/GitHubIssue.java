@@ -14,12 +14,8 @@ public record GitHubIssue(
         String state,
         @JsonProperty("created_at") String createdAt,
         @JsonProperty("updated_at") String updatedAt,
-        GitHubUser assignee,
         List<GitHubLabel> labels
 ) {
-
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public record GitHubUser(String login) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record GitHubLabel(String name) {}

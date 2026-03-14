@@ -1,6 +1,7 @@
 package org.acme.services.sync.camel.processor;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.databind.JsonNode;
 
 import java.util.List;
 
@@ -10,21 +11,13 @@ public record JiraIssue(String key, JiraFields fields) {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record JiraFields(
             String summary,
-            String description,
+            JsonNode description,
             JiraStatus status,
-            JiraUser assignee,
             List<String> labels,
-            JiraPriority priority,
             String created,
             String updated
     ) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record JiraStatus(String name) {}
-
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public record JiraUser(String displayName) {}
-
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public record JiraPriority(String name) {}
 }

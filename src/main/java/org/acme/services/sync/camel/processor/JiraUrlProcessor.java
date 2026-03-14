@@ -12,6 +12,7 @@ import java.util.Base64;
 public class JiraUrlProcessor implements Processor {
 
     static final int MAX_RESULTS = 50;
+    static final String FIELDS = "summary,description,status,created,updated";
 
     @Override
     public void process(Exchange exchange) {
@@ -29,7 +30,8 @@ public class JiraUrlProcessor implements Processor {
         exchange.getIn().setHeader("CamelHttpUrl", url + "/rest/api/3/search/jql");
         exchange.getIn().setHeader(Exchange.HTTP_QUERY, "jql="
                 + URLEncoder.encode(jql, StandardCharsets.UTF_8)
-                + "&maxResults=" + MAX_RESULTS);
+                + "&maxResults=" + MAX_RESULTS
+                + "&fields=" + FIELDS);
     }
 
     public static String jiraAuth(String token) {

@@ -35,7 +35,8 @@ public class JiraPaginationProcessor implements Processor {
             exchange.getIn().setHeader(Exchange.HTTP_QUERY, "jql="
                     + URLEncoder.encode(jql, StandardCharsets.UTF_8)
                     + "&maxResults=" + MAX_RESULTS
-                    + "&startAt=" + startAt);
+                    + "&startAt=" + startAt
+                    + "&fields=" + JiraUrlProcessor.FIELDS);
         }
     }
 }

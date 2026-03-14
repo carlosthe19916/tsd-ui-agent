@@ -17,7 +17,7 @@ public class ProjectService {
         git.url = dto.git.url;
         git.branch = dto.git.branch;
 
-        CredentialEntity credential = (CredentialEntity) CredentialEntity.findByIdOptional(dto.credentialId)
+        CredentialEntity credential = (CredentialEntity) CredentialEntity.findByIdOptional(dto.credential.id)
                 .orElseThrow(NotFoundException::new);
 
         ProjectEntity entity = new ProjectEntity();

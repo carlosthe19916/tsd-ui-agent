@@ -1,14 +1,12 @@
 package org.acme.services.sync.camel.processor;
 
 import jakarta.enterprise.context.ApplicationScoped;
-import org.acme.models.jpa.entity.TaskStatus;
 import org.acme.services.sync.ExternalIssue;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class GitHubIssueMapper implements Processor {
@@ -27,14 +25,8 @@ public class GitHubIssueMapper implements Processor {
         ext.url = gh.htmlUrl();
         ext.title = gh.title();
         ext.description = gh.body();
-        ext.status = "open".equals(gh.state()) ? TaskStatus.OPEN : TaskStatus.CLOSED;
-        ext.assignee = gh.assignee() != null ? gh.assignee().login() : null;
+        ext.externalStatus = gh.state();
 
-        if (gh.labels() != null && !gh.labels().isEmpty()) {
-            ext.labels = gh.labels().stream().map(GitHubIssue.GitHubLabel::name).collect(Collectors.joining(","));
-        }
-
-        ext.priority = null;
         ext.createdAt = gh.createdAt() != null ? Instant.parse(gh.createdAt()) : null;
         ext.updatedAt = gh.updatedAt() != null ? Instant.parse(gh.updatedAt()) : null;
         return ext;

@@ -47,7 +47,9 @@ class ProjectResourceTest {
         dto.apiUrl = url;
         dto.type = type;
         dto.git = defaultGit();
-        dto.credentialId = (long) createCredential();
+        CredentialDto credDto = new CredentialDto();
+        credDto.id = (long) createCredential();
+        dto.credential = credDto;
         return dto;
     }
 
@@ -68,7 +70,7 @@ class ProjectResourceTest {
                 .body("query", is("label=bug"))
                 .body("type", is("GITHUB"))
                 .body("git.url", is("https://github.com/test"))
-                .body("credentialId", notNullValue());
+                .body("credential.id", notNullValue());
     }
 
     @Test
@@ -103,7 +105,7 @@ class ProjectResourceTest {
         dto.apiUrl = "https://example.com";
         dto.type = SourceType.GITHUB;
         dto.git = defaultGit();
-        // credentialId is null
+        // credential is null
 
         given()
                 .contentType(ContentType.JSON)
@@ -120,7 +122,9 @@ class ProjectResourceTest {
         dto.apiUrl = "https://example.com";
         dto.type = SourceType.GITHUB;
         dto.git = defaultGit();
-        dto.credentialId = 999999L;
+        CredentialDto badCred = new CredentialDto();
+        badCred.id = 999999L;
+        dto.credential = badCred;
 
         given()
                 .contentType(ContentType.JSON)
@@ -154,7 +158,9 @@ class ProjectResourceTest {
         dto.apiUrl = "https://example.com";
         dto.type = SourceType.GITHUB;
         dto.git = defaultGit();
-        dto.credentialId = (long) credId;
+        CredentialDto getCred = new CredentialDto();
+        getCred.id = (long) credId;
+        dto.credential = getCred;
 
         int id = given()
                 .contentType(ContentType.JSON)
@@ -169,7 +175,7 @@ class ProjectResourceTest {
                 .then()
                 .statusCode(200)
                 .body("name", is("get-project"))
-                .body("credentialId", is(credId));
+                .body("credential.id", is(credId));
     }
 
     @Test
@@ -191,7 +197,7 @@ class ProjectResourceTest {
                 .extract();
 
         int id = createResponse.path("id");
-        int credId = createResponse.path("credentialId");
+        int credId = createResponse.path("credential.id");
 
         ProjectDto updated = project("after-update", "https://updated.com", SourceType.JIRA);
         updated.query = "project=TEST";
@@ -205,7 +211,7 @@ class ProjectResourceTest {
                 .body("name", is("after-update"))
                 .body("apiUrl", is("https://updated.com"))
                 .body("type", is("JIRA"))
-                .body("credentialId", is(credId));
+                .body("credential.id", is(credId));
     }
 
     @Test

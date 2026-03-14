@@ -48,6 +48,28 @@ export interface Label {
   value?: string;
 }
 
+export type TaskStatus = "OPEN" | "IN_PROGRESS" | "CLOSED";
+
+export interface TaskDto {
+  id: number;
+  externalId: string;
+  url: string;
+  title: string;
+  description: string;
+  status: TaskStatus;
+  externalStatus: string;
+
+  type: SourceType;
+  createdAt: string;
+  updatedAt: string;
+  project: ProjectDto;
+}
+
+export interface SearchResultDto<T> {
+  meta: { offset: number; limit: number; count: number };
+  data: T[];
+}
+
 export interface ProjectDto {
   id: number;
   name: string;
@@ -55,7 +77,7 @@ export interface ProjectDto {
   query?: string;
   type: SourceType;
   git: GitDto;
-  credentialId: number;
+  credential: CredentialDto;
   syncStatus?: SyncStatus;
   lastSyncAt?: string;
 }
