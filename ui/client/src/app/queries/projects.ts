@@ -4,16 +4,18 @@ import {
   createProject,
   deleteProject,
   getProjects,
+  syncProject,
   updateProject,
 } from "@app/api/project-api";
 import type { New, ProjectDto } from "@app/api/models";
 
 const PROJECT_QUERY_KEY = "projects";
 
-export const useFetchProjects = () => {
+export const useFetchProjects = (refetchInterval: number | false = false) => {
   return useQuery({
     queryKey: [PROJECT_QUERY_KEY],
     queryFn: getProjects,
+    refetchInterval,
   });
 };
 
@@ -48,5 +50,20 @@ export const useDeleteProjectMutation = (onSuccess?: () => void) => {
       queryClient.invalidateQueries({ queryKey: [PROJECT_QUERY_KEY] });
       onSuccess?.();
     },
+  });
+};
+
+export const useSyncProjectMutation = (
+  onSuccess?: () => void,
+  onError?: (error: Error) => void,
+) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => syncProject(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [PROJECT_QUERY_KEY] });
+      onSuccess?.();
+    },
+    onError,
   });
 };
