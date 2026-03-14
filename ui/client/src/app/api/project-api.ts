@@ -21,6 +21,11 @@ export const updateProject = (id: number, project: ProjectDto) =>
 export const deleteProject = (id: number) =>
   axios.delete<void>(`${BASE_URL}/${id}`);
 
+export const syncProject = (id: number) =>
+  axios
+    .post<ProjectDto>(`${BASE_URL}/${id}/sync`)
+    .then((response) => response.data);
+
 export interface TestConnectionRequest {
   type: SourceType;
   apiUrl: string;

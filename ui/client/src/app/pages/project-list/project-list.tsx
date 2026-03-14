@@ -25,7 +25,10 @@ import {
 } from "@patternfly/react-table";
 import spacing from "@patternfly/react-styles/css/utilities/Spacing/spacing";
 
-import { TablePersistenceKeyPrefixes } from "@app/Constants";
+import {
+  DEFAULT_REFETCH_INTERVAL,
+  TablePersistenceKeyPrefixes,
+} from "@app/Constants";
 import type { ProjectDto } from "@app/api/models";
 import { ConfirmDialog } from "@app/components/ConfirmDialog";
 import { FilterToolbar, FilterType } from "@app/components/FilterToolbar";
@@ -35,14 +38,18 @@ import {
   TableHeaderContentWithControls,
   TableRowContentWithControls,
 } from "@app/components/TableControls";
+import { ToolbarBulkSelector } from "@app/components/ToolbarBulkSelector";
+import { useBulkSelection } from "@app/hooks/useBulkSelection";
 import { useLocalTableControls } from "@app/hooks/table-controls";
 import {
   useDeleteProjectMutation,
   useFetchProjects,
+  useSyncProjectMutation,
 } from "@app/queries/projects";
 import { formatDateTime } from "@app/utils/utils";
 
 import { ProjectFormModal } from "./components/project-form-modal";
+import { SyncStatus } from "./components/sync-status";
 
 type ModalState =
   | { type: "closed" }
@@ -55,11 +62,24 @@ export const ProjectList: React.FC = () => {
   });
   const [projectToDelete, setProjectToDelete] =
     React.useState<ProjectDto | null>(null);
+  const [syncTarget, setSyncTarget] = React.useState<ProjectDto[] | null>(null);
+  const [isPolling, setIsPolling] = React.useState(false);
 
-  const { data: projects, isFetching } = useFetchProjects();
+  const { data: projects, isFetching } = useFetchProjects(
+    isPolling ? DEFAULT_REFETCH_INTERVAL : false,
+  );
+
+  React.useEffect(() => {
+    const anySyncing = (projects ?? []).some(
+      (p) => p.syncStatus === "SYNCHRONIZATION_IN_PROGRESS",
+    );
+    setIsPolling(anySyncing);
+  }, [projects]);
+
   const deleteMutation = useDeleteProjectMutation(() =>
     setProjectToDelete(null),
   );
+  const syncMutation = useSyncProjectMutation();
 
   const closeModal = () => setModalState({ type: "closed" });
 
@@ -69,6 +89,7 @@ export const ProjectList: React.FC = () => {
     idProperty: "id",
     items: projects ?? [],
     isLoading: isFetching,
+    isSelectionEnabled: true,
     columnNames: {
       name: "Name",
       apiUrl: "API URL",
@@ -120,6 +141,24 @@ export const ProjectList: React.FC = () => {
     expansionDerivedState: { isCellExpanded },
   } = tableControls;
 
+  const {
+    selectedItems,
+    propHelpers: { toolbarBulkSelectorProps, getSelectCheckboxTdProps },
+  } = useBulkSelection<ProjectDto>({
+    isEqual: (a, b) => a.id === b.id,
+    items: projects ?? [],
+    filteredItems: tableControls.filteredItems,
+    currentPageItems,
+  });
+
+  const handleConfirmSync = () => {
+    if (!syncTarget) return;
+    for (const project of syncTarget) {
+      syncMutation.mutate(project.id as number);
+    }
+    setSyncTarget(null);
+  };
+
   return (
     <>
       <PageSection>
@@ -131,6 +170,16 @@ export const ProjectList: React.FC = () => {
         <Toolbar {...toolbarProps}>
           <ToolbarContent>
             <FilterToolbar {...filterToolbarProps} />
+            <ToolbarBulkSelector {...toolbarBulkSelectorProps} />
+            <ToolbarItem>
+              <Button
+                variant={ButtonVariant.secondary}
+                isDisabled={selectedItems.length === 0}
+                onClick={() => setSyncTarget([...selectedItems])}
+              >
+                Synchronize
+              </Button>
+            </ToolbarItem>
             <ToolbarItem>
               <Button
                 variant={ButtonVariant.primary}
@@ -174,6 +223,7 @@ export const ProjectList: React.FC = () => {
                     {...tableControls}
                     item={project}
                     rowIndex={rowIndex}
+                    getSelectCheckboxTdProps={getSelectCheckboxTdProps}
                   >
                     <Td
                       width={15}
@@ -193,7 +243,7 @@ export const ProjectList: React.FC = () => {
                       {project.type}
                     </Td>
                     <Td width={10} {...getTdProps({ columnKey: "syncStatus" })}>
-                      {project.syncStatus ?? "N/A"}
+                      <SyncStatus status={project.syncStatus} />
                     </Td>
                     <Td
                       width={20}
@@ -208,6 +258,10 @@ export const ProjectList: React.FC = () => {
                     <Td isActionCell>
                       <ActionsColumn
                         items={[
+                          {
+                            title: "Synchronize",
+                            onClick: () => setSyncTarget([project]),
+                          },
                           {
                             title: "Edit",
                             onClick: () =>
@@ -273,6 +327,28 @@ export const ProjectList: React.FC = () => {
           onConfirm={() => deleteMutation.mutate(projectToDelete.id as number)}
           onCancel={() => setProjectToDelete(null)}
           inProgress={deleteMutation.isPending}
+        />
+      )}
+
+      {syncTarget && (
+        <ConfirmDialog
+          isOpen
+          title={
+            syncTarget.length === 1
+              ? "Synchronize project"
+              : "Synchronize projects"
+          }
+          message={
+            syncTarget.length === 1
+              ? `Are you sure you want to synchronize "${syncTarget[0].name}"?`
+              : `Are you sure you want to synchronize ${syncTarget.length} projects?`
+          }
+          confirmBtnLabel="Synchronize"
+          cancelBtnLabel="Cancel"
+          confirmBtnVariant={ButtonVariant.primary}
+          onClose={() => setSyncTarget(null)}
+          onConfirm={handleConfirmSync}
+          onCancel={() => setSyncTarget(null)}
         />
       )}
     </>
