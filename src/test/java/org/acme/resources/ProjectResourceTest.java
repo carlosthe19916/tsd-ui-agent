@@ -194,6 +194,7 @@ class ProjectResourceTest {
         int credId = createResponse.path("credentialId");
 
         ProjectDto updated = project("after-update", "https://updated.com", SourceType.JIRA);
+        updated.query = "project=TEST";
 
         given()
                 .contentType(ContentType.JSON)
