@@ -53,7 +53,7 @@ public class JiraRoutes extends RouteBuilder {
                     }
                     String token = exchange.getIn().getHeader("token", String.class);
                     exchange.getIn().setHeader("CamelHttpUrl", url + "/rest/api/3/myself");
-                    exchange.getIn().setHeader("Authorization", JiraUrlProcessor.basicAuth(token));
+                    exchange.getIn().setHeader("Authorization", JiraUrlProcessor.jiraAuth(token));
                     exchange.getIn().setHeader("Accept", "application/json");
                 })
                 .to("direct:http-get");
@@ -72,7 +72,7 @@ public class JiraRoutes extends RouteBuilder {
                     exchange.getIn().setHeader(Exchange.HTTP_QUERY, "jql="
                             + java.net.URLEncoder.encode(jql, java.nio.charset.StandardCharsets.UTF_8)
                             + "&maxResults=1");
-                    exchange.getIn().setHeader("Authorization", JiraUrlProcessor.basicAuth(token));
+                    exchange.getIn().setHeader("Authorization", JiraUrlProcessor.jiraAuth(token));
                     exchange.getIn().setHeader("Accept", "application/json");
                 })
                 .to("direct:http-get");

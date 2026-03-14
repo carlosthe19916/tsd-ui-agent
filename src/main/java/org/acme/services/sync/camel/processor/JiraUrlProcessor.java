@@ -20,9 +20,7 @@ public class JiraUrlProcessor implements Processor {
         String query = exchange.getIn().getHeader("query", String.class);
 
         String jql = (query != null && !query.isBlank()) ? query : "project is not EMPTY order by updated DESC";
-        String auth = basicAuth(token);
-
-        exchange.getIn().setHeader("Authorization", auth);
+        exchange.getIn().setHeader("Authorization", jiraAuth(token));
         exchange.getIn().setHeader("Accept", "application/json");
         exchange.setProperty("baseUrl", url);
         exchange.setProperty("jql", jql);
@@ -34,7 +32,10 @@ public class JiraUrlProcessor implements Processor {
                 + "&maxResults=" + MAX_RESULTS);
     }
 
-    public static String basicAuth(String token) {
-        return "Basic " + Base64.getEncoder().encodeToString((":" + token).getBytes(StandardCharsets.UTF_8));
+    public static String jiraAuth(String token) {
+        if (token.contains(":")) {
+            return "Basic " + Base64.getEncoder().encodeToString(token.getBytes(StandardCharsets.UTF_8));
+        }
+        return "Bearer " + token;
     }
 }
