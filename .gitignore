@@ -45,3 +45,6 @@ nb-configuration.xml
 .certs/
 
 *.db
+
+**/managed_context/*
+**/test_suite_analysis/*

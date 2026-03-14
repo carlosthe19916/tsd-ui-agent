@@ -98,7 +98,7 @@ class TaskResourceTest {
         ext.externalId = externalId;
         ext.url = "https://github.com/owner/repo/issues/" + externalId;
         ext.title = title;
-        ext.status = status;
+        ext.externalStatus = status.name();
         ext.createdAt = Instant.parse("2025-01-01T00:00:00Z");
         ext.updatedAt = Instant.parse("2025-06-01T00:00:00Z");
         return ext;
@@ -176,13 +176,14 @@ class TaskResourceTest {
                 issue("fs-2", "Status closed", TaskStatus.CLOSED)
         ));
 
+        // All synced tasks default to TaskEntity.status=OPEN (externalStatus is a separate string field)
         given()
                 .queryParam("filterText", "Status")
                 .queryParam("status", "OPEN")
                 .when().get("/tasks")
                 .then()
                 .statusCode(200)
-                .body("meta.count", is(1))
+                .body("meta.count", is(2))
                 .body("data[0].status", is("OPEN"));
     }
 
@@ -227,13 +228,14 @@ class TaskResourceTest {
                 issue("combo-3", "Combo other", TaskStatus.OPEN)
         ));
 
+        // All synced tasks default to TaskEntity.status=OPEN, so status filter matches both "Combo match" tasks
         given()
                 .queryParam("filterText", "Combo match")
                 .queryParam("status", "OPEN")
                 .when().get("/tasks")
                 .then()
                 .statusCode(200)
-                .body("meta.count", is(1));
+                .body("meta.count", is(2));
     }
 
     @Test

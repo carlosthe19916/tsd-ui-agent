@@ -78,7 +78,7 @@ class ProjectSyncResourceTest {
         ext.externalId = id;
         ext.url = "https://github.com/owner/repo/issues/" + id;
         ext.title = title;
-        ext.status = status;
+        ext.externalStatus = status.name();
         ext.createdAt = Instant.now();
         ext.updatedAt = Instant.now();
         return ext;
