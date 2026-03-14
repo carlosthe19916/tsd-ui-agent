@@ -171,8 +171,7 @@ export const GitList: React.FC = () => {
                         items={[
                           {
                             title: "Edit",
-                            onClick: () =>
-                              setModalState({ type: "edit", git }),
+                            onClick: () => setModalState({ type: "edit", git }),
                           },
                           {
                             title: "Delete",

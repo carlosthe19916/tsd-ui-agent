@@ -4,10 +4,7 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 
 import type { GitDto, New } from "@app/api/models";
-import {
-  useCreateGitMutation,
-  useUpdateGitMutation,
-} from "@app/queries/gits";
+import { useCreateGitMutation, useUpdateGitMutation } from "@app/queries/gits";
 
 export interface GitFormValues {
   url: string;

@@ -272,7 +272,6 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ control }) => {
           </>
         )}
       />
-
     </Form>
   );
 };

@@ -1,11 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import {
-  createGit,
-  deleteGit,
-  getGits,
-  updateGit,
-} from "@app/api/git-api";
+import { createGit, deleteGit, getGits, updateGit } from "@app/api/git-api";
 import type { GitDto, New } from "@app/api/models";
 
 const GIT_QUERY_KEY = "gits";
