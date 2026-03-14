@@ -1,7 +1,13 @@
 import axios from "axios";
 
 import { FILTER_TEXT_CATEGORY_KEY } from "@app/Constants";
-import type { HubRequestParams, SearchResultDto, TaskDto } from "./models";
+import type {
+  HubRequestParams,
+  New,
+  PlanDto,
+  SearchResultDto,
+  TaskDto,
+} from "./models";
 
 const BASE_URL = "/api/tasks";
 
@@ -55,4 +61,14 @@ export const getTasks = (params: HubRequestParams) =>
     .get<SearchResultDto<TaskDto>>(BASE_URL, {
       params: serializeTaskRequestParams(params),
     })
+    .then((response) => response.data);
+
+export const createTaskPlan = (taskId: number, plan: New<PlanDto>) =>
+  axios
+    .post<PlanDto>(`${BASE_URL}/${taskId}/plan`, plan)
+    .then((response) => response.data);
+
+export const updateTaskPlan = (taskId: number, plan: PlanDto) =>
+  axios
+    .put<PlanDto>(`${BASE_URL}/${taskId}/plan`, plan)
     .then((response) => response.data);

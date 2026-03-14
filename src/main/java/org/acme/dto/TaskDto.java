@@ -19,4 +19,5 @@ public class TaskDto {
     public Instant createdAt;
     public Instant updatedAt;
     public ProjectDto project;
+    public PlanDto plan;
 }

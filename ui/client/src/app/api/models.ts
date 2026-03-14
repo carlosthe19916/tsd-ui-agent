@@ -50,6 +50,18 @@ export interface Label {
 
 export type TaskStatus = "OPEN" | "IN_PROGRESS" | "CLOSED";
 
+export type PlanStatus = "IN_PROGRESS" | "APPROVED";
+export type PlanType = "MANUAL" | "SEMI_MANUAL" | "AUTO";
+
+export interface PlanDto {
+  id: number;
+  content: string;
+  status: PlanStatus;
+  type: PlanType;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface TaskDto {
   id: number;
   externalId: string;
@@ -63,6 +75,7 @@ export interface TaskDto {
   createdAt: string;
   updatedAt: string;
   project: ProjectDto;
+  plan?: PlanDto;
 }
 
 export interface SearchResultDto<T> {

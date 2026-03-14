@@ -11,6 +11,9 @@ public class TaskMapper {
     @Inject
     ProjectMapper projectMapper;
 
+    @Inject
+    PlanMapper planMapper;
+
     public TaskDto toDto(TaskEntity entity) {
         TaskDto dto = new TaskDto();
         dto.id = entity.id;
@@ -25,6 +28,7 @@ public class TaskMapper {
         dto.createdAt = entity.createdAt;
         dto.updatedAt = entity.updatedAt;
         dto.project = projectMapper.toDto(entity.project);
+        dto.plan = entity.plan != null ? planMapper.toDto(entity.plan) : null;
         return dto;
     }
 }

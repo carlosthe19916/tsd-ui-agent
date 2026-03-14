@@ -28,7 +28,7 @@ public class PlanEntity extends PanacheEntityBase {
     @NotNull
     @Enumerated(EnumType.STRING)
     @Column(name = "status")
-    public PlanStatus status;
+    public PlanStatus status = PlanStatus.IN_PROGRESS;
 
     @NotNull
     @Enumerated(EnumType.STRING)
