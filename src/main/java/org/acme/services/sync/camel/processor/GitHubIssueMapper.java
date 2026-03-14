@@ -28,13 +28,11 @@ public class GitHubIssueMapper implements Processor {
         ext.title = gh.title();
         ext.description = gh.body();
         ext.status = "open".equals(gh.state()) ? TaskStatus.OPEN : TaskStatus.CLOSED;
-        ext.assignee = gh.assignee() != null ? gh.assignee().login() : null;
 
         if (gh.labels() != null && !gh.labels().isEmpty()) {
             ext.labels = gh.labels().stream().map(GitHubIssue.GitHubLabel::name).collect(Collectors.joining(","));
         }
 
-        ext.priority = null;
         ext.createdAt = gh.createdAt() != null ? Instant.parse(gh.createdAt()) : null;
         ext.updatedAt = gh.updatedAt() != null ? Instant.parse(gh.updatedAt()) : null;
         return ext;

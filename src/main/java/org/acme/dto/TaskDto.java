@@ -13,11 +13,9 @@ public class TaskDto {
     public String title;
     public String description;
     public TaskStatus status;
-    public String assignee;
     public String labels;
-    public String priority;
     public SourceType type;
     public Instant createdAt;
     public Instant updatedAt;
-    public Long projectId;
+    public ProjectDto project;
 }

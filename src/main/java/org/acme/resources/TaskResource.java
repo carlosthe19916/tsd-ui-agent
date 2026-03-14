@@ -26,7 +26,6 @@ import org.acme.mapper.PlanMapper;
 import org.acme.mapper.TaskContextMapper;
 import org.acme.mapper.TaskMapper;
 import org.acme.models.jpa.entity.PlanEntity;
-import org.acme.models.jpa.entity.SourceType;
 import org.acme.models.jpa.entity.TaskContextEntity;
 import org.acme.models.jpa.entity.TaskEntity;
 import org.acme.models.jpa.entity.TaskStatus;
@@ -44,7 +43,7 @@ import java.util.stream.Collectors;
 public class TaskResource {
 
     private static final Set<String> SORTABLE_FIELDS = Set.of(
-            "title", "status", "type", "assignee", "priority", "createdAt", "updatedAt"
+            "title", "status", "createdAt", "updatedAt", "project.name"
     );
 
     @Inject
@@ -59,11 +58,8 @@ public class TaskResource {
     @GET
     public SearchResultDto<TaskDto> list(
             @QueryParam("filterText") String filterText,
-            @QueryParam("projectId") Long projectId,
+            @QueryParam("projectId") List<Long> projectId,
             @QueryParam("status") String status,
-            @QueryParam("type") String type,
-            @QueryParam("assignee") String assignee,
-            @QueryParam("priority") String priority,
             @QueryParam("offset") @DefaultValue("0") @Max(9_000) int offset,
             @QueryParam("limit") @DefaultValue("10") @Max(1_000) int limit,
             @QueryParam("sort_by") List<String> sortBy
@@ -76,9 +72,9 @@ public class TaskResource {
             params.put("filterText", "%" + filterText.toLowerCase() + "%");
         }
 
-        if (projectId != null) {
+        if (projectId != null && !projectId.isEmpty()) {
             if (!query.isEmpty()) query.append(" and");
-            query.append(" project.id = :projectId");
+            query.append(" project.id in :projectId");
             params.put("projectId", projectId);
         }
 
@@ -86,24 +82,6 @@ public class TaskResource {
             if (!query.isEmpty()) query.append(" and");
             query.append(" status = :status");
             params.put("status", TaskStatus.valueOf(status));
-        }
-
-        if (type != null && !type.isBlank()) {
-            if (!query.isEmpty()) query.append(" and");
-            query.append(" type = :type");
-            params.put("type", SourceType.valueOf(type));
-        }
-
-        if (assignee != null && !assignee.isBlank()) {
-            if (!query.isEmpty()) query.append(" and");
-            query.append(" assignee = :assignee");
-            params.put("assignee", assignee);
-        }
-
-        if (priority != null && !priority.isBlank()) {
-            if (!query.isEmpty()) query.append(" and");
-            query.append(" priority = :priority");
-            params.put("priority", priority);
         }
 
         Sort sort = buildSort(sortBy);

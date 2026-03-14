@@ -62,9 +62,7 @@ public class TaskSyncService {
                     task.title = issue.title;
                     task.description = issue.description;
                     task.status = issue.status;
-                    task.assignee = issue.assignee;
                     task.labels = issue.labels;
-                    task.priority = issue.priority;
                     task.createdAt = issue.createdAt;
                     task.updatedAt = issue.updatedAt;
                     task.persist();

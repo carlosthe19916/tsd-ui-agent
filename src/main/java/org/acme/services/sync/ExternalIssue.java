@@ -11,9 +11,7 @@ public class ExternalIssue {
     public String title;
     public String description;
     public TaskStatus status;
-    public String assignee;
     public String labels;
-    public String priority;
     public Instant createdAt;
     public Instant updatedAt;
 }

@@ -47,14 +47,8 @@ public class TaskEntity extends PanacheEntityBase {
     @Column(name = "status")
     public TaskStatus status;
 
-    @Column(name = "assignee")
-    public String assignee;
-
     @Column(name = "labels")
     public String labels;
-
-    @Column(name = "priority")
-    public String priority;
 
     @NotNull
     @Enumerated(EnumType.STRING)

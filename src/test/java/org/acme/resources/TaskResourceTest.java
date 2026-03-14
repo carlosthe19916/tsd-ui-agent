@@ -91,15 +91,12 @@ class TaskResourceTest {
         return id;
     }
 
-    private static ExternalIssue issue(String externalId, String title, TaskStatus status,
-                                       String assignee, String priority) {
+    private static ExternalIssue issue(String externalId, String title, TaskStatus status) {
         ExternalIssue ext = new ExternalIssue();
         ext.externalId = externalId;
         ext.url = "https://github.com/owner/repo/issues/" + externalId;
         ext.title = title;
         ext.status = status;
-        ext.assignee = assignee;
-        ext.priority = priority;
         ext.createdAt = Instant.parse("2025-01-01T00:00:00Z");
         ext.updatedAt = Instant.parse("2025-06-01T00:00:00Z");
         return ext;
@@ -108,7 +105,7 @@ class TaskResourceTest {
     @Test
     void testListAll() {
         createProjectAndSync(SourceType.GITHUB, List.of(
-                issue("list-1", "List task", TaskStatus.OPEN, null, null)
+                issue("list-1", "List task", TaskStatus.OPEN)
         ));
 
         given()
@@ -123,9 +120,9 @@ class TaskResourceTest {
     @Test
     void testPagination() {
         createProjectAndSync(SourceType.GITHUB, List.of(
-                issue("pag-1", "Pag A", TaskStatus.OPEN, null, null),
-                issue("pag-2", "Pag B", TaskStatus.OPEN, null, null),
-                issue("pag-3", "Pag C", TaskStatus.OPEN, null, null)
+                issue("pag-1", "Pag A", TaskStatus.OPEN),
+                issue("pag-2", "Pag B", TaskStatus.OPEN),
+                issue("pag-3", "Pag C", TaskStatus.OPEN)
         ));
 
         given()
@@ -151,7 +148,7 @@ class TaskResourceTest {
     @Test
     void testFilterByProjectId() {
         int projectId = createProjectAndSync(SourceType.GITHUB, List.of(
-                issue("fp-1", "Filter proj", TaskStatus.OPEN, null, null)
+                issue("fp-1", "Filter proj", TaskStatus.OPEN)
         ));
 
         given()
@@ -173,8 +170,8 @@ class TaskResourceTest {
     @Test
     void testFilterByStatus() {
         createProjectAndSync(SourceType.GITHUB, List.of(
-                issue("fs-1", "Status open", TaskStatus.OPEN, null, null),
-                issue("fs-2", "Status closed", TaskStatus.CLOSED, null, null)
+                issue("fs-1", "Status open", TaskStatus.OPEN),
+                issue("fs-2", "Status closed", TaskStatus.CLOSED)
         ));
 
         given()
@@ -188,59 +185,10 @@ class TaskResourceTest {
     }
 
     @Test
-    void testFilterByType() {
-        createProjectAndSync(SourceType.GITHUB, List.of(
-                issue("ft-1", "Type github task", TaskStatus.OPEN, null, null)
-        ));
-
-        given()
-                .queryParam("filterText", "Type github task")
-                .queryParam("type", "GITHUB")
-                .when().get("/tasks")
-                .then()
-                .statusCode(200)
-                .body("meta.count", is(1));
-    }
-
-    @Test
-    void testFilterByAssignee() {
-        createProjectAndSync(SourceType.GITHUB, List.of(
-                issue("fa-1", "Assignee task", TaskStatus.OPEN, "alice", null),
-                issue("fa-2", "Unassigned task", TaskStatus.OPEN, null, null)
-        ));
-
-        given()
-                .queryParam("filterText", "task")
-                .queryParam("assignee", "alice")
-                .when().get("/tasks")
-                .then()
-                .statusCode(200)
-                .body("meta.count", is(1))
-                .body("data[0].assignee", is("alice"));
-    }
-
-    @Test
-    void testFilterByPriority() {
-        createProjectAndSync(SourceType.GITHUB, List.of(
-                issue("fpri-1", "Priority high task", TaskStatus.OPEN, null, "high"),
-                issue("fpri-2", "Priority low task", TaskStatus.OPEN, null, "low")
-        ));
-
-        given()
-                .queryParam("filterText", "Priority")
-                .queryParam("priority", "high")
-                .when().get("/tasks")
-                .then()
-                .statusCode(200)
-                .body("meta.count", is(1))
-                .body("data[0].priority", is("high"));
-    }
-
-    @Test
     void testFilterText() {
         createProjectAndSync(SourceType.GITHUB, List.of(
-                issue("ftext-1", "UniqueSearchTerm Alpha", TaskStatus.OPEN, null, null),
-                issue("ftext-2", "Something else", TaskStatus.OPEN, null, null)
+                issue("ftext-1", "UniqueSearchTerm Alpha", TaskStatus.OPEN),
+                issue("ftext-2", "Something else", TaskStatus.OPEN)
         ));
 
         given()
@@ -255,8 +203,8 @@ class TaskResourceTest {
     @Test
     void testSortBy() {
         createProjectAndSync(SourceType.GITHUB, List.of(
-                issue("sort-1", "Zebra sort task", TaskStatus.OPEN, null, null),
-                issue("sort-2", "Alpha sort task", TaskStatus.OPEN, null, null)
+                issue("sort-1", "Zebra sort task", TaskStatus.OPEN),
+                issue("sort-2", "Alpha sort task", TaskStatus.OPEN)
         ));
 
         given()
@@ -272,15 +220,14 @@ class TaskResourceTest {
     @Test
     void testCombinedFilters() {
         createProjectAndSync(SourceType.GITHUB, List.of(
-                issue("combo-1", "Combo match", TaskStatus.OPEN, "bob", "medium"),
-                issue("combo-2", "Combo match", TaskStatus.CLOSED, "bob", "medium"),
-                issue("combo-3", "Combo match", TaskStatus.OPEN, "carol", "medium")
+                issue("combo-1", "Combo match", TaskStatus.OPEN),
+                issue("combo-2", "Combo match", TaskStatus.CLOSED),
+                issue("combo-3", "Combo other", TaskStatus.OPEN)
         ));
 
         given()
                 .queryParam("filterText", "Combo match")
                 .queryParam("status", "OPEN")
-                .queryParam("assignee", "bob")
                 .when().get("/tasks")
                 .then()
                 .statusCode(200)
@@ -302,7 +249,7 @@ class TaskResourceTest {
 
     private int createTaskAndReturnId() {
         int projectId = createProjectAndSync(SourceType.GITHUB, List.of(
-                issue("ctx-" + System.nanoTime(), "Context test task", TaskStatus.OPEN, null, null)
+                issue("ctx-" + System.nanoTime(), "Context test task", TaskStatus.OPEN)
         ));
 
         return given()
