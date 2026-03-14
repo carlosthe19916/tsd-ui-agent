@@ -15,7 +15,7 @@ public class ProjectDto {
     public String name;
 
     @NotNull
-    public String url;
+    public String apiUrl;
 
     public String query;
 

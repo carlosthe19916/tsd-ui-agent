@@ -19,15 +19,20 @@ import jakarta.ws.rs.core.Response;
 import org.acme.dto.GitContextDto;
 import org.acme.dto.GitDto;
 import org.acme.dto.ProjectDto;
+import org.acme.dto.TestConnectionDto;
 import org.acme.mapper.GitContextMapper;
 import org.acme.mapper.ProjectMapper;
+import org.acme.models.jpa.entity.CredentialEntity;
 import org.acme.models.jpa.entity.GitContextEntity;
 import org.acme.models.jpa.entity.ProjectEntity;
 import org.acme.models.jpa.entity.SyncStatus;
 import org.acme.services.ProjectService;
 import org.acme.services.TaskSyncService;
+import org.acme.services.sync.SyncException;
+import org.acme.services.sync.SyncManager;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Transactional
@@ -48,6 +53,9 @@ public class ProjectResource {
 
     @Inject
     TaskSyncService taskSyncService;
+
+    @Inject
+    SyncManager syncManager;
 
     @GET
     public List<ProjectDto> list() {
@@ -117,6 +125,38 @@ public class ProjectResource {
         }
         taskSyncService.triggerSync(id);
         return Response.accepted(result[0]).build();
+    }
+
+    @POST
+    @Path("/test-query")
+    public Response testQuery(@Valid TestConnectionDto dto) {
+        CredentialEntity cred = (CredentialEntity) CredentialEntity.findByIdOptional(dto.credentialId)
+                .orElseThrow(NotFoundException::new);
+
+        try {
+            syncManager.testQuery(dto.type, dto.apiUrl, dto.query, cred.token);
+            return Response.ok(Map.of("status", "ok")).build();
+        } catch (SyncException e) {
+            return Response.status(422)
+                    .entity(Map.of("status", "error", "message", e.getMessage()))
+                    .build();
+        }
+    }
+
+    @POST
+    @Path("/test-connection")
+    public Response testConnection(@Valid TestConnectionDto dto) {
+        CredentialEntity cred = (CredentialEntity) CredentialEntity.findByIdOptional(dto.credentialId)
+                .orElseThrow(NotFoundException::new);
+
+        try {
+            syncManager.testConnection(dto.type, dto.apiUrl, dto.query, cred.token);
+            return Response.ok(Map.of("status", "ok")).build();
+        } catch (SyncException e) {
+            return Response.status(422)
+                    .entity(Map.of("status", "error", "message", e.getMessage()))
+                    .build();
+        }
     }
 
     @DELETE

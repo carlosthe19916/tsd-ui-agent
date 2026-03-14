@@ -44,7 +44,7 @@ class ProjectResourceTest {
     private static ProjectDto project(String name, String url, SourceType type) {
         ProjectDto dto = new ProjectDto();
         dto.name = name;
-        dto.url = url;
+        dto.apiUrl = url;
         dto.type = type;
         dto.git = defaultGit();
         dto.credentialId = (long) createCredential();
@@ -64,7 +64,7 @@ class ProjectResourceTest {
                 .statusCode(201)
                 .body("id", notNullValue())
                 .body("name", is("my-project"))
-                .body("url", is("https://example.com"))
+                .body("apiUrl", is("https://example.com"))
                 .body("query", is("label=bug"))
                 .body("type", is("GITHUB"))
                 .body("git.url", is("https://github.com/test"))
@@ -100,7 +100,7 @@ class ProjectResourceTest {
     void testCreateProjectMissingCredentialFails() {
         ProjectDto dto = new ProjectDto();
         dto.name = "no-cred";
-        dto.url = "https://example.com";
+        dto.apiUrl = "https://example.com";
         dto.type = SourceType.GITHUB;
         dto.git = defaultGit();
         // credentialId is null
@@ -117,7 +117,7 @@ class ProjectResourceTest {
     void testCreateProjectNonExistentCredentialFails() {
         ProjectDto dto = new ProjectDto();
         dto.name = "bad-cred-ref";
-        dto.url = "https://example.com";
+        dto.apiUrl = "https://example.com";
         dto.type = SourceType.GITHUB;
         dto.git = defaultGit();
         dto.credentialId = 999999L;
@@ -151,7 +151,7 @@ class ProjectResourceTest {
         int credId = createCredential();
         ProjectDto dto = new ProjectDto();
         dto.name = "get-project";
-        dto.url = "https://example.com";
+        dto.apiUrl = "https://example.com";
         dto.type = SourceType.GITHUB;
         dto.git = defaultGit();
         dto.credentialId = (long) credId;
@@ -202,7 +202,7 @@ class ProjectResourceTest {
                 .then()
                 .statusCode(200)
                 .body("name", is("after-update"))
-                .body("url", is("https://updated.com"))
+                .body("apiUrl", is("https://updated.com"))
                 .body("type", is("JIRA"))
                 .body("credentialId", is(credId));
     }

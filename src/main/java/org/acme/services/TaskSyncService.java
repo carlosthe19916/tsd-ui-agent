@@ -2,13 +2,12 @@ package org.acme.services;
 
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import org.acme.models.jpa.entity.ProjectEntity;
 import org.acme.models.jpa.entity.SyncStatus;
 import org.acme.models.jpa.entity.TaskEntity;
 import org.acme.services.sync.ExternalIssue;
-import org.acme.services.sync.IssueFetcher;
+import org.acme.services.sync.SyncManager;
 import org.eclipse.microprofile.context.ManagedExecutor;
 import org.jboss.logging.Logger;
 
@@ -23,7 +22,7 @@ public class TaskSyncService {
     private static final Logger LOG = Logger.getLogger(TaskSyncService.class);
 
     @Inject
-    Instance<IssueFetcher> fetchers;
+    SyncManager syncManager;
 
     @Inject
     ManagedExecutor managedExecutor;
@@ -41,13 +40,7 @@ public class TaskSyncService {
                     return;
                 }
 
-                IssueFetcher fetcher = fetchers.stream()
-                        .filter(f -> f.getType() == project.type)
-                        .findFirst()
-                        .orElseThrow(() -> new IllegalStateException(
-                                "No fetcher found for type: " + project.type));
-
-                List<ExternalIssue> issues = fetcher.fetchIssues(project);
+                List<ExternalIssue> issues = syncManager.fetchIssues(project);
 
                 Set<String> fetchedIds = issues.stream()
                         .map(i -> i.externalId)

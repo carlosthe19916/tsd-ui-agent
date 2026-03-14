@@ -1,6 +1,6 @@
 import axios from "axios";
 
-import type { New, ProjectDto } from "./models";
+import type { New, ProjectDto, SourceType } from "./models";
 
 const BASE_URL = "/api/projects";
 
@@ -20,3 +20,25 @@ export const updateProject = (id: number, project: ProjectDto) =>
 
 export const deleteProject = (id: number) =>
   axios.delete<void>(`${BASE_URL}/${id}`);
+
+export interface TestConnectionRequest {
+  type: SourceType;
+  apiUrl: string;
+  query?: string;
+  credentialId: number;
+}
+
+export interface TestConnectionResponse {
+  status: "ok" | "error";
+  message?: string;
+}
+
+export const testConnection = (data: TestConnectionRequest) =>
+  axios
+    .post<TestConnectionResponse>(`${BASE_URL}/test-connection`, data)
+    .then((r) => r.data);
+
+export const testQuery = (data: TestConnectionRequest) =>
+  axios
+    .post<TestConnectionResponse>(`${BASE_URL}/test-query`, data)
+    .then((r) => r.data);

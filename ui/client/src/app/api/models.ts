@@ -51,7 +51,7 @@ export interface Label {
 export interface ProjectDto {
   id: number;
   name: string;
-  url: string;
+  apiUrl: string;
   query?: string;
   type: SourceType;
   git: GitDto;

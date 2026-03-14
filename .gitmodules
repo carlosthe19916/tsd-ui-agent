@@ -10,3 +10,12 @@
 [submodule ".modules/tackle2-ui"]
 	path = .modules/tackle2-ui
 	url = https://github.com/konveyor/tackle2-ui.git
+[submodule ".modules/camel-quarkus"]
+	path = .modules/camel-quarkus
+	url = https://github.com/apache/camel-quarkus.git
+[submodule ".modules/openubl"]
+	path = .modules/openubl
+	url = https://github.com/project-openubl/openubl.git
+[submodule ".modules/camel"]
+	path = .modules/camel
+	url = https://github.com/apache/camel.git

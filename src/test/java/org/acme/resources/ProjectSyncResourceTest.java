@@ -9,8 +9,7 @@ import org.acme.dto.ProjectDto;
 import org.acme.models.jpa.entity.SourceType;
 import org.acme.models.jpa.entity.TaskStatus;
 import org.acme.services.sync.ExternalIssue;
-import org.acme.services.sync.GitHubIssueFetcher;
-import org.acme.services.sync.JiraIssueFetcher;
+import org.acme.services.sync.SyncManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -21,7 +20,6 @@ import static io.restassured.RestAssured.given;
 import static org.awaitility.Awaitility.await;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.CoreMatchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -31,17 +29,11 @@ import java.util.concurrent.TimeUnit;
 class ProjectSyncResourceTest {
 
     @InjectMock
-    GitHubIssueFetcher gitHubIssueFetcher;
-
-    @InjectMock
-    JiraIssueFetcher jiraIssueFetcher;
+    SyncManager syncManager;
 
     @BeforeEach
     void setup() {
-        when(gitHubIssueFetcher.getType()).thenReturn(SourceType.GITHUB);
-        when(jiraIssueFetcher.getType()).thenReturn(SourceType.JIRA);
-        when(gitHubIssueFetcher.fetchIssues(any())).thenReturn(List.of());
-        when(jiraIssueFetcher.fetchIssues(any())).thenReturn(List.of());
+        when(syncManager.fetchIssues(any())).thenReturn(List.of());
     }
 
     private static GitDto defaultGit() {
@@ -66,7 +58,7 @@ class ProjectSyncResourceTest {
     private int createProject() {
         ProjectDto dto = new ProjectDto();
         dto.name = "sync-project";
-        dto.url = "https://github.com/owner/repo";
+        dto.apiUrl = "https://github.com/owner/repo";
         dto.type = SourceType.GITHUB;
         dto.git = defaultGit();
         dto.credentialId = (long) createCredential();
@@ -114,7 +106,7 @@ class ProjectSyncResourceTest {
     @Test
     void testSyncWhileInProgressReturns409() {
         // Make the fetcher block so the sync stays in progress
-        when(gitHubIssueFetcher.fetchIssues(any())).thenAnswer(invocation -> {
+        when(syncManager.fetchIssues(any())).thenAnswer(invocation -> {
             Thread.sleep(3000);
             return List.of();
         });
@@ -159,7 +151,7 @@ class ProjectSyncResourceTest {
 
     @Test
     void testSyncCreatesNewTasks() {
-        when(gitHubIssueFetcher.fetchIssues(any())).thenReturn(List.of(
+        when(syncManager.fetchIssues(any())).thenReturn(List.of(
                 issue("1", "First issue", TaskStatus.OPEN),
                 issue("2", "Second issue", TaskStatus.CLOSED)
         ));
@@ -178,14 +170,11 @@ class ProjectSyncResourceTest {
                         .then()
                         .body("syncStatus", is("SYNCHRONIZED"))
         );
-
-        // Verify tasks were created by checking the sync completed
-        // Tasks are linked to the project in the DB
     }
 
     @Test
     void testSyncUpdatesExistingTasks() {
-        when(gitHubIssueFetcher.fetchIssues(any())).thenReturn(List.of(
+        when(syncManager.fetchIssues(any())).thenReturn(List.of(
                 issue("10", "Original title", TaskStatus.OPEN)
         ));
 
@@ -206,7 +195,7 @@ class ProjectSyncResourceTest {
         );
 
         // Change mock data
-        when(gitHubIssueFetcher.fetchIssues(any())).thenReturn(List.of(
+        when(syncManager.fetchIssues(any())).thenReturn(List.of(
                 issue("10", "Updated title", TaskStatus.CLOSED)
         ));
 
@@ -227,7 +216,7 @@ class ProjectSyncResourceTest {
 
     @Test
     void testSyncDeletesOrphanTasks() {
-        when(gitHubIssueFetcher.fetchIssues(any())).thenReturn(List.of(
+        when(syncManager.fetchIssues(any())).thenReturn(List.of(
                 issue("100", "Issue A", TaskStatus.OPEN),
                 issue("101", "Issue B", TaskStatus.OPEN),
                 issue("102", "Issue C", TaskStatus.OPEN)
@@ -250,7 +239,7 @@ class ProjectSyncResourceTest {
         );
 
         // Second sync with only 2 issues (issue 102 removed)
-        when(gitHubIssueFetcher.fetchIssues(any())).thenReturn(List.of(
+        when(syncManager.fetchIssues(any())).thenReturn(List.of(
                 issue("100", "Issue A", TaskStatus.OPEN),
                 issue("101", "Issue B", TaskStatus.OPEN)
         ));

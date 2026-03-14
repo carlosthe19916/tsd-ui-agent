@@ -71,7 +71,7 @@ export const ProjectList: React.FC = () => {
     isLoading: isFetching,
     columnNames: {
       name: "Name",
-      url: "URL",
+      apiUrl: "API URL",
       type: "Type",
       syncStatus: "Sync Status",
       gitUrl: "Git URL",
@@ -79,14 +79,14 @@ export const ProjectList: React.FC = () => {
     },
     hasActionsColumn: true,
     isSortEnabled: true,
-    sortableColumns: ["name", "url", "type"],
+    sortableColumns: ["name", "apiUrl", "type"],
     initialSort: {
       columnKey: "name",
       direction: "asc",
     },
     getSortValues: (item) => ({
       name: item.name || "",
-      url: item.url || "",
+      apiUrl: item.apiUrl || "",
       type: item.type || "",
     }),
     isPaginationEnabled: true,
@@ -154,7 +154,7 @@ export const ProjectList: React.FC = () => {
             <Tr>
               <TableHeaderContentWithControls {...tableControls}>
                 <Th {...getThProps({ columnKey: "name" })} />
-                <Th {...getThProps({ columnKey: "url" })} />
+                <Th {...getThProps({ columnKey: "apiUrl" })} />
                 <Th {...getThProps({ columnKey: "type" })} />
                 <Th {...getThProps({ columnKey: "syncStatus" })} />
                 <Th {...getThProps({ columnKey: "gitUrl" })} />
@@ -185,9 +185,9 @@ export const ProjectList: React.FC = () => {
                     <Td
                       width={20}
                       modifier="breakWord"
-                      {...getTdProps({ columnKey: "url" })}
+                      {...getTdProps({ columnKey: "apiUrl" })}
                     >
-                      {project.url}
+                      {project.apiUrl}
                     </Td>
                     <Td width={10} {...getTdProps({ columnKey: "type" })}>
                       {project.type}

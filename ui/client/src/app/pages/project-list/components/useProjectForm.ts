@@ -11,7 +11,7 @@ import {
 
 export interface ProjectFormValues {
   name: string;
-  url: string;
+  apiUrl: string;
   query: string;
   type: string;
   gitUrl: string;
@@ -21,10 +21,16 @@ export interface ProjectFormValues {
 
 const schema = yup.object({
   name: yup.string().required("Name is required"),
-  url: yup.string().required("URL is required"),
+  apiUrl: yup.string().required("API URL is required"),
   query: yup.string().defined(),
   type: yup.string().required("Type is required"),
-  gitUrl: yup.string().required("Git URL is required"),
+  gitUrl: yup
+    .string()
+    .required("Git URL is required")
+    .matches(
+      /^(https?:\/\/.+|git@[^:]+:.+|git:\/\/.+)$/,
+      "Must be a valid Git URL (e.g. https://github.com/org/repo.git)",
+    ),
   gitBranch: yup.string().defined(),
   credentialId: yup.string().required("Credential is required"),
 });
@@ -35,7 +41,7 @@ const mapProjectToFormValues = (
   if (!project) {
     return {
       name: "",
-      url: "",
+      apiUrl: "",
       query: "",
       type: "",
       gitUrl: "",
@@ -45,7 +51,7 @@ const mapProjectToFormValues = (
   }
   return {
     name: project.name,
-    url: project.url,
+    apiUrl: project.apiUrl,
     query: project.query ?? "",
     type: project.type,
     gitUrl: project.git.url,
@@ -72,7 +78,7 @@ export const useProjectForm = (
   const onSubmit = form.handleSubmit((values: ProjectFormValues) => {
     const dto: New<ProjectDto> = {
       name: values.name,
-      url: values.url,
+      apiUrl: values.apiUrl,
       query: values.query || undefined,
       type: values.type as ProjectDto["type"],
       git: {

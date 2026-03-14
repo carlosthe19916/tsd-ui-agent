@@ -12,3 +12,5 @@ export { HookFormPFTextArea } from "./HookFormPFTextArea";
 export type { HookFormPFTextAreaProps } from "./HookFormPFTextArea";
 export { HookFormPFSelect } from "./HookFormPFSelect";
 export type { HookFormPFSelectProps } from "./HookFormPFSelect";
+export { HookFormPFTypeaheadSelect, TypeaheadSelectInput } from "./HookFormPFTypeaheadSelect";
+export type { HookFormPFTypeaheadSelectProps, TypeaheadSelectInputProps } from "./HookFormPFTypeaheadSelect";
