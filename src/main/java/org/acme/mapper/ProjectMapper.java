@@ -13,7 +13,7 @@ public class ProjectMapper {
         ProjectDto dto = new ProjectDto();
         dto.id = entity.id;
         dto.name = entity.name;
-        dto.url = entity.url;
+        dto.apiUrl = entity.apiUrl;
         dto.query = entity.query;
         dto.type = entity.type;
         dto.git = toGitDto(entity.git);

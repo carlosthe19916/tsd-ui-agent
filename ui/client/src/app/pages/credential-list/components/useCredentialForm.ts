@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 
-import type { CredentialDto } from "@app/api/models";
+import type { CredentialDto, New } from "@app/api/models";
 import {
   useCreateCredentialMutation,
   useUpdateCredentialMutation,
@@ -60,17 +60,20 @@ export const useCredentialForm = (
   });
 
   const onSubmit = form.handleSubmit((values: CredentialFormValues) => {
-    const dto: CredentialDto = {
-      ...(isEditing && { id: credential.id }),
-      name: values.name,
-      ...((!isEditing || isTokenEnabled) && values.token
-        ? { token: values.token }
-        : {}),
-    };
-
     if (isEditing) {
+      const dto: CredentialDto = {
+        id: credential.id,
+        name: values.name,
+        token: values.token,
+      };
+
       updateMutation.mutate(dto);
     } else {
+      const dto: New<CredentialDto> = {
+        name: values.name,
+        ...(isTokenEnabled && values.token ? { token: values.token } : {}),
+      };
+
       createMutation.mutate(dto);
     }
   });

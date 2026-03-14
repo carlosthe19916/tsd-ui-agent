@@ -72,13 +72,16 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>io.quarkiverse.githubapi</groupId>
-            <artifactId>quarkus-github-api</artifactId>
-            <version>1.330.0</version>
+            <groupId>org.apache.camel.quarkus</groupId>
+            <artifactId>camel-quarkus-direct</artifactId>
         </dependency>
         <dependency>
             <groupId>org.apache.camel.quarkus</groupId>
-            <artifactId>camel-quarkus-jira</artifactId>
+            <artifactId>camel-quarkus-http</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.camel.quarkus</groupId>
+            <artifactId>camel-quarkus-jackson</artifactId>
         </dependency>
         <dependency>
             <groupId>io.rest-assured</groupId>
@@ -96,13 +99,6 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
-
-    <repositories>
-        <repository>
-            <id>atlassian-public</id>
-            <url>https://packages.atlassian.com/maven-external/</url>
-        </repository>
-    </repositories>
 
     <build>
         <plugins>

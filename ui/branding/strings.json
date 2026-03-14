@@ -6,9 +6,15 @@
   },
   "about": {
     "displayName": "TSD UI Agent",
+    "imageSrc": "<%= brandingRoot %>/images/logo.svg",
     "documentationUrl": ""
   },
   "masthead": {
+    "leftBrand": {
+      "src": "<%= brandingRoot %>/images/logo.svg",
+      "alt": "brand",
+      "height": "30px"
+    },
     "leftTitle": {
       "text": "TSD UI Agent"
     }

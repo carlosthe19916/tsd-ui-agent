@@ -3,6 +3,10 @@ import React from "react";
 import {
   Button,
   ButtonVariant,
+  DescriptionList,
+  DescriptionListDescription,
+  DescriptionListGroup,
+  DescriptionListTerm,
   PageSection,
   Title,
   Toolbar,
@@ -11,6 +15,7 @@ import {
 } from "@patternfly/react-core";
 import {
   ActionsColumn,
+  ExpandableRowContent,
   Table,
   Tbody,
   Td,
@@ -18,6 +23,7 @@ import {
   Thead,
   Tr,
 } from "@patternfly/react-table";
+import spacing from "@patternfly/react-styles/css/utilities/Spacing/spacing";
 
 import { TablePersistenceKeyPrefixes } from "@app/Constants";
 import type { ProjectDto } from "@app/api/models";
@@ -65,21 +71,22 @@ export const ProjectList: React.FC = () => {
     isLoading: isFetching,
     columnNames: {
       name: "Name",
-      url: "URL",
+      apiUrl: "API URL",
       type: "Type",
       syncStatus: "Sync Status",
-      lastSyncAt: "Last Sync",
+      gitUrl: "Git URL",
+      gitBranch: "Git Branch",
     },
     hasActionsColumn: true,
     isSortEnabled: true,
-    sortableColumns: ["name", "url", "type"],
+    sortableColumns: ["name", "apiUrl", "type"],
     initialSort: {
       columnKey: "name",
       direction: "asc",
     },
     getSortValues: (item) => ({
       name: item.name || "",
-      url: item.url || "",
+      apiUrl: item.apiUrl || "",
       type: item.type || "",
     }),
     isPaginationEnabled: true,
@@ -93,7 +100,8 @@ export const ProjectList: React.FC = () => {
         getItemValue: (item) => item.name || "",
       },
     ],
-    isExpansionEnabled: false,
+    isExpansionEnabled: true,
+    expandableVariant: "single",
   });
 
   const {
@@ -146,10 +154,11 @@ export const ProjectList: React.FC = () => {
             <Tr>
               <TableHeaderContentWithControls {...tableControls}>
                 <Th {...getThProps({ columnKey: "name" })} />
-                <Th {...getThProps({ columnKey: "url" })} />
+                <Th {...getThProps({ columnKey: "apiUrl" })} />
                 <Th {...getThProps({ columnKey: "type" })} />
                 <Th {...getThProps({ columnKey: "syncStatus" })} />
-                <Th {...getThProps({ columnKey: "lastSyncAt" })} />
+                <Th {...getThProps({ columnKey: "gitUrl" })} />
+                <Th {...getThProps({ columnKey: "gitBranch" })} />
               </TableHeaderContentWithControls>
             </Tr>
           </Thead>
@@ -167,27 +176,34 @@ export const ProjectList: React.FC = () => {
                     rowIndex={rowIndex}
                   >
                     <Td
-                      width={25}
+                      width={15}
                       modifier="breakWord"
                       {...getTdProps({ columnKey: "name" })}
                     >
                       {project.name}
                     </Td>
                     <Td
-                      width={25}
+                      width={20}
                       modifier="breakWord"
-                      {...getTdProps({ columnKey: "url" })}
+                      {...getTdProps({ columnKey: "apiUrl" })}
                     >
-                      {project.url}
+                      {project.apiUrl}
                     </Td>
                     <Td width={10} {...getTdProps({ columnKey: "type" })}>
                       {project.type}
                     </Td>
-                    <Td width={15} {...getTdProps({ columnKey: "syncStatus" })}>
+                    <Td width={10} {...getTdProps({ columnKey: "syncStatus" })}>
                       {project.syncStatus ?? "N/A"}
                     </Td>
-                    <Td width={15} {...getTdProps({ columnKey: "lastSyncAt" })}>
-                      {formatDateTime(project.lastSyncAt) ?? "Never"}
+                    <Td
+                      width={20}
+                      modifier="breakWord"
+                      {...getTdProps({ columnKey: "gitUrl" })}
+                    >
+                      {project.git?.url}
+                    </Td>
+                    <Td width={10} {...getTdProps({ columnKey: "gitBranch" })}>
+                      {project.git?.branch || "default"}
                     </Td>
                     <Td isActionCell>
                       <ActionsColumn
@@ -206,6 +222,26 @@ export const ProjectList: React.FC = () => {
                     </Td>
                   </TableRowContentWithControls>
                 </Tr>
+                {isCellExpanded(project) ? (
+                  <Tr isExpanded>
+                    <Td colSpan={numRenderedColumns}>
+                      <ExpandableRowContent>
+                        <div className={spacing.ptLg}>
+                          <DescriptionList>
+                            <DescriptionListGroup>
+                              <DescriptionListTerm>
+                                Last Sync
+                              </DescriptionListTerm>
+                              <DescriptionListDescription>
+                                {formatDateTime(project.lastSyncAt) ?? "Never"}
+                              </DescriptionListDescription>
+                            </DescriptionListGroup>
+                          </DescriptionList>
+                        </div>
+                      </ExpandableRowContent>
+                    </Td>
+                  </Tr>
+                ) : null}
               </Tbody>
             ))}
           </ConditionalTableBody>

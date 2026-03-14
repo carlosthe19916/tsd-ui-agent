@@ -22,7 +22,7 @@ public class ProjectService {
 
         ProjectEntity entity = new ProjectEntity();
         entity.name = dto.name;
-        entity.url = dto.url;
+        entity.apiUrl = dto.apiUrl;
         entity.query = dto.query;
         entity.type = dto.type;
         entity.git = git;
@@ -34,7 +34,7 @@ public class ProjectService {
 
     public ProjectEntity update(ProjectEntity entity, ProjectDto dto) {
         entity.name = dto.name;
-        entity.url = dto.url;
+        entity.apiUrl = dto.apiUrl;
         entity.query = dto.query;
         entity.type = dto.type;
         entity.persist();

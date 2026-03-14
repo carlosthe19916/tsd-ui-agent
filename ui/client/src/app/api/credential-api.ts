@@ -1,49 +1,21 @@
-import type { CredentialDto } from "./models";
+import axios from "axios";
+
+import type { CredentialDto, New } from "./models";
 
 const BASE_URL = "/api/credentials";
 
-export const getCredentials = async (): Promise<CredentialDto[]> => {
-  const response = await fetch(BASE_URL);
-  if (!response.ok) {
-    throw new Error("Failed to fetch credentials");
-  }
-  return response.json();
-};
+export const getCredentials = () =>
+  axios.get<CredentialDto[]>(BASE_URL).then((response) => response.data);
 
-export const createCredential = async (
-  credential: CredentialDto,
-): Promise<CredentialDto> => {
-  const response = await fetch(BASE_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(credential),
-  });
-  if (!response.ok) {
-    throw new Error("Failed to create credential");
-  }
-  return response.json();
-};
+export const createCredential = (credential: New<CredentialDto>) =>
+  axios
+    .post<CredentialDto>(BASE_URL, credential)
+    .then((response) => response.data);
 
-export const updateCredential = async (
-  id: number,
-  credential: CredentialDto,
-): Promise<CredentialDto> => {
-  const response = await fetch(`${BASE_URL}/${id}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(credential),
-  });
-  if (!response.ok) {
-    throw new Error("Failed to update credential");
-  }
-  return response.json();
-};
+export const updateCredential = (id: number, credential: CredentialDto) =>
+  axios
+    .put<CredentialDto>(`${BASE_URL}/${id}`, credential)
+    .then((response) => response.data);
 
-export const deleteCredential = async (id: number): Promise<void> => {
-  const response = await fetch(`${BASE_URL}/${id}`, {
-    method: "DELETE",
-  });
-  if (!response.ok) {
-    throw new Error("Failed to delete credential");
-  }
-};
+export const deleteCredential = (id: number) =>
+  axios.delete<void>(`${BASE_URL}/${id}`);

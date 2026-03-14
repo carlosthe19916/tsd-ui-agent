@@ -14,8 +14,7 @@ import org.acme.models.jpa.entity.PlanType;
 import org.acme.models.jpa.entity.SourceType;
 import org.acme.models.jpa.entity.TaskStatus;
 import org.acme.services.sync.ExternalIssue;
-import org.acme.services.sync.GitHubIssueFetcher;
-import org.acme.services.sync.JiraIssueFetcher;
+import org.acme.services.sync.SyncManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -36,25 +35,15 @@ import static org.mockito.Mockito.when;
 class TaskResourceTest {
 
     @InjectMock
-    GitHubIssueFetcher gitHubIssueFetcher;
-
-    @InjectMock
-    JiraIssueFetcher jiraIssueFetcher;
+    SyncManager syncManager;
 
     @BeforeEach
     void setup() {
-        when(gitHubIssueFetcher.getType()).thenReturn(SourceType.GITHUB);
-        when(jiraIssueFetcher.getType()).thenReturn(SourceType.JIRA);
-        when(gitHubIssueFetcher.fetchIssues(any())).thenReturn(List.of());
-        when(jiraIssueFetcher.fetchIssues(any())).thenReturn(List.of());
+        when(syncManager.fetchIssues(any())).thenReturn(List.of());
     }
 
     private int createProjectAndSync(SourceType type, List<ExternalIssue> issues) {
-        if (type == SourceType.GITHUB) {
-            when(gitHubIssueFetcher.fetchIssues(any())).thenReturn(issues);
-        } else {
-            when(jiraIssueFetcher.fetchIssues(any())).thenReturn(issues);
-        }
+        when(syncManager.fetchIssues(any())).thenReturn(issues);
 
         GitDto git = new GitDto();
         git.url = "https://github.com/test/repo";
@@ -73,7 +62,7 @@ class TaskResourceTest {
 
         ProjectDto dto = new ProjectDto();
         dto.name = "task-project-" + System.nanoTime();
-        dto.url = "https://github.com/owner/repo";
+        dto.apiUrl = "https://github.com/owner/repo";
         dto.type = type;
         dto.git = git;
         dto.credentialId = (long) credId;

@@ -3,7 +3,7 @@ import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 
-import type { ProjectDto } from "@app/api/models";
+import type { New, ProjectDto, SourceType } from "@app/api/models";
 import {
   useCreateProjectMutation,
   useUpdateProjectMutation,
@@ -11,9 +11,9 @@ import {
 
 export interface ProjectFormValues {
   name: string;
-  url: string;
+  apiUrl: string;
   query: string;
-  type: string;
+  type: SourceType | "";
   gitUrl: string;
   gitBranch: string;
   credentialId: string;
@@ -21,10 +21,25 @@ export interface ProjectFormValues {
 
 const schema = yup.object({
   name: yup.string().required("Name is required"),
-  url: yup.string().required("URL is required"),
-  query: yup.string().defined(),
-  type: yup.string().required("Type is required"),
-  gitUrl: yup.string().required("Git URL is required"),
+  apiUrl: yup.string().required("API URL is required"),
+  query: yup
+    .string()
+    .when("type", ([typeVal], schema) =>
+      typeVal === "JIRA"
+        ? schema.required("Query is required for Jira projects")
+        : schema.defined(),
+    ),
+  type: yup
+    .string()
+    .oneOf(["JIRA", "GITHUB"] as const, "Type is required")
+    .required("Type is required"),
+  gitUrl: yup
+    .string()
+    .required("Git URL is required")
+    .matches(
+      /^(https?:\/\/.+|git@[^:]+:.+|git:\/\/.+)$/,
+      "Must be a valid Git URL (e.g. https://github.com/org/repo.git)",
+    ),
   gitBranch: yup.string().defined(),
   credentialId: yup.string().required("Credential is required"),
 });
@@ -35,7 +50,7 @@ const mapProjectToFormValues = (
   if (!project) {
     return {
       name: "",
-      url: "",
+      apiUrl: "",
       query: "",
       type: "",
       gitUrl: "",
@@ -45,7 +60,7 @@ const mapProjectToFormValues = (
   }
   return {
     name: project.name,
-    url: project.url,
+    apiUrl: project.apiUrl,
     query: project.query ?? "",
     type: project.type,
     gitUrl: project.git.url,
@@ -70,12 +85,11 @@ export const useProjectForm = (
   });
 
   const onSubmit = form.handleSubmit((values: ProjectFormValues) => {
-    const dto: ProjectDto = {
-      ...(isEditing && { id: project.id }),
+    const dto: New<ProjectDto> = {
       name: values.name,
-      url: values.url,
+      apiUrl: values.apiUrl,
       query: values.query || undefined,
-      type: values.type as ProjectDto["type"],
+      type: values.type as SourceType,
       git: {
         url: values.gitUrl,
         branch: values.gitBranch || undefined,
@@ -84,7 +98,7 @@ export const useProjectForm = (
     };
 
     if (isEditing) {
-      updateMutation.mutate(dto);
+      updateMutation.mutate({ ...dto, id: project.id });
     } else {
       createMutation.mutate(dto);
     }

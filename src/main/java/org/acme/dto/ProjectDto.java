@@ -5,8 +5,11 @@ import jakarta.validation.constraints.NotNull;
 import org.acme.models.jpa.entity.SourceType;
 import org.acme.models.jpa.entity.SyncStatus;
 
+import org.acme.validation.ValidProjectQuery;
+
 import java.time.Instant;
 
+@ValidProjectQuery
 public class ProjectDto {
 
     public Long id;
@@ -15,7 +18,7 @@ public class ProjectDto {
     public String name;
 
     @NotNull
-    public String url;
+    public String apiUrl;
 
     public String query;
 

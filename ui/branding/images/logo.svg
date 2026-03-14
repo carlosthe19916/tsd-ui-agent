@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="37" height="37" viewBox="0 0 37 37" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="waterGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7fd3ff"/>
+      <stop offset="100%" stop-color="#2aa7e0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="18.5" cy="18.5" r="17" fill="url(#waterGradient)" opacity="0.15"/>
+
+  <!-- Abstract water waves -->
+  <path d="M5 20 C10 14, 15 26, 20 20 S30 14, 32 20"
+        fill="none"
+        stroke="#2aa7e0"
+        stroke-width="2.5"
+        stroke-linecap="round"/>
+
+  <path d="M6 24 C11 19, 16 29, 21 24 S30 19, 31 24"
+        fill="none"
+        stroke="#7fd3ff"
+        stroke-width="2"
+        stroke-linecap="round"
+        opacity="0.9"/>
+</svg>

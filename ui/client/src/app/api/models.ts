@@ -1,3 +1,6 @@
+/** Mark an object as "New" therefore does not have an `id` field. */
+export type New<T extends { id: number }> = Omit<T, "id">;
+
 export type SourceType = "JIRA" | "GITHUB";
 export type SyncStatus =
   | "NOT_SYNCHRONIZED"
@@ -11,7 +14,7 @@ export interface GitDto {
 }
 
 export interface CredentialDto {
-  id?: number;
+  id: number;
   name: string;
   token?: string;
 }
@@ -46,9 +49,9 @@ export interface Label {
 }
 
 export interface ProjectDto {
-  id?: number;
+  id: number;
   name: string;
-  url: string;
+  apiUrl: string;
   query?: string;
   type: SourceType;
   git: GitDto;

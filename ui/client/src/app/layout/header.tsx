@@ -1,6 +1,7 @@
 import type React from "react";
 
 import {
+  Brand,
   Masthead,
   MastheadBrand,
   MastheadContent,
@@ -8,6 +9,8 @@ import {
   MastheadMain,
   MastheadToggle,
   PageToggleButton,
+  Split,
+  SplitItem,
   Title,
   Toolbar,
   ToolbarContent,
@@ -22,7 +25,7 @@ import useBranding from "@app/hooks/useBranding";
 
 export const HeaderApp: React.FC = () => {
   const {
-    masthead: { leftTitle },
+    masthead: { leftBrand, leftTitle },
   } = useBranding();
 
   return (
@@ -35,15 +38,28 @@ export const HeaderApp: React.FC = () => {
         </MastheadToggle>
         <MastheadBrand>
           <MastheadLogo>
-            {leftTitle ? (
-              <Title
-                className="logo-pointer"
-                headingLevel={leftTitle?.heading ?? "h1"}
-                size={leftTitle?.size ?? "2xl"}
-              >
-                {leftTitle.text}
-              </Title>
-            ) : null}
+            <Split>
+              <SplitItem>
+                {leftBrand ? (
+                  <Brand
+                    src={leftBrand.src}
+                    alt={leftBrand.alt}
+                    heights={{ default: leftBrand.height }}
+                  />
+                ) : null}
+              </SplitItem>
+              <SplitItem isFilled>
+                {leftTitle ? (
+                  <Title
+                    className="logo-pointer"
+                    headingLevel={leftTitle?.heading ?? "h1"}
+                    size={leftTitle?.size ?? "2xl"}
+                  >
+                    {leftTitle.text}
+                  </Title>
+                ) : null}
+              </SplitItem>
+            </Split>
           </MastheadLogo>
         </MastheadBrand>
       </MastheadMain>

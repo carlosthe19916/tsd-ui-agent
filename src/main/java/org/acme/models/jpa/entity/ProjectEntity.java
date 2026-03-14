@@ -31,8 +31,8 @@ public class ProjectEntity extends PanacheEntityBase {
     public String name;
 
     @NotNull
-    @Column(name = "url")
-    public String url;
+    @Column(name = "api_url")
+    public String apiUrl;
 
     @Column(name = "query")
     public String query;
