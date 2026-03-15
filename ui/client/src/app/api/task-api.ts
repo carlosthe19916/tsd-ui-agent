@@ -72,3 +72,44 @@ export const updateTaskPlan = (taskId: number, plan: PlanDto) =>
   axios
     .put<PlanDto>(`${BASE_URL}/${taskId}/plan`, plan)
     .then((response) => response.data);
+
+export const getTaskPlan = (taskId: number) =>
+  axios
+    .get<PlanDto>(`${BASE_URL}/${taskId}/plan`)
+    .then((response) => response.data);
+
+export const sendChatMessage = async function* (
+  taskId: number,
+  content: string,
+): AsyncGenerator<string> {
+  const response = await fetch(`/api/tasks/${taskId}/plan/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Chat request failed: ${response.status}`);
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) return;
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() || "";
+
+    for (const line of lines) {
+      if (line.startsWith("data:")) {
+        yield line.slice(5);
+      }
+    }
+  }
+};

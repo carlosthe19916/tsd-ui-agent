@@ -44,7 +44,7 @@ import { ConfirmDialog } from "@app/components/ConfirmDialog";
 import { ConditionalDataListBody } from "@app/components/DataListControls";
 import { FilterToolbar } from "@app/components/FilterToolbar";
 import { SimplePagination } from "@app/components/SimplePagination";
-import { useUpdateTaskPlanMutation } from "@app/queries/tasks";
+import { useCreateTaskPlanMutation, useUpdateTaskPlanMutation } from "@app/queries/tasks";
 import { formatDateTime } from "@app/utils/utils";
 import { ButtonVariant } from "@patternfly/react-core";
 
@@ -88,9 +88,13 @@ const TaskListContent: React.FC = () => {
   const [wizardTask, setWizardTask] = React.useState<TaskDto | null>(null);
   const [wizardInitialStep, setWizardInitialStep] = React.useState(1);
   const [approveTask, setApproveTask] = React.useState<TaskDto | null>(null);
+  const [createPlanTask, setCreatePlanTask] = React.useState<TaskDto | null>(null);
 
   const updatePlanMutation = useUpdateTaskPlanMutation(() =>
     setApproveTask(null),
+  );
+  const createPlanMutation = useCreateTaskPlanMutation(() =>
+    setCreatePlanTask(null),
   );
 
   return (
@@ -288,15 +292,25 @@ const TaskListContent: React.FC = () => {
                       >
                         View
                       </DropdownItem>
-                      <DropdownItem
-                        key="create-plan"
-                        onClick={() => {
-                          setWizardTask(task);
-                          setWizardInitialStep(1);
-                        }}
-                      >
-                        {task.plan ? "Edit plan" : "Create plan"}
-                      </DropdownItem>
+                      {!task.plan && (
+                        <DropdownItem
+                          key="create-plan"
+                          onClick={() => setCreatePlanTask(task)}
+                        >
+                          Create plan
+                        </DropdownItem>
+                      )}
+                      {task.plan && (
+                        <DropdownItem
+                          key="edit-plan"
+                          onClick={() => {
+                            setWizardTask(task);
+                            setWizardInitialStep(1);
+                          }}
+                        >
+                          Edit plan
+                        </DropdownItem>
+                      )}
                     </DropdownList>
                   </Dropdown>
                 </DataListAction>
@@ -342,6 +356,31 @@ const TaskListContent: React.FC = () => {
         isOpen={wizardTask !== null}
         onClose={() => setWizardTask(null)}
         initialStep={wizardInitialStep}
+      />
+
+      <ConfirmDialog
+        isOpen={createPlanTask !== null}
+        title="Create plan"
+        titleIconVariant="info"
+        message={`Create a new plan for "${createPlanTask?.title}"? This will auto-populate the requirement from the task description and trigger AI enrichment.`}
+        confirmBtnLabel="Create"
+        cancelBtnLabel="Cancel"
+        confirmBtnVariant={ButtonVariant.primary}
+        inProgress={createPlanMutation.isPending}
+        onConfirm={() => {
+          if (createPlanTask) {
+            createPlanMutation.mutate({
+              taskId: createPlanTask.id,
+              plan: {
+                content: "",
+                status: "IN_PROGRESS",
+                type: "MANUAL",
+              },
+            });
+          }
+        }}
+        onClose={() => setCreatePlanTask(null)}
+        onCancel={() => setCreatePlanTask(null)}
       />
 
       <ConfirmDialog

@@ -19,6 +19,8 @@ public class PlanMapper {
         dto.id = entity.id;
         dto.content = entity.content;
         dto.requirement = entity.requirement;
+        dto.discoveryStatus = entity.discoveryStatus;
+        dto.discoveryError = entity.discoveryError;
         dto.status = entity.status;
         dto.type = entity.type;
         dto.createdAt = entity.createdAt;

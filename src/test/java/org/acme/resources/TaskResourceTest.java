@@ -14,6 +14,7 @@ import org.acme.models.jpa.entity.PlanType;
 import org.acme.models.jpa.entity.SourceType;
 import org.acme.models.jpa.entity.TaskStatus;
 import org.acme.services.git.GitManager;
+import org.acme.services.ai.RequirementAiService;
 import org.acme.services.sync.ExternalIssue;
 import org.acme.services.sync.SyncManager;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,9 +45,14 @@ class TaskResourceTest {
     @InjectMock
     GitManager gitManager;
 
+    @InjectMock
+    RequirementAiService aiService;
+
     @BeforeEach
     void setup() {
         when(syncManager.fetchIssues(any())).thenReturn(List.of());
+        when(aiService.discoverRequirement(anyString(), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn("## Summary\nDefault test requirement");
         when(gitManager.cloneRepository(anyString(), anyString()))
                 .thenReturn("/tmp/tsd-agent-ui-test/repo/default");
         when(gitManager.cloneRepository(anyString(), org.mockito.ArgumentMatchers.isNull()))
@@ -104,10 +110,15 @@ class TaskResourceTest {
     }
 
     private static ExternalIssue issue(String externalId, String title, TaskStatus status) {
+        return issue(externalId, title, null, status);
+    }
+
+    private static ExternalIssue issue(String externalId, String title, String description, TaskStatus status) {
         ExternalIssue ext = new ExternalIssue();
         ext.externalId = externalId;
         ext.url = "https://github.com/owner/repo/issues/" + externalId;
         ext.title = title;
+        ext.description = description;
         ext.externalStatus = status.name();
         ext.createdAt = Instant.parse("2025-01-01T00:00:00Z");
         ext.updatedAt = Instant.parse("2025-06-01T00:00:00Z");
@@ -710,6 +721,75 @@ class TaskResourceTest {
                 .then()
                 .statusCode(201)
                 .body("git", nullValue());
+    }
+
+    private int createTaskWithDescriptionAndReturnId(String description) {
+        int projectId = createProjectAndSync(SourceType.GITHUB, List.of(
+                issue("desc-" + System.nanoTime(), "Task with description", description, TaskStatus.OPEN)
+        ));
+
+        return given()
+                .queryParam("projectId", projectId)
+                .when().get("/tasks")
+                .then()
+                .statusCode(200)
+                .extract().path("data[0].id");
+    }
+
+    @Test
+    void testCreatePlanAutoPopulatesRequirementFromDescription() {
+        int taskId = createTaskWithDescriptionAndReturnId("Detailed task description");
+
+        PlanDto plan = planDto(PlanStatus.IN_PROGRESS, PlanType.MANUAL, "# Content");
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(plan)
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(201)
+                .body("requirement", is("Detailed task description"))
+                .body("discoveryStatus", is("IN_PROGRESS"));
+
+        // Wait for AI discovery to complete
+        await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                given()
+                        .when().get("/tasks/{taskId}/plan", taskId)
+                        .then()
+                        .body("discoveryStatus", is("COMPLETED"))
+                        .body("requirement", is("## Summary\nDefault test requirement")));
+    }
+
+    @Test
+    void testCreatePlanAutoPopulatesRequirementFromTitleWhenNoDescription() {
+        int taskId = createTaskAndReturnId();
+
+        PlanDto plan = planDto(PlanStatus.IN_PROGRESS, PlanType.MANUAL, "# Content");
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(plan)
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(201)
+                .body("requirement", is("Context test task"))
+                .body("discoveryStatus", is("NOT_STARTED"));
+    }
+
+    @Test
+    void testCreatePlanPreservesExplicitRequirement() {
+        int taskId = createTaskWithDescriptionAndReturnId("Some description");
+
+        PlanDto plan = planDto(PlanStatus.IN_PROGRESS, PlanType.MANUAL, "# Content", "My explicit requirement", null);
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(plan)
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(201)
+                .body("requirement", is("My explicit requirement"))
+                .body("discoveryStatus", is("IN_PROGRESS"));
     }
 
     @Test

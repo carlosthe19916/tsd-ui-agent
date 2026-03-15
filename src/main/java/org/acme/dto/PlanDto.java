@@ -1,6 +1,7 @@
 package org.acme.dto;
 
 import jakarta.validation.constraints.NotNull;
+import org.acme.models.jpa.entity.DiscoveryStatus;
 import org.acme.models.jpa.entity.PlanStatus;
 import org.acme.models.jpa.entity.PlanType;
 
@@ -15,6 +16,10 @@ public class PlanDto {
     public String requirement;
 
     public GitDto git;
+
+    public DiscoveryStatus discoveryStatus;
+
+    public String discoveryError;
 
     @NotNull
     public PlanStatus status;

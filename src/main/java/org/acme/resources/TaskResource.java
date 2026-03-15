@@ -3,6 +3,8 @@ package org.acme.resources;
 import io.quarkus.panache.common.Sort;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.transaction.Synchronization;
+import jakarta.transaction.TransactionManager;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -25,10 +27,13 @@ import org.acme.dto.TaskDto;
 import org.acme.mapper.PlanMapper;
 import org.acme.mapper.TaskContextMapper;
 import org.acme.mapper.TaskMapper;
+import org.acme.models.jpa.entity.DiscoveryStatus;
 import org.acme.models.jpa.entity.PlanEntity;
 import org.acme.models.jpa.entity.TaskContextEntity;
 import org.acme.models.jpa.entity.TaskEntity;
 import org.acme.models.jpa.entity.TaskStatus;
+import org.acme.services.RequirementDiscoveryService;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.util.HashMap;
 import java.util.List;
@@ -54,6 +59,15 @@ public class TaskResource {
 
     @Inject
     PlanMapper planMapper;
+
+    @Inject
+    RequirementDiscoveryService requirementDiscoveryService;
+
+    @Inject
+    TransactionManager transactionManager;
+
+    @ConfigProperty(name = "tsd-agent.discovery.ai.enabled", defaultValue = "true")
+    boolean aiDiscoveryEnabled;
 
     @GET
     public SearchResultDto<TaskDto> list(
@@ -227,8 +241,40 @@ public class TaskResource {
             return Response.status(Response.Status.CONFLICT).build();
         }
         PlanEntity plan = planMapper.toEntity(dto);
+
+        // Auto-populate requirement from task description if not provided
+        if (plan.requirement == null || plan.requirement.isBlank()) {
+            plan.requirement = (task.description != null && !task.description.isBlank())
+                    ? task.description : task.title;
+        }
+
+        // Set discovery status based on AI availability
+        if (aiDiscoveryEnabled && task.description != null && !task.description.isBlank()) {
+            plan.discoveryStatus = DiscoveryStatus.IN_PROGRESS;
+        }
+
         plan.persist();
         task.plan = plan;
+
+        // Trigger async AI enrichment after transaction commits
+        if (plan.discoveryStatus == DiscoveryStatus.IN_PROGRESS) {
+            try {
+                transactionManager.getTransaction().registerSynchronization(new Synchronization() {
+                    @Override
+                    public void beforeCompletion() {}
+
+                    @Override
+                    public void afterCompletion(int status) {
+                        if (status == jakarta.transaction.Status.STATUS_COMMITTED) {
+                            requirementDiscoveryService.triggerDiscovery(taskId);
+                        }
+                    }
+                });
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to register discovery synchronization", e);
+            }
+        }
+
         return Response.status(Response.Status.CREATED)
                 .entity(planMapper.toDto(plan))
                 .build();

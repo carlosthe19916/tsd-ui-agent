@@ -107,7 +107,7 @@ export const TaskSearchProvider: React.FunctionComponent<ITaskProvider> = ({
 
   const {
     data: tasksResponse,
-    isFetching,
+    isLoading,
     error: fetchError,
   } = useFetchTasks(hubRequestParams);
 
@@ -118,14 +118,14 @@ export const TaskSearchProvider: React.FunctionComponent<ITaskProvider> = ({
     idProperty: "id",
     currentPageItems: tasksResponse?.data ?? [],
     totalItemCount,
-    isLoading: isFetching,
+    isLoading: isLoading,
   });
 
   return (
     <TaskSearchContext.Provider
       value={{
         totalItemCount,
-        isFetching,
+        isFetching: isLoading,
         fetchError: fetchError as AxiosError | null,
         tableControls,
       }}

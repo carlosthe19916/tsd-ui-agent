@@ -9,6 +9,7 @@ import {
   Popover,
   ProgressStep,
   ProgressStepper,
+  Spinner,
 } from "@patternfly/react-core";
 
 import type { PlanDto } from "@app/api/models";
@@ -19,25 +20,43 @@ interface PlanProgressStepperProps {
   onEditStep: (step: number) => void;
 }
 
+const getRequirementStepVariant = (plan: PlanDto) => {
+  if (plan.discoveryStatus === "IN_PROGRESS") return "info";
+  if (plan.discoveryStatus === "ERROR") return "danger";
+  if (plan.requirement) return "success";
+  return "pending";
+};
+
+const getRequirementDescription = (plan: PlanDto) => {
+  if (plan.discoveryStatus === "IN_PROGRESS") return "Discovering...";
+  if (plan.discoveryStatus === "ERROR") {
+    const err = plan.discoveryError ?? "Unknown error";
+    return err.length > 40 ? `${err.substring(0, 40)}\u2026` : err;
+  }
+  if (plan.requirement) {
+    return plan.requirement.length > 40
+      ? `${plan.requirement.substring(0, 40)}\u2026`
+      : plan.requirement;
+  }
+  return "Not defined";
+};
+
 export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
   taskId,
   plan,
   onEditStep,
 }) => {
+  const reqVariant = getRequirementStepVariant(plan);
+
   return (
     <ProgressStepper>
       <ProgressStep
-        variant={plan.requirement ? "success" : "pending"}
+        variant={reqVariant}
+        icon={plan.discoveryStatus === "IN_PROGRESS" ? <Spinner size="sm" /> : undefined}
         id={`req-${taskId}`}
         titleId={`req-title-${taskId}`}
-        aria-label={`Requirement step, ${plan.requirement ? "completed" : "pending"}`}
-        description={
-          plan.requirement
-            ? plan.requirement.length > 40
-              ? `${plan.requirement.substring(0, 40)}\u2026`
-              : plan.requirement
-            : "Not defined"
-        }
+        aria-label={`Requirement step, ${reqVariant}`}
+        description={getRequirementDescription(plan)}
         popoverRender={(stepRef) => (
           <Popover
             aria-label="Requirement details"

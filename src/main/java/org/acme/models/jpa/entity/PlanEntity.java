@@ -37,6 +37,14 @@ public class PlanEntity extends PanacheEntityBase {
 
     @NotNull
     @Enumerated(EnumType.STRING)
+    @Column(name = "discovery_status")
+    public DiscoveryStatus discoveryStatus = DiscoveryStatus.NOT_STARTED;
+
+    @Column(name = "discovery_error", columnDefinition = "TEXT")
+    public String discoveryError;
+
+    @NotNull
+    @Enumerated(EnumType.STRING)
     @Column(name = "status")
     public PlanStatus status = PlanStatus.IN_PROGRESS;
 
