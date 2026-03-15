@@ -32,6 +32,9 @@ class GitResourceTest {
                 .thenReturn("/tmp/tsd-agent-ui-test/repo/trees/my-worktree");
         doNothing().when(gitManager).removeWorktree(anyString(), anyString());
         doNothing().when(gitManager).setRemoteUrl(anyString(), anyString());
+        doNothing().when(gitManager).addForkRemote(anyString(), anyString());
+        doNothing().when(gitManager).setForkRemoteUrl(anyString(), anyString());
+        doNothing().when(gitManager).removeForkRemote(anyString());
         doNothing().when(gitManager).deleteClonedDirectory(anyString());
     }
 
@@ -40,9 +43,14 @@ class GitResourceTest {
     }
 
     private static GitDto git(String url, String branch) {
+        return git(url, branch, null);
+    }
+
+    private static GitDto git(String url, String branch, String forkUrl) {
         GitDto dto = new GitDto();
         dto.url = url;
         dto.branch = branch;
+        dto.forkUrl = forkUrl;
         return dto;
     }
 
@@ -226,6 +234,82 @@ class GitResourceTest {
                 .when().post("/gits")
                 .then()
                 .statusCode(201);
+    }
+
+    @Test
+    void testCreateGitWithForkUrl() {
+        given()
+                .contentType(ContentType.JSON)
+                .body(git("https://github.com/fork/repo.git", null, "https://github.com/myfork/repo.git"))
+                .when().post("/gits")
+                .then()
+                .statusCode(201)
+                .body("id", notNullValue())
+                .body("url", is("https://github.com/fork/repo.git"))
+                .body("forkUrl", is("https://github.com/myfork/repo.git"));
+    }
+
+    @Test
+    void testCreateGitWithoutForkUrl() {
+        given()
+                .contentType(ContentType.JSON)
+                .body(git("https://github.com/nofork/repo.git"))
+                .when().post("/gits")
+                .then()
+                .statusCode(201)
+                .body("id", notNullValue())
+                .body("forkUrl", org.hamcrest.CoreMatchers.nullValue());
+    }
+
+    @Test
+    void testUpdateGitAddForkUrl() {
+        int id = createGit("https://github.com/addfork/repo.git");
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(git("https://github.com/addfork/repo.git", null, "https://github.com/myfork/addfork.git"))
+                .when().put("/gits/{id}", id)
+                .then()
+                .statusCode(200)
+                .body("forkUrl", is("https://github.com/myfork/addfork.git"));
+    }
+
+    @Test
+    void testUpdateGitChangeForkUrl() {
+        int id = given()
+                .contentType(ContentType.JSON)
+                .body(git("https://github.com/changefork/repo.git", null, "https://github.com/old/fork.git"))
+                .when().post("/gits")
+                .then()
+                .statusCode(201)
+                .extract().path("id");
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(git("https://github.com/changefork/repo.git", null, "https://github.com/new/fork.git"))
+                .when().put("/gits/{id}", id)
+                .then()
+                .statusCode(200)
+                .body("forkUrl", is("https://github.com/new/fork.git"));
+    }
+
+    @Test
+    void testUpdateGitRemoveForkUrl() {
+        int id = given()
+                .contentType(ContentType.JSON)
+                .body(git("https://github.com/removefork/repo.git", null, "https://github.com/myfork/remove.git"))
+                .when().post("/gits")
+                .then()
+                .statusCode(201)
+                .extract().path("id");
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(git("https://github.com/removefork/repo.git", null, null))
+                .when().put("/gits/{id}", id)
+                .then()
+                .statusCode(200)
+                .body("forkUrl", org.hamcrest.CoreMatchers.nullValue());
     }
 
     @Test

@@ -53,6 +53,29 @@ public class GitRoutes extends RouteBuilder {
                 })
                 .to("exec:git");
 
+        from("direct:git-remote-add-fork")
+                .process(exchange -> {
+                    String remotePath = exchange.getIn().getHeader("remotePath", String.class);
+                    exchange.getIn().setHeader("CamelExecCommandArgs", List.of("remote", "add", "fork", remotePath));
+                    exchange.getIn().setHeader("CamelExecCommandWorkingDir", exchange.getIn().getHeader("workingDir", String.class));
+                })
+                .to("exec:git");
+
+        from("direct:git-remote-set-url-fork")
+                .process(exchange -> {
+                    String remotePath = exchange.getIn().getHeader("remotePath", String.class);
+                    exchange.getIn().setHeader("CamelExecCommandArgs", List.of("remote", "set-url", "fork", remotePath));
+                    exchange.getIn().setHeader("CamelExecCommandWorkingDir", exchange.getIn().getHeader("workingDir", String.class));
+                })
+                .to("exec:git");
+
+        from("direct:git-remote-remove-fork")
+                .process(exchange -> {
+                    exchange.getIn().setHeader("CamelExecCommandArgs", List.of("remote", "remove", "fork"));
+                    exchange.getIn().setHeader("CamelExecCommandWorkingDir", exchange.getIn().getHeader("workingDir", String.class));
+                })
+                .to("exec:git");
+
         from("direct:git-worktree-remove")
                 .process(exchange -> {
                     String worktreeDir = exchange.getIn().getHeader("worktreeDir", String.class);

@@ -12,6 +12,7 @@ public class GitMapper {
         dto.id = entity.id;
         dto.url = entity.url;
         dto.branch = entity.branch;
+        dto.forkUrl = entity.forkUrl;
         return dto;
     }
 
@@ -19,11 +20,13 @@ public class GitMapper {
         GitEntity entity = new GitEntity();
         entity.url = dto.url;
         entity.branch = dto.branch;
+        entity.forkUrl = dto.forkUrl;
         return entity;
     }
 
     public void updateEntity(GitDto dto, GitEntity entity) {
         entity.url = dto.url;
         entity.branch = dto.branch;
+        entity.forkUrl = dto.forkUrl;
     }
 }

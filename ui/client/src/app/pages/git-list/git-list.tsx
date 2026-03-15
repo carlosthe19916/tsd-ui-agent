@@ -59,6 +59,7 @@ export const GitList: React.FC = () => {
     columnNames: {
       url: "URL",
       branch: "Branch",
+      forkUrl: "Fork URL",
     },
     hasActionsColumn: true,
     isSortEnabled: true,
@@ -135,6 +136,7 @@ export const GitList: React.FC = () => {
               <TableHeaderContentWithControls {...tableControls}>
                 <Th {...getThProps({ columnKey: "url" })} />
                 <Th {...getThProps({ columnKey: "branch" })} />
+                <Th {...getThProps({ columnKey: "forkUrl" })} />
               </TableHeaderContentWithControls>
             </Tr>
           </Thead>
@@ -152,17 +154,17 @@ export const GitList: React.FC = () => {
                     rowIndex={rowIndex}
                   >
                     <Td
-                      width={70}
+                      width={40}
                       modifier="breakWord"
                       {...getTdProps({ columnKey: "url" })}
                     >
                       {git.url}
                     </Td>
-                    <Td
-                      width={30}
-                      {...getTdProps({ columnKey: "branch" })}
-                    >
+                    <Td width={30} {...getTdProps({ columnKey: "branch" })}>
                       {git.branch || "Default"}
+                    </Td>
+                    <Td width={30} {...getTdProps({ columnKey: "forkUrl" })}>
+                      {git.forkUrl || "None"}
                     </Td>
                     <Td isActionCell>
                       <ActionsColumn

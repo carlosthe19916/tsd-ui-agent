@@ -28,6 +28,13 @@ export const GitForm: React.FC<GitFormProps> = ({ control }) => {
         fieldId="branch"
         placeholder="Leave empty for default branch"
       />
+      <HookFormPFTextInput
+        control={control}
+        name="forkUrl"
+        label="Fork URL"
+        fieldId="forkUrl"
+        placeholder="Optional fork remote URL"
+      />
     </Form>
   );
 };

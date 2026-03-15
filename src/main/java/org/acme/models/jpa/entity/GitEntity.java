@@ -27,6 +27,9 @@ public class GitEntity extends PanacheEntityBase {
     @Column(name = "branch", nullable = false)
     public String branch = "";
 
+    @Column(name = "fork_url")
+    public String forkUrl;
+
     @Column(name = "local_path")
     public String localPath;
 

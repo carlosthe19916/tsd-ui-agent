@@ -123,6 +123,44 @@ public class GitManager {
         }
     }
 
+    public void addForkRemote(String localPath, String forkUrl) {
+        try {
+            template.requestBodyAndHeaders("direct:git-remote-add-fork", null, Map.of(
+                    "workingDir", localPath,
+                    "remotePath", forkUrl
+            ));
+        } catch (GitException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new GitException("Failed to add fork remote: " + e.getMessage(), e);
+        }
+    }
+
+    public void setForkRemoteUrl(String localPath, String forkUrl) {
+        try {
+            template.requestBodyAndHeaders("direct:git-remote-set-url-fork", null, Map.of(
+                    "workingDir", localPath,
+                    "remotePath", forkUrl
+            ));
+        } catch (GitException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new GitException("Failed to set fork remote URL: " + e.getMessage(), e);
+        }
+    }
+
+    public void removeForkRemote(String localPath) {
+        try {
+            template.requestBodyAndHeaders("direct:git-remote-remove-fork", null, Map.of(
+                    "workingDir", localPath
+            ));
+        } catch (GitException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new GitException("Failed to remove fork remote: " + e.getMessage(), e);
+        }
+    }
+
     public void deleteClonedDirectory(String localPath) {
         Path repoParentDir = Path.of(localPath).getParent();
         if (repoParentDir == null || !Files.exists(repoParentDir)) {

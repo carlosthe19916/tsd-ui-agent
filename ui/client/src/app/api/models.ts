@@ -12,6 +12,7 @@ export interface GitDto {
   id: number;
   url: string;
   branch?: string;
+  forkUrl?: string;
 }
 
 export interface CredentialDto {

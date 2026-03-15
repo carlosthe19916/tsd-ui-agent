@@ -10,4 +10,6 @@ public class GitDto {
     public String url;
 
     public String branch;
+
+    public String forkUrl;
 }

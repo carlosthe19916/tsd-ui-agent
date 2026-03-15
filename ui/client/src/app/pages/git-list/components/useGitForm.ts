@@ -11,6 +11,7 @@ import { useCreateGitMutation, useUpdateGitMutation } from "@app/queries/gits";
 export interface GitFormValues {
   url: string;
   branch: string;
+  forkUrl: string;
 }
 
 const buildSchema = (existingGits: GitDto[], editId: number | undefined) =>
@@ -51,6 +52,18 @@ const buildSchema = (existingGits: GitDto[], editId: number | undefined) =>
           );
         },
       ),
+    forkUrl: yup
+      .string()
+      .defined()
+      .default("")
+      .test(
+        "valid-git-url",
+        "Must be a valid Git URL (e.g. https://github.com/org/repo.git or git@github.com:org/repo.git)",
+        (value) => {
+          if (!value) return true;
+          return /^(https?:\/\/.+|git@[^:]+:.+|git:\/\/.+)$/.test(value);
+        },
+      ),
   });
 
 const mapGitToFormValues = (git: GitDto | null): GitFormValues => {
@@ -58,11 +71,13 @@ const mapGitToFormValues = (git: GitDto | null): GitFormValues => {
     return {
       url: "",
       branch: "",
+      forkUrl: "",
     };
   }
   return {
     url: git.url,
     branch: git.branch ?? "",
+    forkUrl: git.forkUrl ?? "",
   };
 };
 
@@ -105,12 +120,14 @@ export const useGitForm = (
         id: git.id,
         url: values.url,
         branch: values.branch || undefined,
+        forkUrl: values.forkUrl || undefined,
       };
       return updateGit(dto).catch(handleConflictError);
     } else {
       const dto: New<GitDto> = {
         url: values.url,
         branch: values.branch || undefined,
+        forkUrl: values.forkUrl || undefined,
       };
       return createGit(dto).catch(handleConflictError);
     }

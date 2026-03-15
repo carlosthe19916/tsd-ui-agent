@@ -34,17 +34,36 @@ public class GitService {
 
         String localPath = gitManager.cloneRepository(entity.url, entity.branch);
         entity.localPath = localPath;
+
+        if (entity.forkUrl != null && !entity.forkUrl.isBlank()) {
+            gitManager.addForkRemote(localPath, entity.forkUrl);
+        }
+
         entity.persist();
 
         return entity;
     }
 
     public GitEntity update(GitDto dto, GitEntity entity) {
+        String oldForkUrl = entity.forkUrl;
         gitMapper.updateEntity(dto, entity);
         normalizeBranch(entity);
         checkDuplicate(entity.url, entity.branch, entity.id);
 
         gitManager.setRemoteUrl(entity.localPath, entity.url);
+
+        String newForkUrl = entity.forkUrl;
+        boolean hadFork = oldForkUrl != null && !oldForkUrl.isBlank();
+        boolean hasFork = newForkUrl != null && !newForkUrl.isBlank();
+
+        if (!hadFork && hasFork) {
+            gitManager.addForkRemote(entity.localPath, newForkUrl);
+        } else if (hadFork && hasFork && !oldForkUrl.equals(newForkUrl)) {
+            gitManager.setForkRemoteUrl(entity.localPath, newForkUrl);
+        } else if (hadFork && !hasFork) {
+            gitManager.removeForkRemote(entity.localPath);
+        }
+
         entity.persist();
         return entity;
     }
