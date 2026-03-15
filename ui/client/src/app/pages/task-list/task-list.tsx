@@ -32,14 +32,12 @@ import {
   ToolbarGroup,
   ToolbarItem,
 } from "@patternfly/react-core";
-import CalendarAltIcon from "@patternfly/react-icons/dist/esm/icons/calendar-alt-icon";
 import CheckCircleIcon from "@patternfly/react-icons/dist/esm/icons/check-circle-icon";
 import EllipsisVIcon from "@patternfly/react-icons/dist/esm/icons/ellipsis-v-icon";
 import InProgressIcon from "@patternfly/react-icons/dist/esm/icons/in-progress-icon";
 import PendingIcon from "@patternfly/react-icons/dist/esm/icons/pending-icon";
 import SortAmountDownIcon from "@patternfly/react-icons/dist/esm/icons/sort-amount-down-icon";
 import SortAmountUpIcon from "@patternfly/react-icons/dist/esm/icons/sort-amount-up-icon";
-import BookOpenIcon from "@patternfly/react-icons/dist/esm/icons/book-open-icon";
 
 import type { TaskDto, TaskStatus } from "@app/api/models";
 import { ConfirmDialog } from "@app/components/ConfirmDialog";
@@ -50,7 +48,8 @@ import { useUpdateTaskPlanMutation } from "@app/queries/tasks";
 import { formatDateTime } from "@app/utils/utils";
 import { ButtonVariant } from "@patternfly/react-core";
 
-import { ManualPlanModal } from "./components/manual-plan-modal";
+import { PlanProgressStepper } from "./components/plan-progress-stepper";
+import { PlanWizardModal } from "./components/plan-wizard-modal";
 import { TaskSearchContext, TaskSearchProvider } from "./task-context";
 
 const statusIcon = (status: TaskStatus) => {
@@ -86,9 +85,8 @@ const TaskListContent: React.FC = () => {
 
   const [isSortByOpen, setIsSortByOpen] = React.useState(false);
   const [openKebabId, setOpenKebabId] = React.useState<number | null>(null);
-  const [planModalTask, setPlanModalTask] = React.useState<TaskDto | null>(
-    null,
-  );
+  const [wizardTask, setWizardTask] = React.useState<TaskDto | null>(null);
+  const [wizardInitialStep, setWizardInitialStep] = React.useState(1);
   const [approveTask, setApproveTask] = React.useState<TaskDto | null>(null);
 
   const updatePlanMutation = useUpdateTaskPlanMutation(() =>
@@ -219,64 +217,37 @@ const TaskListContent: React.FC = () => {
                         </FlexItem>
                       </Flex>
                     </DataListCell>,
-                    <DataListCell key="plan" width={1}>
-                      <Flex
-                        direction={{ default: "column" }}
-                        gap={{ default: "gapXs" }}
-                      >
-                        <FlexItem>
-                          {task.plan ? (
-                            <Button
-                              variant="link"
-                              isInline
-                              onClick={() => setPlanModalTask(task)}
-                            >
-                              <Icon size="md" isInline>
-                                {task.plan.status === "APPROVED" ? (
-                                  <CheckCircleIcon color="var(--pf-t--global--color--status--success--default)" />
-                                ) : (
-                                  <BookOpenIcon />
-                                )}
-                              </Icon>{" "}
-                              {task.plan.status === "APPROVED"
-                                ? "Approved"
-                                : "In progress"}
-                            </Button>
-                          ) : (
-                            "No plan"
-                          )}
-                        </FlexItem>
-                        {task.plan?.status === "IN_PROGRESS" && (
+                    <DataListCell key="plan" width={2}>
+                      {task.plan ? (
+                        <Flex
+                          direction={{ default: "column" }}
+                          gap={{ default: "gapXs" }}
+                        >
                           <FlexItem>
-                            <Button
-                              variant="primary"
-                              size="sm"
-                              onClick={() => setApproveTask(task)}
-                            >
-                              Approve
-                            </Button>
+                            <PlanProgressStepper
+                              taskId={task.id}
+                              plan={task.plan}
+                              onEditStep={(step) => {
+                                setWizardTask(task);
+                                setWizardInitialStep(step);
+                              }}
+                            />
                           </FlexItem>
-                        )}
-                      </Flex>
-                    </DataListCell>,
-                    <DataListCell key="dates" width={2}>
-                      <Flex
-                        direction={{ default: "column" }}
-                        gap={{ default: "gapXs" }}
-                      >
-                        <FlexItem>
-                          <Icon size="sm" isInline>
-                            <CalendarAltIcon />
-                          </Icon>{" "}
-                          Created: {formatDateTime(task.createdAt)}
-                        </FlexItem>
-                        <FlexItem>
-                          <Icon size="sm" isInline>
-                            <CalendarAltIcon />
-                          </Icon>{" "}
-                          Updated: {formatDateTime(task.updatedAt)}
-                        </FlexItem>
-                      </Flex>
+                          {task.plan.status === "IN_PROGRESS" && (
+                            <FlexItem>
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                onClick={() => setApproveTask(task)}
+                              >
+                                Approve
+                              </Button>
+                            </FlexItem>
+                          )}
+                        </Flex>
+                      ) : (
+                        "No plan"
+                      )}
                     </DataListCell>,
                   ]}
                 />
@@ -318,10 +289,13 @@ const TaskListContent: React.FC = () => {
                         View
                       </DropdownItem>
                       <DropdownItem
-                        key="manual-plan"
-                        onClick={() => setPlanModalTask(task)}
+                        key="create-plan"
+                        onClick={() => {
+                          setWizardTask(task);
+                          setWizardInitialStep(1);
+                        }}
                       >
-                        Manual plan
+                        {task.plan ? "Edit plan" : "Create plan"}
                       </DropdownItem>
                     </DropdownList>
                   </Dropdown>
@@ -338,6 +312,18 @@ const TaskListContent: React.FC = () => {
                       {task.project.name}
                     </DescriptionListDescription>
                   </DescriptionListGroup>
+                  <DescriptionListGroup>
+                    <DescriptionListTerm>Created</DescriptionListTerm>
+                    <DescriptionListDescription>
+                      {formatDateTime(task.createdAt)}
+                    </DescriptionListDescription>
+                  </DescriptionListGroup>
+                  <DescriptionListGroup>
+                    <DescriptionListTerm>Updated</DescriptionListTerm>
+                    <DescriptionListDescription>
+                      {formatDateTime(task.updatedAt)}
+                    </DescriptionListDescription>
+                  </DescriptionListGroup>
                 </DescriptionList>
               </DataListContent>
             </DataListItem>
@@ -351,10 +337,11 @@ const TaskListContent: React.FC = () => {
         paginationProps={paginationProps}
       />
 
-      <ManualPlanModal
-        task={planModalTask}
-        isOpen={planModalTask !== null}
-        onClose={() => setPlanModalTask(null)}
+      <PlanWizardModal
+        task={wizardTask}
+        isOpen={wizardTask !== null}
+        onClose={() => setWizardTask(null)}
+        initialStep={wizardInitialStep}
       />
 
       <ConfirmDialog

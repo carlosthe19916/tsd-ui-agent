@@ -58,6 +58,8 @@ export type PlanType = "MANUAL" | "SEMI_MANUAL" | "AUTO";
 export interface PlanDto {
   id: number;
   content: string;
+  requirement?: string;
+  git?: GitDto;
   status: PlanStatus;
   type: PlanType;
   createdAt?: string;

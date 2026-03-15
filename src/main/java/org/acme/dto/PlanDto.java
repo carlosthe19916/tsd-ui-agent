@@ -12,6 +12,10 @@ public class PlanDto {
 
     public String content;
 
+    public String requirement;
+
+    public GitDto git;
+
     @NotNull
     public PlanStatus status;
 

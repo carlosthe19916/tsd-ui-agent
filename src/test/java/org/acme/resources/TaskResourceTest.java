@@ -4,6 +4,7 @@ import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.InjectMock;
 import io.restassured.http.ContentType;
 import org.acme.dto.CredentialDto;
+import org.acme.dto.GitDto;
 import org.acme.dto.PlanDto;
 import org.acme.dto.ProjectDto;
 import org.acme.dto.TaskContextDto;
@@ -12,6 +13,7 @@ import org.acme.models.jpa.entity.PlanStatus;
 import org.acme.models.jpa.entity.PlanType;
 import org.acme.models.jpa.entity.SourceType;
 import org.acme.models.jpa.entity.TaskStatus;
+import org.acme.services.git.GitManager;
 import org.acme.services.sync.ExternalIssue;
 import org.acme.services.sync.SyncManager;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,9 +27,12 @@ import static io.restassured.RestAssured.given;
 import static org.awaitility.Awaitility.await;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
 
 @QuarkusTest
@@ -36,9 +41,18 @@ class TaskResourceTest {
     @InjectMock
     SyncManager syncManager;
 
+    @InjectMock
+    GitManager gitManager;
+
     @BeforeEach
     void setup() {
         when(syncManager.fetchIssues(any())).thenReturn(List.of());
+        when(gitManager.cloneRepository(anyString(), anyString()))
+                .thenReturn("/tmp/tsd-agent-ui-test/repo/default");
+        when(gitManager.cloneRepository(anyString(), org.mockito.ArgumentMatchers.isNull()))
+                .thenReturn("/tmp/tsd-agent-ui-test/repo/default");
+        doNothing().when(gitManager).setRemoteUrl(anyString(), anyString());
+        doNothing().when(gitManager).addForkRemote(anyString(), anyString());
     }
 
     private int createProjectAndSync(SourceType type, List<ExternalIssue> issues) {
@@ -524,5 +538,198 @@ class TaskResourceTest {
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(409);
+    }
+
+    // Plan requirement & git tests
+
+    private int createGit(String url) {
+        GitDto gitDto = new GitDto();
+        gitDto.url = url;
+        return given()
+                .contentType(ContentType.JSON)
+                .body(gitDto)
+                .when().post("/gits")
+                .then()
+                .statusCode(201)
+                .extract().path("id");
+    }
+
+    private static PlanDto planDto(PlanStatus status, PlanType type, String content, String requirement, Long gitId) {
+        PlanDto dto = new PlanDto();
+        dto.status = status;
+        dto.type = type;
+        dto.content = content;
+        dto.requirement = requirement;
+        if (gitId != null) {
+            GitDto git = new GitDto();
+            git.id = gitId;
+            dto.git = git;
+        }
+        return dto;
+    }
+
+    @Test
+    void testCreatePlanWithRequirement() {
+        int taskId = createTaskAndReturnId();
+
+        PlanDto plan = planDto(PlanStatus.IN_PROGRESS, PlanType.MANUAL, "# Content", "Must support Java 25", null);
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(plan)
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(201)
+                .body("requirement", is("Must support Java 25"));
+
+        given()
+                .when().get("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(200)
+                .body("requirement", is("Must support Java 25"));
+    }
+
+    @Test
+    void testCreatePlanWithGit() {
+        int taskId = createTaskAndReturnId();
+        int gitId = createGit("https://github.com/test/plan-git");
+
+        PlanDto plan = planDto(PlanStatus.IN_PROGRESS, PlanType.MANUAL, "# Content", null, (long) gitId);
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(plan)
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(201)
+                .body("git.id", is(gitId))
+                .body("git.url", is("https://github.com/test/plan-git"));
+
+        given()
+                .when().get("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(200)
+                .body("git.id", is(gitId))
+                .body("git.url", is("https://github.com/test/plan-git"));
+    }
+
+    @Test
+    void testCreatePlanWithRequirementAndGit() {
+        int taskId = createTaskAndReturnId();
+        int gitId = createGit("https://github.com/test/plan-both");
+
+        PlanDto plan = planDto(PlanStatus.APPROVED, PlanType.SEMI_MANUAL, "# Both", "Requirement text", (long) gitId);
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(plan)
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(201)
+                .body("requirement", is("Requirement text"))
+                .body("git.id", is(gitId))
+                .body("git.url", is("https://github.com/test/plan-both"));
+    }
+
+    @Test
+    void testUpdatePlanRequirement() {
+        int taskId = createTaskAndReturnId();
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(planDto(PlanStatus.IN_PROGRESS, PlanType.MANUAL, "# Draft", "Old requirement", null))
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(201);
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(planDto(PlanStatus.IN_PROGRESS, PlanType.MANUAL, "# Draft", "New requirement", null))
+                .when().put("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(200)
+                .body("requirement", is("New requirement"));
+    }
+
+    @Test
+    void testUpdatePlanGit() {
+        int taskId = createTaskAndReturnId();
+        int gitId1 = createGit("https://github.com/test/git-v1");
+        int gitId2 = createGit("https://github.com/test/git-v2");
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(planDto(PlanStatus.IN_PROGRESS, PlanType.MANUAL, "# Plan", null, (long) gitId1))
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(201)
+                .body("git.id", is(gitId1));
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(planDto(PlanStatus.IN_PROGRESS, PlanType.MANUAL, "# Plan", null, (long) gitId2))
+                .when().put("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(200)
+                .body("git.id", is(gitId2))
+                .body("git.url", is("https://github.com/test/git-v2"));
+    }
+
+    @Test
+    void testUpdatePlanClearGit() {
+        int taskId = createTaskAndReturnId();
+        int gitId = createGit("https://github.com/test/git-clear");
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(planDto(PlanStatus.IN_PROGRESS, PlanType.MANUAL, "# Plan", null, (long) gitId))
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(201)
+                .body("git.id", is(gitId));
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(planDto(PlanStatus.IN_PROGRESS, PlanType.MANUAL, "# Plan", null, null))
+                .when().put("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(200)
+                .body("git", nullValue());
+    }
+
+    @Test
+    void testCreatePlanWithInvalidGitId() {
+        int taskId = createTaskAndReturnId();
+
+        PlanDto plan = planDto(PlanStatus.IN_PROGRESS, PlanType.MANUAL, "# Plan", null, 999999L);
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(plan)
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(201)
+                .body("git", nullValue());
+    }
+
+    @Test
+    void testTaskListIncludesPlanFields() {
+        int taskId = createTaskAndReturnId();
+        int gitId = createGit("https://github.com/test/plan-list");
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(planDto(PlanStatus.APPROVED, PlanType.MANUAL, "# Listed", "List requirement", (long) gitId))
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(201);
+
+        given()
+                .queryParam("filterText", "Context test task")
+                .when().get("/tasks")
+                .then()
+                .statusCode(200)
+                .body("data.find { it.id == " + taskId + " }.plan.requirement", is("List requirement"))
+                .body("data.find { it.id == " + taskId + " }.plan.git.url", is("https://github.com/test/plan-list"));
     }
 }
