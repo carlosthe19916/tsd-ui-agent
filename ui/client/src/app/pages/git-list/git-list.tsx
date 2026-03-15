@@ -3,32 +3,40 @@ import React from "react";
 import {
   Button,
   ButtonVariant,
+  DataList,
+  DataListAction,
+  DataListCell,
+  DataListItem,
+  DataListItemCells,
+  DataListItemRow,
+  Dropdown,
+  DropdownItem,
+  DropdownList,
+  Flex,
+  FlexItem,
+  Icon,
+  MenuToggle,
   PageSection,
+  Select,
+  SelectList,
+  SelectOption,
   Title,
   Toolbar,
   ToolbarContent,
+  ToolbarGroup,
   ToolbarItem,
 } from "@patternfly/react-core";
-import {
-  ActionsColumn,
-  Table,
-  Tbody,
-  Td,
-  Th,
-  Thead,
-  Tr,
-} from "@patternfly/react-table";
+import EllipsisVIcon from "@patternfly/react-icons/dist/esm/icons/ellipsis-v-icon";
+import SortAmountDownIcon from "@patternfly/react-icons/dist/esm/icons/sort-amount-down-icon";
+import SortAmountUpIcon from "@patternfly/react-icons/dist/esm/icons/sort-amount-up-icon";
+import CodeBranchIcon from "@patternfly/react-icons/dist/esm/icons/code-branch-icon";
 
 import { TablePersistenceKeyPrefixes } from "@app/Constants";
 import type { GitDto } from "@app/api/models";
 import { ConfirmDialog } from "@app/components/ConfirmDialog";
+import { ConditionalDataListBody } from "@app/components/DataListControls";
 import { FilterToolbar, FilterType } from "@app/components/FilterToolbar";
 import { SimplePagination } from "@app/components/SimplePagination";
-import {
-  ConditionalTableBody,
-  TableHeaderContentWithControls,
-  TableRowContentWithControls,
-} from "@app/components/TableControls";
 import { useLocalTableControls } from "@app/hooks/table-controls";
 import { useDeleteGitMutation, useFetchGits } from "@app/queries/gits";
 
@@ -44,6 +52,8 @@ export const GitList: React.FC = () => {
     type: "closed",
   });
   const [gitToDelete, setGitToDelete] = React.useState<GitDto | null>(null);
+  const [isSortByOpen, setIsSortByOpen] = React.useState(false);
+  const [openKebabId, setOpenKebabId] = React.useState<number | null>(null);
 
   const { data: gits, isFetching } = useFetchGits();
   const deleteMutation = useDeleteGitMutation(() => setGitToDelete(null));
@@ -88,16 +98,14 @@ export const GitList: React.FC = () => {
 
   const {
     currentPageItems,
-    numRenderedColumns,
+    sortableColumns,
+    columnNames,
+    sortState: { activeSort, setActiveSort },
     propHelpers: {
       toolbarProps,
       paginationToolbarItemProps,
       paginationProps,
-      tableProps,
       filterToolbarProps,
-      getThProps,
-      getTrProps,
-      getTdProps,
     },
   } = tableControls;
 
@@ -112,6 +120,65 @@ export const GitList: React.FC = () => {
         <Toolbar {...toolbarProps}>
           <ToolbarContent>
             <FilterToolbar {...filterToolbarProps} />
+
+            <ToolbarGroup>
+              <ToolbarItem>
+                <Button
+                  variant="control"
+                  onClick={() =>
+                    setActiveSort({
+                      columnKey: activeSort?.columnKey ?? "url",
+                      direction:
+                        activeSort?.direction === "asc" ? "desc" : "asc",
+                    })
+                  }
+                  aria-label="Sort direction"
+                >
+                  {activeSort?.direction === "asc" ? (
+                    <SortAmountUpIcon />
+                  ) : (
+                    <SortAmountDownIcon />
+                  )}
+                </Button>
+              </ToolbarItem>
+              <ToolbarItem>
+                <Select
+                  isOpen={isSortByOpen}
+                  onSelect={(_event, value) => {
+                    setActiveSort({
+                      columnKey: value as typeof activeSort extends {
+                        columnKey: infer K;
+                      }
+                        ? K
+                        : never,
+                      direction: activeSort?.direction ?? "asc",
+                    });
+                    setIsSortByOpen(false);
+                  }}
+                  onOpenChange={setIsSortByOpen}
+                  toggle={(toggleRef) => (
+                    <MenuToggle
+                      ref={toggleRef}
+                      onClick={() => setIsSortByOpen(!isSortByOpen)}
+                      isExpanded={isSortByOpen}
+                    >
+                      {activeSort
+                        ? columnNames[activeSort.columnKey]
+                        : "Sort by"}
+                    </MenuToggle>
+                  )}
+                >
+                  <SelectList>
+                    {sortableColumns?.map((columnKey) => (
+                      <SelectOption key={columnKey} value={columnKey}>
+                        {columnNames[columnKey]}
+                      </SelectOption>
+                    ))}
+                  </SelectList>
+                </Select>
+              </ToolbarItem>
+            </ToolbarGroup>
+
             <ToolbarItem>
               <Button
                 variant={ButtonVariant.primary}
@@ -130,62 +197,82 @@ export const GitList: React.FC = () => {
           </ToolbarContent>
         </Toolbar>
 
-        <Table {...tableProps} aria-label="Git repositories table">
-          <Thead>
-            <Tr>
-              <TableHeaderContentWithControls {...tableControls}>
-                <Th {...getThProps({ columnKey: "url" })} />
-                <Th {...getThProps({ columnKey: "branch" })} />
-                <Th {...getThProps({ columnKey: "forkUrl" })} />
-              </TableHeaderContentWithControls>
-            </Tr>
-          </Thead>
-          <ConditionalTableBody
-            isLoading={isFetching}
-            isNoData={(gits ?? []).length === 0}
-            numRenderedColumns={numRenderedColumns}
-          >
-            {currentPageItems?.map((git, rowIndex) => (
-              <Tbody key={git.id}>
-                <Tr {...getTrProps({ item: git })}>
-                  <TableRowContentWithControls
-                    {...tableControls}
-                    item={git}
-                    rowIndex={rowIndex}
+        <ConditionalDataListBody
+          isLoading={isFetching}
+          isNoData={(gits ?? []).length === 0}
+        >
+          <DataList aria-label="Git repositories list">
+            {currentPageItems?.map((git) => (
+              <DataListItem key={git.id} aria-labelledby={`git-${git.id}`}>
+                <DataListItemRow>
+                  <DataListItemCells
+                    dataListCells={[
+                      <DataListCell key="url" width={3}>
+                        <Flex
+                          direction={{ default: "column" }}
+                          gap={{ default: "gapXs" }}
+                        >
+                          <FlexItem>{git.url}</FlexItem>
+                          <FlexItem>{git.branch || "Default"}</FlexItem>
+                          <FlexItem>
+                            <Icon>
+                              <CodeBranchIcon />
+                            </Icon>
+                            <small>{git.forkUrl || "None"}</small>
+                          </FlexItem>
+                        </Flex>
+                      </DataListCell>,
+                    ]}
+                  />
+                  <DataListAction
+                    id={`git-action-${git.id}`}
+                    aria-label="Actions"
+                    aria-labelledby={`git-${git.id} git-action-${git.id}`}
                   >
-                    <Td
-                      width={40}
-                      modifier="breakWord"
-                      {...getTdProps({ columnKey: "url" })}
+                    <Dropdown
+                      isOpen={openKebabId === git.id}
+                      onSelect={() => setOpenKebabId(null)}
+                      onOpenChange={(isOpen) =>
+                        setOpenKebabId(isOpen ? git.id : null)
+                      }
+                      toggle={(toggleRef) => (
+                        <MenuToggle
+                          ref={toggleRef}
+                          aria-label="Kebab toggle"
+                          variant="plain"
+                          onClick={() =>
+                            setOpenKebabId(
+                              openKebabId === git.id ? null : git.id,
+                            )
+                          }
+                          isExpanded={openKebabId === git.id}
+                        >
+                          <EllipsisVIcon />
+                        </MenuToggle>
+                      )}
+                      popperProps={{ position: "right" }}
                     >
-                      {git.url}
-                    </Td>
-                    <Td width={30} {...getTdProps({ columnKey: "branch" })}>
-                      {git.branch || "Default"}
-                    </Td>
-                    <Td width={30} {...getTdProps({ columnKey: "forkUrl" })}>
-                      {git.forkUrl || "None"}
-                    </Td>
-                    <Td isActionCell>
-                      <ActionsColumn
-                        items={[
-                          {
-                            title: "Edit",
-                            onClick: () => setModalState({ type: "edit", git }),
-                          },
-                          {
-                            title: "Delete",
-                            onClick: () => setGitToDelete(git),
-                          },
-                        ]}
-                      />
-                    </Td>
-                  </TableRowContentWithControls>
-                </Tr>
-              </Tbody>
+                      <DropdownList>
+                        <DropdownItem
+                          key="edit"
+                          onClick={() => setModalState({ type: "edit", git })}
+                        >
+                          Edit
+                        </DropdownItem>
+                        <DropdownItem
+                          key="delete"
+                          onClick={() => setGitToDelete(git)}
+                        >
+                          Delete
+                        </DropdownItem>
+                      </DropdownList>
+                    </Dropdown>
+                  </DataListAction>
+                </DataListItemRow>
+              </DataListItem>
             ))}
-          </ConditionalTableBody>
-        </Table>
+          </DataList>
+        </ConditionalDataListBody>
 
         <SimplePagination
           idPrefix="gits-table"
