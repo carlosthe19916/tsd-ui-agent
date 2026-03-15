@@ -50,7 +50,7 @@ const PlanWizardModalContent: React.FC<{
 }> = ({ task, onClose, initialStep = 1 }) => {
   const [requirementState, setRequirementState] =
     React.useState<RequirementState>({
-      requirement: task.plan?.requirement ?? "",
+      requirement: task.plan?.requirement ?? task.description ?? "",
       isValid: true,
     });
 
@@ -99,6 +99,7 @@ const PlanWizardModalContent: React.FC<{
       onEscapePress={onClose}
       // variant={ModalVariant.large}
       width="90%"
+      style={{ height: "93vh" }}
       aria-label="Plan wizard"
     >
       <Wizard

@@ -1,7 +1,18 @@
 import React from "react";
 
+import { yupResolver } from "@hookform/resolvers/yup";
+import { useForm } from "react-hook-form";
+import ReactMarkdown from "react-markdown";
+import * as yup from "yup";
+
+import { CodeEditor, Language } from "@patternfly/react-code-editor";
 import {
+  Button,
   Content,
+  Drawer,
+  DrawerContent,
+  DrawerContentBody,
+  DrawerPanelContent,
   Grid,
   GridItem,
   Panel,
@@ -13,16 +24,13 @@ import {
   ToolbarContent,
   ToolbarItem,
 } from "@patternfly/react-core";
-import { CodeEditor, Language } from "@patternfly/react-code-editor";
 import CodeIcon from "@patternfly/react-icons/dist/esm/icons/code-icon";
 import ColumnsIcon from "@patternfly/react-icons/dist/esm/icons/columns-icon";
 import EyeIcon from "@patternfly/react-icons/dist/esm/icons/eye-icon";
-import ReactMarkdown from "react-markdown";
-import { useForm } from "react-hook-form";
-import { yupResolver } from "@hookform/resolvers/yup";
-import * as yup from "yup";
+import RobotIcon from "@patternfly/react-icons/dist/esm/icons/robot-icon";
 
 import { ThemeContext } from "@app/components/ThemeContext";
+import { RequirementChatbot } from "./requirement-chatbot";
 import { useFormChangeHandler } from "@app/hooks/useFormChangeHandler";
 
 interface RequirementValues {
@@ -49,7 +57,8 @@ export const RequirementStep: React.FC<RequirementStepProps> = ({
   onStateChanged,
 }) => {
   const { isDark } = React.useContext(ThemeContext);
-  const [viewMode, setViewMode] = React.useState<ViewMode>("split");
+  const [viewMode, setViewMode] = React.useState<ViewMode>("editor");
+  const [isChatbotOpen, setIsChatbotOpen] = React.useState(false);
 
   const form = useForm<RequirementValues>({
     resolver: yupResolver(schema),
@@ -62,70 +71,92 @@ export const RequirementStep: React.FC<RequirementStepProps> = ({
   const requirement = form.watch("requirement");
 
   return (
-    <>
-      <Toolbar>
-        <ToolbarContent>
-          <ToolbarItem>
-            <ToggleGroup aria-label="View mode">
-              <ToggleGroupItem
-                icon={<CodeIcon />}
-                text="Editor"
-                aria-label="Editor view"
-                isSelected={viewMode === "editor"}
-                onChange={() => setViewMode("editor")}
-              />
-              <ToggleGroupItem
-                icon={<ColumnsIcon />}
-                text="Split"
-                aria-label="Split view"
-                isSelected={viewMode === "split"}
-                onChange={() => setViewMode("split")}
-              />
-              <ToggleGroupItem
-                icon={<EyeIcon />}
-                text="Preview"
-                aria-label="Preview view"
-                isSelected={viewMode === "preview"}
-                onChange={() => setViewMode("preview")}
-              />
-            </ToggleGroup>
-          </ToolbarItem>
-        </ToolbarContent>
-      </Toolbar>
-
-      <Grid hasGutter>
-        {viewMode !== "preview" && (
-          <GridItem span={viewMode === "split" ? 6 : 12}>
-            <CodeEditor
-              isDarkTheme={isDark}
-              language={Language.markdown}
-              code={requirement}
-              onCodeChange={(value) =>
-                form.setValue("requirement", value, {
-                  shouldValidate: true,
-                  shouldDirty: true,
-                })
-              }
-              height="60vh"
-              isLineNumbersVisible
-              isHeaderPlain
-            />
-          </GridItem>
-        )}
-        {viewMode !== "editor" && (
-          <GridItem span={viewMode === "split" ? 6 : 12}>
-            <Panel variant="bordered" isScrollable>
-              <PanelMain tabIndex={0} style={{ minHeight: "61.5vh" }}>
-                <PanelMainBody>
-                  <Content>
-                    <ReactMarkdown>{requirement}</ReactMarkdown>
-                  </Content>
-                </PanelMainBody>
-              </PanelMain>
-            </Panel>
-          </GridItem>
-        )}
-      </Grid>
-    </>
+    <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+      <Drawer isExpanded={isChatbotOpen} isInline>
+        <DrawerContent
+          panelContent={
+            <DrawerPanelContent isResizable defaultSize="400px" minSize="250px">
+              <RequirementChatbot />
+            </DrawerPanelContent>
+          }
+        >
+          <DrawerContentBody
+            style={isChatbotOpen ? { paddingRight: 10 } : undefined}
+          >
+            <Toolbar>
+              <ToolbarContent>
+                <ToolbarItem>
+                  <ToggleGroup aria-label="View mode">
+                    <ToggleGroupItem
+                      icon={<CodeIcon />}
+                      text="Editor"
+                      aria-label="Editor view"
+                      isSelected={viewMode === "editor"}
+                      onChange={() => setViewMode("editor")}
+                    />
+                    <ToggleGroupItem
+                      icon={<ColumnsIcon />}
+                      text="Split"
+                      aria-label="Split view"
+                      isSelected={viewMode === "split"}
+                      onChange={() => setViewMode("split")}
+                    />
+                    <ToggleGroupItem
+                      icon={<EyeIcon />}
+                      text="Preview"
+                      aria-label="Preview view"
+                      isSelected={viewMode === "preview"}
+                      onChange={() => setViewMode("preview")}
+                    />
+                  </ToggleGroup>
+                </ToolbarItem>
+                <ToolbarItem align={{ default: "alignEnd" }}>
+                  <Button
+                    variant={isChatbotOpen ? "primary" : "secondary"}
+                    icon={<RobotIcon />}
+                    onClick={() => setIsChatbotOpen(!isChatbotOpen)}
+                  >
+                    Chat Bot
+                  </Button>
+                </ToolbarItem>
+              </ToolbarContent>
+            </Toolbar>
+            <Grid hasGutter>
+              {viewMode !== "preview" && (
+                <GridItem span={viewMode === "split" ? 6 : 12}>
+                  <CodeEditor
+                    isDarkTheme={isDark}
+                    language={Language.markdown}
+                    code={requirement}
+                    onCodeChange={(value) =>
+                      form.setValue("requirement", value, {
+                        shouldValidate: true,
+                        shouldDirty: true,
+                      })
+                    }
+                    height="65vh"
+                    isLineNumbersVisible
+                    isHeaderPlain
+                  />
+                </GridItem>
+              )}
+              {viewMode !== "editor" && (
+                <GridItem span={viewMode === "split" ? 6 : 12}>
+                  <Panel variant="bordered" isScrollable>
+                    <PanelMain tabIndex={0} style={{ minHeight: "65.5vh" }}>
+                      <PanelMainBody>
+                        <Content>
+                          <ReactMarkdown>{requirement}</ReactMarkdown>
+                        </Content>
+                      </PanelMainBody>
+                    </PanelMain>
+                  </Panel>
+                </GridItem>
+              )}
+            </Grid>
+          </DrawerContentBody>
+        </DrawerContent>
+      </Drawer>
+    </div>
   );
 };
