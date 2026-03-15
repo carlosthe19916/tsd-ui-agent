@@ -24,7 +24,9 @@ class GitResourceTest {
 
     @BeforeEach
     void setup() {
-        when(gitManager.cloneRepository(anyString()))
+        when(gitManager.cloneRepository(anyString(), anyString()))
+                .thenReturn("/tmp/tsd-agent-ui-test/repo/default");
+        when(gitManager.cloneRepository(anyString(), org.mockito.ArgumentMatchers.isNull()))
                 .thenReturn("/tmp/tsd-agent-ui-test/repo/default");
         when(gitManager.addWorktree(anyString(), anyString(), anyString()))
                 .thenReturn("/tmp/tsd-agent-ui-test/repo/trees/my-worktree");
@@ -34,8 +36,13 @@ class GitResourceTest {
     }
 
     private static GitDto git(String url) {
+        return git(url, null);
+    }
+
+    private static GitDto git(String url, String branch) {
         GitDto dto = new GitDto();
         dto.url = url;
+        dto.branch = branch;
         return dto;
     }
 
@@ -142,6 +149,83 @@ class GitResourceTest {
                 .when().get("/gits/{id}", id)
                 .then()
                 .statusCode(404);
+    }
+
+    @Test
+    void testCreateGitWithBranch() {
+        given()
+                .contentType(ContentType.JSON)
+                .body(git("https://github.com/test/repo.git", "develop"))
+                .when().post("/gits")
+                .then()
+                .statusCode(201)
+                .body("id", notNullValue())
+                .body("url", is("https://github.com/test/repo.git"))
+                .body("branch", is("develop"));
+    }
+
+    @Test
+    void testCreateGitWithoutBranch() {
+        given()
+                .contentType(ContentType.JSON)
+                .body(git("https://github.com/test/repo2.git"))
+                .when().post("/gits")
+                .then()
+                .statusCode(201)
+                .body("id", notNullValue())
+                .body("url", is("https://github.com/test/repo2.git"))
+                .body("branch", is(""));
+    }
+
+    @Test
+    void testDuplicateUrlAndNoBranch() {
+        given()
+                .contentType(ContentType.JSON)
+                .body(git("https://github.com/dup/no-branch.git"))
+                .when().post("/gits")
+                .then()
+                .statusCode(201);
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(git("https://github.com/dup/no-branch.git"))
+                .when().post("/gits")
+                .then()
+                .statusCode(409);
+    }
+
+    @Test
+    void testDuplicateUrlAndSameBranch() {
+        given()
+                .contentType(ContentType.JSON)
+                .body(git("https://github.com/dup/same-branch.git", "main"))
+                .when().post("/gits")
+                .then()
+                .statusCode(201);
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(git("https://github.com/dup/same-branch.git", "main"))
+                .when().post("/gits")
+                .then()
+                .statusCode(409);
+    }
+
+    @Test
+    void testSameUrlDifferentBranches() {
+        given()
+                .contentType(ContentType.JSON)
+                .body(git("https://github.com/dup/diff-branch.git", "main"))
+                .when().post("/gits")
+                .then()
+                .statusCode(201);
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(git("https://github.com/dup/diff-branch.git", "develop"))
+                .when().post("/gits")
+                .then()
+                .statusCode(201);
     }
 
     @Test

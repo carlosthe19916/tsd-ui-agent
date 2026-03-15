@@ -6,13 +6,14 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import jakarta.persistence.Version;
 import jakarta.validation.constraints.NotNull;
 
 import java.util.Objects;
 
 @Entity
-@Table(name = "git")
+@Table(name = "git", uniqueConstraints = @UniqueConstraint(columnNames = {"url", "branch"}))
 public class GitEntity extends PanacheEntityBase {
 
     @Id
@@ -22,6 +23,9 @@ public class GitEntity extends PanacheEntityBase {
     @NotNull
     @Column(name = "url")
     public String url;
+
+    @Column(name = "branch", nullable = false)
+    public String branch = "";
 
     @Column(name = "local_path")
     public String localPath;

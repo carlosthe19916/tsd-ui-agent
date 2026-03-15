@@ -57,14 +57,18 @@ public class GitManager {
         return result;
     }
 
-    public String cloneRepository(String url) {
+    public String cloneRepository(String url, String branch) {
         String localPath = Path.of(baseDir, UUID.randomUUID().toString(), "default").toString();
 
+        var headers = new java.util.HashMap<String, Object>();
+        headers.put("localPath", localPath);
+        headers.put("remotePath", url);
+        if (branch != null && !branch.isBlank()) {
+            headers.put("branch", branch);
+        }
+
         try {
-            template.requestBodyAndHeaders("direct:git-clone", null, Map.of(
-                    "localPath", localPath,
-                    "remotePath", url
-            ));
+            template.requestBodyAndHeaders("direct:git-clone", null, headers);
         } catch (GitException e) {
             throw e;
         } catch (Exception e) {

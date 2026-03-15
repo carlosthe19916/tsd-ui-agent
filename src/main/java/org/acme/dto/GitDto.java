@@ -8,4 +8,6 @@ public class GitDto {
 
     @NotNull
     public String url;
+
+    public String branch;
 }

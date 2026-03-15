@@ -21,6 +21,13 @@ export const GitForm: React.FC<GitFormProps> = ({ control }) => {
         fieldId="url"
         isRequired
       />
+      <HookFormPFTextInput
+        control={control}
+        name="branch"
+        label="Branch"
+        fieldId="branch"
+        placeholder="Leave empty for default branch"
+      />
     </Form>
   );
 };

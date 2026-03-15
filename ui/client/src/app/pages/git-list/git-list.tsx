@@ -58,16 +58,18 @@ export const GitList: React.FC = () => {
     isLoading: isFetching,
     columnNames: {
       url: "URL",
+      branch: "Branch",
     },
     hasActionsColumn: true,
     isSortEnabled: true,
-    sortableColumns: ["url"],
+    sortableColumns: ["url", "branch"],
     initialSort: {
       columnKey: "url",
       direction: "asc",
     },
     getSortValues: (item) => ({
       url: item.url,
+      branch: item.branch ?? "",
     }),
     isPaginationEnabled: true,
     isFilterEnabled: true,
@@ -132,6 +134,7 @@ export const GitList: React.FC = () => {
             <Tr>
               <TableHeaderContentWithControls {...tableControls}>
                 <Th {...getThProps({ columnKey: "url" })} />
+                <Th {...getThProps({ columnKey: "branch" })} />
               </TableHeaderContentWithControls>
             </Tr>
           </Thead>
@@ -149,11 +152,17 @@ export const GitList: React.FC = () => {
                     rowIndex={rowIndex}
                   >
                     <Td
-                      width={100}
+                      width={70}
                       modifier="breakWord"
                       {...getTdProps({ columnKey: "url" })}
                     >
                       {git.url}
+                    </Td>
+                    <Td
+                      width={30}
+                      {...getTdProps({ columnKey: "branch" })}
+                    >
+                      {git.branch || "Default"}
                     </Td>
                     <Td isActionCell>
                       <ActionsColumn

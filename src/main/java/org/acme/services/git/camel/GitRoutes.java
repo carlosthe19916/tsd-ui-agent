@@ -23,7 +23,16 @@ public class GitRoutes extends RouteBuilder {
                 .process(exchange -> {
                     String localPath = exchange.getIn().getHeader("localPath", String.class);
                     String remotePath = exchange.getIn().getHeader("remotePath", String.class);
-                    exchange.getIn().setHeader("CamelExecCommandArgs", List.of("clone", remotePath, localPath));
+                    String branch = exchange.getIn().getHeader("branch", String.class);
+                    List<String> args = new java.util.ArrayList<>();
+                    args.add("clone");
+                    if (branch != null && !branch.isBlank()) {
+                        args.add("-b");
+                        args.add(branch);
+                    }
+                    args.add(remotePath);
+                    args.add(localPath);
+                    exchange.getIn().setHeader("CamelExecCommandArgs", args);
                 })
                 .to("exec:git");
 
