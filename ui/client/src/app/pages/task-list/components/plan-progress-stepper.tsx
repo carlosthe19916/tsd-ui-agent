@@ -21,24 +21,32 @@ interface PlanProgressStepperProps {
 }
 
 const getRequirementStepVariant = (plan: PlanDto) => {
-  if (plan.discoveryStatus === "IN_PROGRESS") return "info";
-  if (plan.discoveryStatus === "ERROR") return "danger";
+  if (plan.isRequirementInProgress) return "info";
+  if (plan.requirementError) return "danger";
   if (plan.requirement) return "success";
   return "pending";
 };
 
 const getRequirementDescription = (plan: PlanDto) => {
-  if (plan.discoveryStatus === "IN_PROGRESS") return "Discovering...";
-  if (plan.discoveryStatus === "ERROR") {
-    const err = plan.discoveryError ?? "Unknown error";
+  if (plan.isRequirementInProgress) return "Discovering...";
+  if (plan.requirementError) {
+    const err = plan.requirementError;
     return err.length > 40 ? `${err.substring(0, 40)}\u2026` : err;
   }
-  if (plan.requirement) {
-    return plan.requirement.length > 40
-      ? `${plan.requirement.substring(0, 40)}\u2026`
-      : plan.requirement;
+  return plan.requirement && plan.requirement.trim().length > 0
+    ? ""
+    : "Not defined";
+};
+
+const getRequirementPopupContent = (plan: PlanDto) => {
+  if (plan.isRequirementInProgress)
+    return "No requirement has been defined yet.";
+  if (plan.requirementError) {
+    return plan.requirementError;
   }
-  return "Not defined";
+  return plan.requirement && plan.requirement.trim().length > 0
+    ? "Too long to render here"
+    : "Not defined";
 };
 
 export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
@@ -52,7 +60,7 @@ export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
     <ProgressStepper>
       <ProgressStep
         variant={reqVariant}
-        icon={plan.discoveryStatus === "IN_PROGRESS" ? <Spinner size="sm" /> : undefined}
+        icon={plan.isRequirementInProgress ? <Spinner size="sm" /> : undefined}
         id={`req-${taskId}`}
         titleId={`req-title-${taskId}`}
         aria-label={`Requirement step, ${reqVariant}`}
@@ -61,11 +69,7 @@ export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
           <Popover
             aria-label="Requirement details"
             headerContent={<div>Requirement</div>}
-            bodyContent={
-              <div>
-                {plan.requirement || "No requirement has been defined yet."}
-              </div>
-            }
+            bodyContent={<div>{getRequirementPopupContent(plan)}</div>}
             footerContent={
               <Button variant="link" isInline onClick={() => onEditStep(1)}>
                 {plan.requirement ? "Edit requirement" : "Add requirement"}

@@ -77,11 +77,12 @@ export const RequirementStep: React.FC<RequirementStepProps> = ({
 
   const { data: planData } = useFetchTaskPlan(taskId);
 
-  const isDiscovering = planData?.discoveryStatus === "IN_PROGRESS";
+  const isDiscovering = planData?.isRequirementInProgress;
 
   React.useEffect(() => {
     if (
-      planData?.discoveryStatus === "COMPLETED" &&
+      !planData?.isRequirementInProgress &&
+      !planData?.requirementError &&
       planData?.requirement
     ) {
       form.setValue("requirement", planData.requirement, {
@@ -89,7 +90,12 @@ export const RequirementStep: React.FC<RequirementStepProps> = ({
         shouldDirty: true,
       });
     }
-  }, [planData?.discoveryStatus, planData?.requirement, form]);
+  }, [
+    planData?.requirement,
+    form,
+    planData?.requirementError,
+    planData?.isRequirementInProgress,
+  ]);
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>

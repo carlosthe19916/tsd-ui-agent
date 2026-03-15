@@ -16,7 +16,7 @@ export const useFetchTasks = (params: HubRequestParams) => {
     queryFn: () => getTasks(params),
     refetchInterval: (query) => {
       const hasInProgress = query.state.data?.data?.some(
-        (task) => task.plan?.discoveryStatus === "IN_PROGRESS"
+        (task) => task.plan?.isRequirementInProgress,
       );
       return hasInProgress ? 3000 : false;
     },
@@ -54,7 +54,7 @@ export const useFetchTaskPlan = (taskId: number, enabled = true) => {
     enabled,
     refetchInterval: (query) => {
       const data = query.state.data;
-      if (data?.discoveryStatus === "IN_PROGRESS") {
+      if (data?.isRequirementInProgress) {
         return 2000;
       }
       return false;

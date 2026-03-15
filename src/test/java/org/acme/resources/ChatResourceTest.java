@@ -8,7 +8,6 @@ import org.acme.dto.CredentialDto;
 import org.acme.dto.PlanDto;
 import org.acme.dto.ProjectDto;
 import org.acme.models.jpa.entity.PlanStatus;
-import org.acme.models.jpa.entity.PlanType;
 import org.acme.models.jpa.entity.SourceType;
 import org.acme.models.jpa.entity.TaskStatus;
 import org.acme.services.ai.ChatAiService;
@@ -98,7 +97,6 @@ class ChatResourceTest {
 
         PlanDto plan = new PlanDto();
         plan.status = PlanStatus.IN_PROGRESS;
-        plan.type = PlanType.MANUAL;
         given()
                 .contentType(ContentType.JSON)
                 .body(plan)

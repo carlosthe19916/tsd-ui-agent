@@ -22,17 +22,13 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.acme.dto.PlanDto;
 import org.acme.dto.SearchResultDto;
-import org.acme.dto.TaskContextDto;
 import org.acme.dto.TaskDto;
 import org.acme.mapper.PlanMapper;
-import org.acme.mapper.TaskContextMapper;
 import org.acme.mapper.TaskMapper;
-import org.acme.models.jpa.entity.DiscoveryStatus;
 import org.acme.models.jpa.entity.PlanEntity;
-import org.acme.models.jpa.entity.TaskContextEntity;
 import org.acme.models.jpa.entity.TaskEntity;
 import org.acme.models.jpa.entity.TaskStatus;
-import org.acme.services.RequirementDiscoveryService;
+import org.acme.services.PlanService;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.util.HashMap;
@@ -55,13 +51,10 @@ public class TaskResource {
     TaskMapper taskMapper;
 
     @Inject
-    TaskContextMapper taskContextMapper;
-
-    @Inject
     PlanMapper planMapper;
 
     @Inject
-    RequirementDiscoveryService requirementDiscoveryService;
+    PlanService planService;
 
     @Inject
     TransactionManager transactionManager;
@@ -153,72 +146,6 @@ public class TaskResource {
         return sort;
     }
 
-    // Context sub-resource endpoints
-
-    @GET
-    @Path("/{taskId}/context")
-    public List<TaskContextDto> listContexts(@PathParam("taskId") Long taskId) {
-        TaskEntity task = (TaskEntity) TaskEntity.findByIdOptional(taskId)
-                .orElseThrow(NotFoundException::new);
-        return TaskContextEntity.<TaskContextEntity>list("task", task).stream()
-                .map(taskContextMapper::toDto)
-                .collect(Collectors.toList());
-    }
-
-    @GET
-    @Path("/{taskId}/context/{contextId}")
-    public TaskContextDto getContext(@PathParam("taskId") Long taskId, @PathParam("contextId") Long contextId) {
-        TaskEntity task = (TaskEntity) TaskEntity.findByIdOptional(taskId)
-                .orElseThrow(NotFoundException::new);
-        TaskContextEntity context = (TaskContextEntity) TaskContextEntity.findByIdOptional(contextId)
-                .orElseThrow(NotFoundException::new);
-        if (!context.task.id.equals(task.id)) {
-            throw new NotFoundException();
-        }
-        return taskContextMapper.toDto(context);
-    }
-
-    @POST
-    @Path("/{taskId}/context")
-    public Response createContext(@PathParam("taskId") Long taskId, @Valid TaskContextDto dto) {
-        TaskEntity task = (TaskEntity) TaskEntity.findByIdOptional(taskId)
-                .orElseThrow(NotFoundException::new);
-        TaskContextEntity entity = taskContextMapper.toEntity(dto, task);
-        entity.persist();
-        return Response.status(Response.Status.CREATED)
-                .entity(taskContextMapper.toDto(entity))
-                .build();
-    }
-
-    @PUT
-    @Path("/{taskId}/context/{contextId}")
-    public TaskContextDto updateContext(@PathParam("taskId") Long taskId, @PathParam("contextId") Long contextId,
-            @Valid TaskContextDto dto) {
-        TaskEntity task = (TaskEntity) TaskEntity.findByIdOptional(taskId)
-                .orElseThrow(NotFoundException::new);
-        TaskContextEntity context = (TaskContextEntity) TaskContextEntity.findByIdOptional(contextId)
-                .orElseThrow(NotFoundException::new);
-        if (!context.task.id.equals(task.id)) {
-            throw new NotFoundException();
-        }
-        taskContextMapper.updateEntity(dto, context);
-        return taskContextMapper.toDto(context);
-    }
-
-    @DELETE
-    @Path("/{taskId}/context/{contextId}")
-    public Response deleteContext(@PathParam("taskId") Long taskId, @PathParam("contextId") Long contextId) {
-        TaskEntity task = (TaskEntity) TaskEntity.findByIdOptional(taskId)
-                .orElseThrow(NotFoundException::new);
-        TaskContextEntity context = (TaskContextEntity) TaskContextEntity.findByIdOptional(contextId)
-                .orElseThrow(NotFoundException::new);
-        if (!context.task.id.equals(task.id)) {
-            throw new NotFoundException();
-        }
-        context.delete();
-        return Response.noContent().build();
-    }
-
     // Plan sub-resource endpoints
 
     @GET
@@ -244,20 +171,19 @@ public class TaskResource {
 
         // Auto-populate requirement from task description if not provided
         if (plan.requirement == null || plan.requirement.isBlank()) {
-            plan.requirement = (task.description != null && !task.description.isBlank())
-                    ? task.description : task.title;
+            plan.requirement = (task.description != null && !task.description.isBlank()) ? task.description : task.title;
         }
 
         // Set discovery status based on AI availability
         if (aiDiscoveryEnabled && task.description != null && !task.description.isBlank()) {
-            plan.discoveryStatus = DiscoveryStatus.IN_PROGRESS;
+            plan.isRequirementInProgress = true;
         }
 
         plan.persist();
         task.plan = plan;
 
         // Trigger async AI enrichment after transaction commits
-        if (plan.discoveryStatus == DiscoveryStatus.IN_PROGRESS) {
+        if (plan.isRequirementInProgress) {
             try {
                 transactionManager.getTransaction().registerSynchronization(new Synchronization() {
                     @Override
@@ -266,12 +192,12 @@ public class TaskResource {
                     @Override
                     public void afterCompletion(int status) {
                         if (status == jakarta.transaction.Status.STATUS_COMMITTED) {
-                            requirementDiscoveryService.triggerDiscovery(taskId);
+                            planService.triggerRequirementEnrichment(taskId);
                         }
                     }
                 });
             } catch (Exception e) {
-                throw new RuntimeException("Failed to register discovery synchronization", e);
+                throw new RuntimeException("Failed to register requirement AI enrichment", e);
             }
         }
 

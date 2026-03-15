@@ -16,13 +16,10 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import org.acme.dto.GitContextDto;
 import org.acme.dto.ProjectDto;
 import org.acme.dto.TestConnectionDto;
-import org.acme.mapper.GitContextMapper;
 import org.acme.mapper.ProjectMapper;
 import org.acme.models.jpa.entity.CredentialEntity;
-import org.acme.models.jpa.entity.GitContextEntity;
 import org.acme.models.jpa.entity.ProjectEntity;
 import org.acme.models.jpa.entity.SyncStatus;
 import org.acme.services.ProjectService;
@@ -43,9 +40,6 @@ public class ProjectResource {
 
     @Inject
     ProjectMapper projectMapper;
-
-    @Inject
-    GitContextMapper gitContextMapper;
 
     @Inject
     ProjectService projectService;
@@ -153,72 +147,6 @@ public class ProjectResource {
         ProjectEntity entity = (ProjectEntity) ProjectEntity.findByIdOptional(id)
                 .orElseThrow(NotFoundException::new);
         entity.delete();
-        return Response.noContent().build();
-    }
-
-    // Context sub-resource endpoints
-
-    @GET
-    @Path("/{id}/context")
-    public List<GitContextDto> listContexts(@PathParam("id") Long id) {
-        ProjectEntity project = (ProjectEntity) ProjectEntity.findByIdOptional(id)
-                .orElseThrow(NotFoundException::new);
-        return GitContextEntity.<GitContextEntity>list("project", project).stream()
-                .map(gitContextMapper::toDto)
-                .collect(Collectors.toList());
-    }
-
-    @GET
-    @Path("/{id}/context/{contextId}")
-    public GitContextDto getContext(@PathParam("id") Long id, @PathParam("contextId") Long contextId) {
-        ProjectEntity project = (ProjectEntity) ProjectEntity.findByIdOptional(id)
-                .orElseThrow(NotFoundException::new);
-        GitContextEntity context = (GitContextEntity) GitContextEntity.findByIdOptional(contextId)
-                .orElseThrow(NotFoundException::new);
-        if (!context.project.id.equals(project.id)) {
-            throw new NotFoundException();
-        }
-        return gitContextMapper.toDto(context);
-    }
-
-    @POST
-    @Path("/{id}/context")
-    public Response createContext(@PathParam("id") Long id, @Valid GitContextDto dto) {
-        ProjectEntity project = (ProjectEntity) ProjectEntity.findByIdOptional(id)
-                .orElseThrow(NotFoundException::new);
-        GitContextEntity entity = gitContextMapper.toEntity(dto, project);
-        entity.persist();
-        return Response.status(Response.Status.CREATED)
-                .entity(gitContextMapper.toDto(entity))
-                .build();
-    }
-
-    @PUT
-    @Path("/{id}/context/{contextId}")
-    public GitContextDto updateContext(@PathParam("id") Long id, @PathParam("contextId") Long contextId,
-            @Valid GitContextDto dto) {
-        ProjectEntity project = (ProjectEntity) ProjectEntity.findByIdOptional(id)
-                .orElseThrow(NotFoundException::new);
-        GitContextEntity context = (GitContextEntity) GitContextEntity.findByIdOptional(contextId)
-                .orElseThrow(NotFoundException::new);
-        if (!context.project.id.equals(project.id)) {
-            throw new NotFoundException();
-        }
-        gitContextMapper.updateEntity(dto, context);
-        return gitContextMapper.toDto(context);
-    }
-
-    @DELETE
-    @Path("/{id}/context/{contextId}")
-    public Response deleteContext(@PathParam("id") Long id, @PathParam("contextId") Long contextId) {
-        ProjectEntity project = (ProjectEntity) ProjectEntity.findByIdOptional(id)
-                .orElseThrow(NotFoundException::new);
-        GitContextEntity context = (GitContextEntity) GitContextEntity.findByIdOptional(contextId)
-                .orElseThrow(NotFoundException::new);
-        if (!context.project.id.equals(project.id)) {
-            throw new NotFoundException();
-        }
-        context.delete();
         return Response.noContent().build();
     }
 }

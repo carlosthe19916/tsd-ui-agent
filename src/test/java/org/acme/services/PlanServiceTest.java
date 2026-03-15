@@ -7,10 +7,9 @@ import org.acme.dto.CredentialDto;
 import org.acme.dto.PlanDto;
 import org.acme.dto.ProjectDto;
 import org.acme.models.jpa.entity.PlanStatus;
-import org.acme.models.jpa.entity.PlanType;
 import org.acme.models.jpa.entity.SourceType;
 import org.acme.models.jpa.entity.TaskStatus;
-import org.acme.services.ai.RequirementAiService;
+import org.acme.services.ai.RequirementSummarizerService;
 import org.acme.services.sync.ExternalIssue;
 import org.acme.services.sync.SyncManager;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,19 +28,20 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 @QuarkusTest
-class RequirementDiscoveryServiceTest {
+class PlanServiceTest {
 
     @InjectMock
     SyncManager syncManager;
 
     @InjectMock
-    RequirementAiService aiService;
+    RequirementSummarizerService aiService;
 
     @BeforeEach
     void setup() {
         when(syncManager.fetchIssues(any())).thenReturn(List.of());
         when(syncManager.fetchComments(any())).thenReturn(List.of());
-        when(aiService.discoverRequirement(anyString(), anyString(), anyString(), anyString(), anyString()))
+        when(syncManager.fetchLabels(any())).thenReturn(List.of());
+        when(aiService.summarize(anyString(), anyString(), anyString(), anyString()))
                 .thenReturn("## Summary\nDefault test requirement");
     }
 
@@ -114,27 +114,26 @@ class RequirementDiscoveryServiceTest {
         // Create plan — auto-triggers discovery since task has description
         PlanDto plan = new PlanDto();
         plan.status = PlanStatus.IN_PROGRESS;
-        plan.type = PlanType.MANUAL;
         given()
                 .contentType(ContentType.JSON)
                 .body(plan)
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201)
-                .body("discoveryStatus", is("IN_PROGRESS"));
+                .body("isRequirementInProgress", is(true));
 
         // Poll for completion
         await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
                 given()
                         .when().get("/tasks/{taskId}/plan", taskId)
                         .then()
-                        .body("discoveryStatus", is("COMPLETED"))
+                        .body("isRequirementInProgress", is(false))
                         .body("requirement", is("## Summary\nDefault test requirement")));
     }
 
     @Test
     void testDiscoveryErrorSetsErrorStatus() {
-        when(aiService.discoverRequirement(anyString(), anyString(), anyString(), anyString(), anyString()))
+        when(aiService.summarize(anyString(), anyString(), anyString(), anyString()))
                 .thenThrow(new RuntimeException("LLM unavailable"));
 
         int projectId = createProjectAndSync(List.of(issue("disc-err-1", "Error task")));
@@ -142,27 +141,26 @@ class RequirementDiscoveryServiceTest {
 
         PlanDto plan = new PlanDto();
         plan.status = PlanStatus.IN_PROGRESS;
-        plan.type = PlanType.MANUAL;
         given()
                 .contentType(ContentType.JSON)
                 .body(plan)
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201)
-                .body("discoveryStatus", is("IN_PROGRESS"));
+                .body("isRequirementInProgress", is(true));
 
         await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
                 given()
                         .when().get("/tasks/{taskId}/plan", taskId)
                         .then()
-                        .body("discoveryStatus", is("ERROR"))
-                        .body("discoveryError", notNullValue()));
+                        .body("isRequirementInProgress", is(false))
+                        .body("requirementError", notNullValue()));
     }
 
     @Test
     void testDiscoveryInProgressOnPlanCreation() {
         // Make AI service block to keep discovery in progress
-        when(aiService.discoverRequirement(anyString(), anyString(), anyString(), anyString(), anyString()))
+        when(aiService.summarize(anyString(), anyString(), anyString(), anyString()))
                 .thenAnswer(invocation -> {
                     Thread.sleep(3000);
                     return "## Summary\nDelayed";
@@ -174,19 +172,18 @@ class RequirementDiscoveryServiceTest {
         // Create plan — auto-triggers discovery
         PlanDto plan = new PlanDto();
         plan.status = PlanStatus.IN_PROGRESS;
-        plan.type = PlanType.MANUAL;
         given()
                 .contentType(ContentType.JSON)
                 .body(plan)
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201)
-                .body("discoveryStatus", is("IN_PROGRESS"));
+                .body("isRequirementInProgress", is(true));
 
         // Verify plan shows IN_PROGRESS while AI is working
         given()
                 .when().get("/tasks/{taskId}/plan", taskId)
                 .then()
-                .body("discoveryStatus", is("IN_PROGRESS"));
+                .body("isRequirementInProgress", is(true));
     }
 }

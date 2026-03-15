@@ -1,14 +1,13 @@
-package org.acme.services.discovery;
+package org.acme.services.sync;
 
 import java.time.Instant;
 import java.util.List;
 
-public record RequirementContext(
+public record ExternalIssueContext(
     String taskTitle,
     String taskDescription,
-    String sourceType,
     List<Comment> comments,
-    List<String> additionalContexts
+    String labels
 ) {
     public record Comment(String author, String body, Instant createdAt) {}
 }

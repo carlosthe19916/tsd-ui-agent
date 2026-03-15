@@ -1,5 +1,7 @@
 import React from "react";
 
+import ReactMarkdown from "react-markdown";
+
 import {
   Button,
   DataList,
@@ -19,6 +21,8 @@ import {
   DropdownList,
   Flex,
   FlexItem,
+  Grid,
+  GridItem,
   Icon,
   Label,
   MenuToggle,
@@ -44,7 +48,10 @@ import { ConfirmDialog } from "@app/components/ConfirmDialog";
 import { ConditionalDataListBody } from "@app/components/DataListControls";
 import { FilterToolbar } from "@app/components/FilterToolbar";
 import { SimplePagination } from "@app/components/SimplePagination";
-import { useCreateTaskPlanMutation, useUpdateTaskPlanMutation } from "@app/queries/tasks";
+import {
+  useCreateTaskPlanMutation,
+  useUpdateTaskPlanMutation,
+} from "@app/queries/tasks";
 import { formatDateTime } from "@app/utils/utils";
 import { ButtonVariant } from "@patternfly/react-core";
 
@@ -88,7 +95,9 @@ const TaskListContent: React.FC = () => {
   const [wizardTask, setWizardTask] = React.useState<TaskDto | null>(null);
   const [wizardInitialStep, setWizardInitialStep] = React.useState(1);
   const [approveTask, setApproveTask] = React.useState<TaskDto | null>(null);
-  const [createPlanTask, setCreatePlanTask] = React.useState<TaskDto | null>(null);
+  const [createPlanTask, setCreatePlanTask] = React.useState<TaskDto | null>(
+    null,
+  );
 
   const updatePlanMutation = useUpdateTaskPlanMutation(() =>
     setApproveTask(null),
@@ -196,7 +205,7 @@ const TaskListContent: React.FC = () => {
                     <DataListCell isIcon key="icon" width={1}>
                       <Icon>{statusIcon(task.status)}</Icon>
                     </DataListCell>,
-                    <DataListCell key="info" width={3}>
+                    <DataListCell key="info" width={2}>
                       <Flex
                         direction={{ default: "column" }}
                         gap={{ default: "gapXs" }}
@@ -221,7 +230,7 @@ const TaskListContent: React.FC = () => {
                         </FlexItem>
                       </Flex>
                     </DataListCell>,
-                    <DataListCell key="plan" width={2}>
+                    <DataListCell key="plan" width={3}>
                       {task.plan ? (
                         <Flex
                           direction={{ default: "column" }}
@@ -319,26 +328,40 @@ const TaskListContent: React.FC = () => {
                 aria-label={`Details for ${task.title}`}
                 isHidden={!expansionDerivedState.isCellExpanded(task)}
               >
-                <DescriptionList>
-                  <DescriptionListGroup>
-                    <DescriptionListTerm>Project</DescriptionListTerm>
-                    <DescriptionListDescription>
-                      {task.project.name}
-                    </DescriptionListDescription>
-                  </DescriptionListGroup>
-                  <DescriptionListGroup>
-                    <DescriptionListTerm>Created</DescriptionListTerm>
-                    <DescriptionListDescription>
-                      {formatDateTime(task.createdAt)}
-                    </DescriptionListDescription>
-                  </DescriptionListGroup>
-                  <DescriptionListGroup>
-                    <DescriptionListTerm>Updated</DescriptionListTerm>
-                    <DescriptionListDescription>
-                      {formatDateTime(task.updatedAt)}
-                    </DescriptionListDescription>
-                  </DescriptionListGroup>
-                </DescriptionList>
+                <Grid hasGutter>
+                  <GridItem md={2}>
+                    <DescriptionList>
+                      <DescriptionListGroup>
+                        <DescriptionListTerm>Project</DescriptionListTerm>
+                        <DescriptionListDescription>
+                          {task.project.name}
+                        </DescriptionListDescription>
+                      </DescriptionListGroup>
+                      <DescriptionListGroup>
+                        <DescriptionListTerm>Created</DescriptionListTerm>
+                        <DescriptionListDescription>
+                          {formatDateTime(task.createdAt)}
+                        </DescriptionListDescription>
+                      </DescriptionListGroup>
+                      <DescriptionListGroup>
+                        <DescriptionListTerm>Updated</DescriptionListTerm>
+                        <DescriptionListDescription>
+                          {formatDateTime(task.updatedAt)}
+                        </DescriptionListDescription>
+                      </DescriptionListGroup>
+                    </DescriptionList>
+                  </GridItem>
+                  <GridItem md={10}>
+                    <DescriptionList>
+                      <DescriptionListGroup>
+                        <DescriptionListTerm>Description</DescriptionListTerm>
+                        <DescriptionListDescription>
+                          <ReactMarkdown>{task.description}</ReactMarkdown>
+                        </DescriptionListDescription>
+                      </DescriptionListGroup>
+                    </DescriptionList>
+                  </GridItem>
+                </Grid>
               </DataListContent>
             </DataListItem>
           ))}

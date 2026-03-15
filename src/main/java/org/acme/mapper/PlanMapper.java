@@ -19,10 +19,9 @@ public class PlanMapper {
         dto.id = entity.id;
         dto.content = entity.content;
         dto.requirement = entity.requirement;
-        dto.discoveryStatus = entity.discoveryStatus;
-        dto.discoveryError = entity.discoveryError;
+        dto.isRequirementInProgress = entity.isRequirementInProgress;
+        dto.requirementError = entity.requirementError;
         dto.status = entity.status;
-        dto.type = entity.type;
         dto.createdAt = entity.createdAt;
         dto.updatedAt = entity.updatedAt;
         if (entity.git != null) {
@@ -36,7 +35,6 @@ public class PlanMapper {
         entity.content = dto.content;
         entity.requirement = dto.requirement;
         entity.status = dto.status;
-        entity.type = dto.type;
         entity.createdAt = Instant.now();
         entity.updatedAt = Instant.now();
         if (dto.git != null && dto.git.id != null) {
@@ -49,7 +47,6 @@ public class PlanMapper {
         entity.content = dto.content;
         entity.requirement = dto.requirement;
         entity.status = dto.status;
-        entity.type = dto.type;
         entity.updatedAt = Instant.now();
         if (dto.git != null && dto.git.id != null) {
             entity.git = GitEntity.findById(dto.git.id);

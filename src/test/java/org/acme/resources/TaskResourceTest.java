@@ -7,14 +7,11 @@ import org.acme.dto.CredentialDto;
 import org.acme.dto.GitDto;
 import org.acme.dto.PlanDto;
 import org.acme.dto.ProjectDto;
-import org.acme.dto.TaskContextDto;
-import org.acme.models.jpa.entity.ContextType;
 import org.acme.models.jpa.entity.PlanStatus;
-import org.acme.models.jpa.entity.PlanType;
 import org.acme.models.jpa.entity.SourceType;
 import org.acme.models.jpa.entity.TaskStatus;
 import org.acme.services.git.GitManager;
-import org.acme.services.ai.RequirementAiService;
+import org.acme.services.ai.RequirementSummarizerService;
 import org.acme.services.sync.ExternalIssue;
 import org.acme.services.sync.SyncManager;
 import org.junit.jupiter.api.BeforeEach;
@@ -46,12 +43,12 @@ class TaskResourceTest {
     GitManager gitManager;
 
     @InjectMock
-    RequirementAiService aiService;
+    RequirementSummarizerService aiService;
 
     @BeforeEach
     void setup() {
         when(syncManager.fetchIssues(any())).thenReturn(List.of());
-        when(aiService.discoverRequirement(anyString(), anyString(), anyString(), anyString(), anyString()))
+        when(aiService.summarize(anyString(), anyString(), anyString(), anyString()))
                 .thenReturn("## Summary\nDefault test requirement");
         when(gitManager.cloneRepository(anyString(), anyString()))
                 .thenReturn("/tmp/tsd-agent-ui-test/repo/default");
@@ -270,8 +267,6 @@ class TaskResourceTest {
                 .body("data", empty());
     }
 
-    // Context sub-resource tests
-
     private int createTaskAndReturnId() {
         int projectId = createProjectAndSync(SourceType.GITHUB, List.of(
                 issue("ctx-" + System.nanoTime(), "Context test task", TaskStatus.OPEN)
@@ -285,155 +280,11 @@ class TaskResourceTest {
                 .extract().path("data[0].id");
     }
 
-    private static TaskContextDto taskContext(String name, ContextType type) {
-        TaskContextDto dto = new TaskContextDto();
-        dto.name = name;
-        dto.type = type;
-        return dto;
-    }
-
-    @Test
-    void testCreateContext() {
-        int taskId = createTaskAndReturnId();
-
-        TaskContextDto ctx = taskContext("my-context", ContextType.MARKDOWN);
-        ctx.description = "A test context";
-        ctx.content = "# Hello";
-
-        given()
-                .contentType(ContentType.JSON)
-                .body(ctx)
-                .when().post("/tasks/{taskId}/context", taskId)
-                .then()
-                .statusCode(201)
-                .body("id", notNullValue())
-                .body("name", is("my-context"))
-                .body("description", is("A test context"))
-                .body("type", is("MARKDOWN"))
-                .body("content", is("# Hello"));
-    }
-
-    @Test
-    void testListContexts() {
-        int taskId = createTaskAndReturnId();
-
-        given()
-                .contentType(ContentType.JSON)
-                .body(taskContext("ctx-1", ContextType.MARKDOWN))
-                .when().post("/tasks/{taskId}/context", taskId)
-                .then()
-                .statusCode(201);
-
-        given()
-                .contentType(ContentType.JSON)
-                .body(taskContext("ctx-2", ContextType.GIT_REPOSITORY))
-                .when().post("/tasks/{taskId}/context", taskId)
-                .then()
-                .statusCode(201);
-
-        given()
-                .when().get("/tasks/{taskId}/context", taskId)
-                .then()
-                .statusCode(200)
-                .body("size()", is(2));
-    }
-
-    @Test
-    void testGetContext() {
-        int taskId = createTaskAndReturnId();
-
-        int contextId = given()
-                .contentType(ContentType.JSON)
-                .body(taskContext("get-ctx", ContextType.MARKDOWN))
-                .when().post("/tasks/{taskId}/context", taskId)
-                .then()
-                .statusCode(201)
-                .extract().path("id");
-
-        given()
-                .when().get("/tasks/{taskId}/context/{contextId}", taskId, contextId)
-                .then()
-                .statusCode(200)
-                .body("name", is("get-ctx"))
-                .body("type", is("MARKDOWN"));
-    }
-
-    @Test
-    void testUpdateContext() {
-        int taskId = createTaskAndReturnId();
-
-        int contextId = given()
-                .contentType(ContentType.JSON)
-                .body(taskContext("before-update", ContextType.MARKDOWN))
-                .when().post("/tasks/{taskId}/context", taskId)
-                .then()
-                .statusCode(201)
-                .extract().path("id");
-
-        TaskContextDto updated = taskContext("after-update", ContextType.GIT_REPOSITORY);
-        updated.repositoryUrl = "https://github.com/test/repo";
-        updated.branch = "main";
-
-        given()
-                .contentType(ContentType.JSON)
-                .body(updated)
-                .when().put("/tasks/{taskId}/context/{contextId}", taskId, contextId)
-                .then()
-                .statusCode(200)
-                .body("name", is("after-update"))
-                .body("type", is("GIT_REPOSITORY"))
-                .body("repositoryUrl", is("https://github.com/test/repo"))
-                .body("branch", is("main"));
-    }
-
-    @Test
-    void testDeleteContext() {
-        int taskId = createTaskAndReturnId();
-
-        int contextId = given()
-                .contentType(ContentType.JSON)
-                .body(taskContext("to-delete", ContextType.MARKDOWN))
-                .when().post("/tasks/{taskId}/context", taskId)
-                .then()
-                .statusCode(201)
-                .extract().path("id");
-
-        given()
-                .when().delete("/tasks/{taskId}/context/{contextId}", taskId, contextId)
-                .then()
-                .statusCode(204);
-
-        given()
-                .when().get("/tasks/{taskId}/context/{contextId}", taskId, contextId)
-                .then()
-                .statusCode(404);
-    }
-
-    @Test
-    void testGetContextWrongTask() {
-        int taskId1 = createTaskAndReturnId();
-        int taskId2 = createTaskAndReturnId();
-
-        int contextId = given()
-                .contentType(ContentType.JSON)
-                .body(taskContext("wrong-task-ctx", ContextType.MARKDOWN))
-                .when().post("/tasks/{taskId}/context", taskId1)
-                .then()
-                .statusCode(201)
-                .extract().path("id");
-
-        given()
-                .when().get("/tasks/{taskId}/context/{contextId}", taskId2, contextId)
-                .then()
-                .statusCode(404);
-    }
-
     // Plan sub-resource tests
 
-    private static PlanDto planDto(PlanStatus status, PlanType type, String content) {
+    private static PlanDto planDto(PlanStatus status, String content) {
         PlanDto dto = new PlanDto();
         dto.status = status;
-        dto.type = type;
         dto.content = content;
         return dto;
     }
@@ -442,7 +293,7 @@ class TaskResourceTest {
     void testCreatePlan() {
         int taskId = createTaskAndReturnId();
 
-        PlanDto plan = planDto(PlanStatus.IN_PROGRESS, PlanType.MANUAL, "# My Plan");
+        PlanDto plan = planDto(PlanStatus.IN_PROGRESS,"# My Plan");
 
         given()
                 .contentType(ContentType.JSON)
@@ -452,7 +303,6 @@ class TaskResourceTest {
                 .statusCode(201)
                 .body("id", notNullValue())
                 .body("status", is("IN_PROGRESS"))
-                .body("type", is("MANUAL"))
                 .body("content", is("# My Plan"))
                 .body("createdAt", notNullValue())
                 .body("updatedAt", notNullValue());
@@ -464,7 +314,7 @@ class TaskResourceTest {
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto(PlanStatus.APPROVED, PlanType.AUTO, "# Auto Plan"))
+                .body(planDto(PlanStatus.APPROVED,"# Auto Plan"))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201);
@@ -474,7 +324,6 @@ class TaskResourceTest {
                 .then()
                 .statusCode(200)
                 .body("status", is("APPROVED"))
-                .body("type", is("AUTO"))
                 .body("content", is("# Auto Plan"));
     }
 
@@ -494,19 +343,18 @@ class TaskResourceTest {
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto(PlanStatus.IN_PROGRESS, PlanType.MANUAL, "# Draft"))
+                .body(planDto(PlanStatus.IN_PROGRESS,"# Draft"))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201);
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto(PlanStatus.APPROVED, PlanType.SEMI_MANUAL, "# Final"))
+                .body(planDto(PlanStatus.APPROVED,"# Final"))
                 .when().put("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(200)
                 .body("status", is("APPROVED"))
-                .body("type", is("SEMI_MANUAL"))
                 .body("content", is("# Final"));
     }
 
@@ -516,7 +364,7 @@ class TaskResourceTest {
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto(PlanStatus.IN_PROGRESS, PlanType.MANUAL, "# To delete"))
+                .body(planDto(PlanStatus.IN_PROGRESS,"# To delete"))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201);
@@ -538,14 +386,14 @@ class TaskResourceTest {
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto(PlanStatus.IN_PROGRESS, PlanType.MANUAL, "# First"))
+                .body(planDto(PlanStatus.IN_PROGRESS,"# First"))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201);
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto(PlanStatus.APPROVED, PlanType.AUTO, "# Second"))
+                .body(planDto(PlanStatus.APPROVED,"# Second"))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(409);
@@ -565,10 +413,9 @@ class TaskResourceTest {
                 .extract().path("id");
     }
 
-    private static PlanDto planDto(PlanStatus status, PlanType type, String content, String requirement, Long gitId) {
+    private static PlanDto planDto(PlanStatus status, String content, String requirement, Long gitId) {
         PlanDto dto = new PlanDto();
         dto.status = status;
-        dto.type = type;
         dto.content = content;
         dto.requirement = requirement;
         if (gitId != null) {
@@ -583,7 +430,7 @@ class TaskResourceTest {
     void testCreatePlanWithRequirement() {
         int taskId = createTaskAndReturnId();
 
-        PlanDto plan = planDto(PlanStatus.IN_PROGRESS, PlanType.MANUAL, "# Content", "Must support Java 25", null);
+        PlanDto plan = planDto(PlanStatus.IN_PROGRESS,"# Content", "Must support Java 25", null);
 
         given()
                 .contentType(ContentType.JSON)
@@ -605,7 +452,7 @@ class TaskResourceTest {
         int taskId = createTaskAndReturnId();
         int gitId = createGit("https://github.com/test/plan-git");
 
-        PlanDto plan = planDto(PlanStatus.IN_PROGRESS, PlanType.MANUAL, "# Content", null, (long) gitId);
+        PlanDto plan = planDto(PlanStatus.IN_PROGRESS,"# Content", null, (long) gitId);
 
         given()
                 .contentType(ContentType.JSON)
@@ -629,7 +476,7 @@ class TaskResourceTest {
         int taskId = createTaskAndReturnId();
         int gitId = createGit("https://github.com/test/plan-both");
 
-        PlanDto plan = planDto(PlanStatus.APPROVED, PlanType.SEMI_MANUAL, "# Both", "Requirement text", (long) gitId);
+        PlanDto plan = planDto(PlanStatus.APPROVED,"# Both", "Requirement text", (long) gitId);
 
         given()
                 .contentType(ContentType.JSON)
@@ -648,14 +495,14 @@ class TaskResourceTest {
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto(PlanStatus.IN_PROGRESS, PlanType.MANUAL, "# Draft", "Old requirement", null))
+                .body(planDto(PlanStatus.IN_PROGRESS,"# Draft", "Old requirement", null))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201);
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto(PlanStatus.IN_PROGRESS, PlanType.MANUAL, "# Draft", "New requirement", null))
+                .body(planDto(PlanStatus.IN_PROGRESS,"# Draft", "New requirement", null))
                 .when().put("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(200)
@@ -670,7 +517,7 @@ class TaskResourceTest {
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto(PlanStatus.IN_PROGRESS, PlanType.MANUAL, "# Plan", null, (long) gitId1))
+                .body(planDto(PlanStatus.IN_PROGRESS,"# Plan", null, (long) gitId1))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201)
@@ -678,7 +525,7 @@ class TaskResourceTest {
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto(PlanStatus.IN_PROGRESS, PlanType.MANUAL, "# Plan", null, (long) gitId2))
+                .body(planDto(PlanStatus.IN_PROGRESS,"# Plan", null, (long) gitId2))
                 .when().put("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(200)
@@ -693,7 +540,7 @@ class TaskResourceTest {
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto(PlanStatus.IN_PROGRESS, PlanType.MANUAL, "# Plan", null, (long) gitId))
+                .body(planDto(PlanStatus.IN_PROGRESS,"# Plan", null, (long) gitId))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201)
@@ -701,7 +548,7 @@ class TaskResourceTest {
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto(PlanStatus.IN_PROGRESS, PlanType.MANUAL, "# Plan", null, null))
+                .body(planDto(PlanStatus.IN_PROGRESS,"# Plan", null, null))
                 .when().put("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(200)
@@ -712,7 +559,7 @@ class TaskResourceTest {
     void testCreatePlanWithInvalidGitId() {
         int taskId = createTaskAndReturnId();
 
-        PlanDto plan = planDto(PlanStatus.IN_PROGRESS, PlanType.MANUAL, "# Plan", null, 999999L);
+        PlanDto plan = planDto(PlanStatus.IN_PROGRESS,"# Plan", null, 999999L);
 
         given()
                 .contentType(ContentType.JSON)
@@ -740,7 +587,7 @@ class TaskResourceTest {
     void testCreatePlanAutoPopulatesRequirementFromDescription() {
         int taskId = createTaskWithDescriptionAndReturnId("Detailed task description");
 
-        PlanDto plan = planDto(PlanStatus.IN_PROGRESS, PlanType.MANUAL, "# Content");
+        PlanDto plan = planDto(PlanStatus.IN_PROGRESS,"# Content");
 
         given()
                 .contentType(ContentType.JSON)
@@ -749,14 +596,14 @@ class TaskResourceTest {
                 .then()
                 .statusCode(201)
                 .body("requirement", is("Detailed task description"))
-                .body("discoveryStatus", is("IN_PROGRESS"));
+                .body("isRequirementInProgress", is(true));
 
         // Wait for AI discovery to complete
         await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
                 given()
                         .when().get("/tasks/{taskId}/plan", taskId)
                         .then()
-                        .body("discoveryStatus", is("COMPLETED"))
+                        .body("isRequirementInProgress", is(false))
                         .body("requirement", is("## Summary\nDefault test requirement")));
     }
 
@@ -764,7 +611,7 @@ class TaskResourceTest {
     void testCreatePlanAutoPopulatesRequirementFromTitleWhenNoDescription() {
         int taskId = createTaskAndReturnId();
 
-        PlanDto plan = planDto(PlanStatus.IN_PROGRESS, PlanType.MANUAL, "# Content");
+        PlanDto plan = planDto(PlanStatus.IN_PROGRESS,"# Content");
 
         given()
                 .contentType(ContentType.JSON)
@@ -773,14 +620,14 @@ class TaskResourceTest {
                 .then()
                 .statusCode(201)
                 .body("requirement", is("Context test task"))
-                .body("discoveryStatus", is("NOT_STARTED"));
+                .body("isRequirementInProgress", is(false));
     }
 
     @Test
     void testCreatePlanPreservesExplicitRequirement() {
         int taskId = createTaskWithDescriptionAndReturnId("Some description");
 
-        PlanDto plan = planDto(PlanStatus.IN_PROGRESS, PlanType.MANUAL, "# Content", "My explicit requirement", null);
+        PlanDto plan = planDto(PlanStatus.IN_PROGRESS,"# Content", "My explicit requirement", null);
 
         given()
                 .contentType(ContentType.JSON)
@@ -789,7 +636,7 @@ class TaskResourceTest {
                 .then()
                 .statusCode(201)
                 .body("requirement", is("My explicit requirement"))
-                .body("discoveryStatus", is("IN_PROGRESS"));
+                .body("isRequirementInProgress", is(true));
     }
 
     @Test
@@ -799,7 +646,7 @@ class TaskResourceTest {
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto(PlanStatus.APPROVED, PlanType.MANUAL, "# Listed", "List requirement", (long) gitId))
+                .body(planDto(PlanStatus.APPROVED,"# Listed", "List requirement", (long) gitId))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201);

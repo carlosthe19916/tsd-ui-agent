@@ -4,73 +4,55 @@ import io.quarkus.arc.Arc;
 import io.quarkus.arc.ManagedContext;
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
-import org.acme.models.jpa.entity.DiscoveryStatus;
-import org.acme.models.jpa.entity.TaskContextEntity;
 import org.acme.models.jpa.entity.TaskEntity;
-import org.acme.services.ai.RequirementAiService;
-import org.acme.services.discovery.RequirementContext;
-import org.acme.services.discovery.RequirementSource;
+import org.acme.services.ai.RequirementSummarizerService;
+import org.acme.services.sync.ExternalIssueContext;
+import org.acme.services.sync.SyncManager;
 import org.jboss.logging.Logger;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
-public class RequirementDiscoveryService {
+public class PlanService {
 
-    private static final Logger LOG = Logger.getLogger(RequirementDiscoveryService.class);
-
-    @Inject
-    Instance<RequirementSource> sources;
+    private static final Logger LOG = Logger.getLogger(PlanService.class);
 
     @Inject
-    RequirementAiService aiService;
+    SyncManager syncManager;
 
-    public void triggerDiscovery(Long taskId) {
-        Thread.startVirtualThread(() -> doDiscovery(taskId));
+    @Inject
+    RequirementSummarizerService requirementSummarizerService;
+
+    public void triggerRequirementEnrichment(Long taskId) {
+        Thread.startVirtualThread(() -> doRequirementEnrichment(taskId));
     }
 
-    void doDiscovery(Long taskId) {
+    void doRequirementEnrichment(Long taskId) {
         ManagedContext requestContext = Arc.container().requestContext();
         requestContext.activate();
         try {
             // Phase 1: Collect data in a short transaction
-            RequirementContext context = QuarkusTransaction.requiringNew().call(() -> {
+            ExternalIssueContext context = QuarkusTransaction.requiringNew().call(() -> {
                 TaskEntity task = TaskEntity.findById(taskId);
                 if (task == null || task.plan == null) {
                     LOG.warnf("Task %d or plan not found during discovery", taskId);
                     return null;
                 }
 
-                List<RequirementSource> sortedSources = sources.stream()
-                        .filter(s -> s.supports(task))
-                        .sorted(Comparator.comparingInt(RequirementSource::priority).reversed())
-                        .toList();
+                List<ExternalIssueContext.Comment> allComments = syncManager.fetchComments(task);
+                List<String> labelsList = syncManager.fetchLabels(task);
+                String labelsText = labelsList != null && !labelsList.isEmpty()
+                        ? String.join(", ", labelsList)
+                        : "No labels available.";
 
-                List<RequirementContext.Comment> allComments = new ArrayList<>();
-                for (RequirementSource source : sortedSources) {
-                    LOG.infof("Fetching comments from source: %s (priority: %d)", source.name(), source.priority());
-                    List<RequirementContext.Comment> comments = source.fetchComments(task);
-                    allComments.addAll(comments);
-                }
-
-                List<String> additionalContexts = TaskContextEntity.<TaskContextEntity>list("task", task)
-                        .stream()
-                        .filter(ctx -> ctx.content != null && !ctx.content.isBlank())
-                        .map(ctx -> ctx.name + ":\n" + ctx.content)
-                        .toList();
-
-                return new RequirementContext(
+                return new ExternalIssueContext(
                         task.title,
                         task.description != null ? task.description : "No description provided.",
-                        task.type.name(),
                         allComments,
-                        additionalContexts
+                        labelsText
                 );
             });
 
@@ -86,16 +68,11 @@ public class RequirementDiscoveryService {
                 commentsText = "No comments available.";
             }
 
-            String contextText = context.additionalContexts().isEmpty()
-                    ? "No additional context."
-                    : String.join("\n\n", context.additionalContexts());
-
-            String result = aiService.discoverRequirement(
+            String result = requirementSummarizerService.summarize(
                     context.taskTitle(),
-                    context.sourceType(),
                     context.taskDescription(),
                     commentsText,
-                    contextText
+                    context.labels()
             );
 
             // Phase 3: Store result in a short transaction
@@ -103,8 +80,8 @@ public class RequirementDiscoveryService {
                 TaskEntity task = TaskEntity.findById(taskId);
                 if (task != null && task.plan != null) {
                     task.plan.requirement = result;
-                    task.plan.discoveryStatus = DiscoveryStatus.COMPLETED;
-                    task.plan.discoveryError = null;
+                    task.plan.isRequirementInProgress = false;
+                    task.plan.requirementError = null;
                     task.plan.updatedAt = Instant.now();
                     task.plan.persist();
                 }
@@ -115,8 +92,8 @@ public class RequirementDiscoveryService {
                 QuarkusTransaction.requiringNew().run(() -> {
                     TaskEntity task = TaskEntity.findById(taskId);
                     if (task != null && task.plan != null) {
-                        task.plan.discoveryStatus = DiscoveryStatus.ERROR;
-                        task.plan.discoveryError = e.getMessage();
+                        task.plan.isRequirementInProgress = false;
+                        task.plan.requirementError = e.getMessage();
                         task.plan.updatedAt = Instant.now();
                         task.plan.persist();
                     }

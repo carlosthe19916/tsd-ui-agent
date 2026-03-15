@@ -31,33 +31,26 @@ public class PlanEntity extends PanacheEntityBase {
     @Column(name = "requirement", columnDefinition = "TEXT")
     public String requirement;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "git_id")
-    public GitEntity git;
+    @Column(name = "is_requirement_in_progress")
+    public boolean isRequirementInProgress = false;
 
-    @NotNull
-    @Enumerated(EnumType.STRING)
-    @Column(name = "discovery_status")
-    public DiscoveryStatus discoveryStatus = DiscoveryStatus.NOT_STARTED;
-
-    @Column(name = "discovery_error", columnDefinition = "TEXT")
-    public String discoveryError;
+    @Column(name = "requirement_error", columnDefinition = "TEXT")
+    public String requirementError;
 
     @NotNull
     @Enumerated(EnumType.STRING)
     @Column(name = "status")
     public PlanStatus status = PlanStatus.IN_PROGRESS;
 
-    @NotNull
-    @Enumerated(EnumType.STRING)
-    @Column(name = "type")
-    public PlanType type;
-
     @Column(name = "created_at")
     public Instant createdAt;
 
     @Column(name = "updated_at")
     public Instant updatedAt;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "git_id")
+    public GitEntity git;
 
     @Version
     public int version;

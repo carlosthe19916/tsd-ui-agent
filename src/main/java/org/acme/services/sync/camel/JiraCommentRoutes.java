@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.acme.services.discovery.RequirementContext;
+import org.acme.services.sync.ExternalIssueContext;
 import org.acme.services.sync.SyncException;
 import org.acme.services.sync.camel.processor.JiraUrlProcessor;
 import org.apache.camel.Exchange;
@@ -49,15 +49,46 @@ public class JiraCommentRoutes extends RouteBuilder {
                     String body = exchange.getIn().getBody(String.class);
                     JsonNode root = objectMapper.readTree(body);
                     JsonNode commentsNode = root.has("comments") ? root.get("comments") : root;
-                    List<RequirementContext.Comment> comments = new ArrayList<>();
+                    List<ExternalIssueContext.Comment> comments = new ArrayList<>();
                     if (commentsNode.isArray()) {
                         for (JsonNode node : commentsNode) {
                             String author = node.path("author").path("displayName").asText("unknown");
                             String text = extractText(node.path("body"));
-                            comments.add(new RequirementContext.Comment(author, text, null));
+                            comments.add(new ExternalIssueContext.Comment(author, text, null));
                         }
                     }
                     exchange.getIn().setBody(comments);
+                });
+
+        from("direct:jira-fetch-labels")
+                .process(exchange -> {
+                    String apiUrl = exchange.getIn().getHeader("apiUrl", String.class);
+                    String token = exchange.getIn().getHeader("token", String.class);
+                    String issueKey = exchange.getIn().getHeader("issueKey", String.class);
+
+                    String url = apiUrl;
+                    if (url.endsWith("/")) {
+                        url = url.substring(0, url.length() - 1);
+                    }
+
+                    exchange.getIn().setHeader("CamelHttpUrl",
+                            url + "/rest/api/3/issue/" + issueKey);
+                    exchange.getIn().setHeader("Authorization", JiraUrlProcessor.jiraAuth(token));
+                    exchange.getIn().setHeader("Accept", "application/json");
+                    exchange.getIn().setHeader(Exchange.HTTP_QUERY, "fields=labels");
+                })
+                .to("direct:http-get")
+                .process(exchange -> {
+                    String body = exchange.getIn().getBody(String.class);
+                    JsonNode root = objectMapper.readTree(body);
+                    List<String> labels = new ArrayList<>();
+                    JsonNode labelsNode = root.path("fields").path("labels");
+                    if (labelsNode.isArray()) {
+                        for (JsonNode node : labelsNode) {
+                            labels.add(node.asText());
+                        }
+                    }
+                    exchange.getIn().setBody(labels);
                 });
     }
 

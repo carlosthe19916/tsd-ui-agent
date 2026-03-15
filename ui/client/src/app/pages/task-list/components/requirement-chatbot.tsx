@@ -133,7 +133,8 @@ export const RequirementChatbot: React.FC<RequirementChatbotProps> = ({
           ) : (
             messages.map((msg, index) => (
               <Message
-                key={index}
+                // biome-ignore lint/suspicious/noArrayIndexKey: deterministic index
+                key={`${index}`}
                 role={msg.role}
                 content={msg.content}
                 name={msg.role === "user" ? "You" : "Assistant"}
