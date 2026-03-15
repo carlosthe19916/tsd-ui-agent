@@ -76,12 +76,13 @@ public class GitHubRoutes extends RouteBuilder {
                         java.net.URI uri = java.net.URI.create(apiUrl);
                         String apiBase = uri.getScheme() + "://" + uri.getAuthority();
                         String ownerRepo = GitHubUrlProcessor.extractOwnerRepo(uri.getPath());
-                        String searchUrl = apiBase + "/search/issues?q="
+                        exchange.getIn().setHeader("CamelHttpUrl", apiBase + "/search/issues");
+                        exchange.getIn().setHeader(Exchange.HTTP_QUERY, "q="
                                 + java.net.URLEncoder.encode("repo:" + ownerRepo + " " + query, java.nio.charset.StandardCharsets.UTF_8)
-                                + "&per_page=1";
-                        exchange.getIn().setHeader("CamelHttpUrl", searchUrl);
+                                + "&per_page=1");
                     } else {
-                        exchange.getIn().setHeader("CamelHttpUrl", apiUrl + "/issues?state=all&per_page=1");
+                        exchange.getIn().setHeader("CamelHttpUrl", apiUrl + "/issues");
+                        exchange.getIn().setHeader(Exchange.HTTP_QUERY, "state=all&per_page=1");
                     }
                 })
                 .to("direct:http-get");

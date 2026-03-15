@@ -29,11 +29,12 @@ public class GitHubUrlProcessor implements Processor {
             String apiBase = uri.getScheme() + "://" + uri.getAuthority();
             String ownerRepo = extractOwnerRepo(uri.getPath());
             exchange.setProperty("ownerRepo", ownerRepo);
-            String searchUrl = apiBase + "/search/issues?q=" + URLEncoder.encode("repo:" + ownerRepo + " " + query, StandardCharsets.UTF_8);
-            exchange.getIn().setHeader("CamelHttpUrl", searchUrl);
+            exchange.getIn().setHeader("CamelHttpUrl", apiBase + "/search/issues");
+            exchange.getIn().setHeader(Exchange.HTTP_QUERY, "q=" + URLEncoder.encode("repo:" + ownerRepo + " " + query, StandardCharsets.UTF_8));
         } else {
             exchange.setProperty("pageNumber", 1);
-            exchange.getIn().setHeader("CamelHttpUrl", apiUrl + "/issues?state=all&per_page=100&page=1");
+            exchange.getIn().setHeader("CamelHttpUrl", apiUrl + "/issues");
+            exchange.getIn().setHeader(Exchange.HTTP_QUERY, "state=all&per_page=100&page=1");
         }
     }
 
