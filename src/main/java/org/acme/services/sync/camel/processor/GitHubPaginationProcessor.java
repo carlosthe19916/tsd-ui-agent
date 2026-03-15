@@ -33,8 +33,8 @@ public class GitHubPaginationProcessor implements Processor {
                 int pageNumber = exchange.getProperty("pageNumber", Integer.class) + 1;
                 exchange.setProperty("pageNumber", pageNumber);
                 String apiUrl = exchange.getProperty("apiUrl", String.class);
-                exchange.getIn().setHeader("CamelHttpUrl", apiUrl
-                        + "/issues?state=all&per_page=100&page=" + pageNumber);
+                exchange.getIn().setHeader("CamelHttpUrl", apiUrl + "/issues");
+                exchange.getIn().setHeader(Exchange.HTTP_QUERY, "state=all&per_page=100&page=" + pageNumber);
             }
         }
     }
