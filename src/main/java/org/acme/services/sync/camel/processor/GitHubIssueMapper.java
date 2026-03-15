@@ -27,6 +27,7 @@ public class GitHubIssueMapper implements Processor {
         ext.description = gh.body();
         ext.externalStatus = gh.state();
 
+        ext.labels = gh.labels() != null ? gh.labels().stream().map(GitHubIssue.GitHubLabel::name).toList() : List.of();
         ext.createdAt = gh.createdAt() != null ? Instant.parse(gh.createdAt()) : null;
         ext.updatedAt = gh.updatedAt() != null ? Instant.parse(gh.updatedAt()) : null;
         return ext;

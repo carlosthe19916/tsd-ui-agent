@@ -9,6 +9,7 @@ import {
   Popover,
   ProgressStep,
   ProgressStepper,
+  Spinner,
 } from "@patternfly/react-core";
 
 import type { PlanDto } from "@app/api/models";
@@ -19,34 +20,56 @@ interface PlanProgressStepperProps {
   onEditStep: (step: number) => void;
 }
 
+const getRequirementStepVariant = (plan: PlanDto) => {
+  if (plan.isRequirementInProgress) return "info";
+  if (plan.requirementError) return "danger";
+  if (plan.requirement) return "success";
+  return "pending";
+};
+
+const getRequirementDescription = (plan: PlanDto) => {
+  if (plan.isRequirementInProgress) return "Discovering...";
+  if (plan.requirementError) {
+    const err = plan.requirementError;
+    return err.length > 40 ? `${err.substring(0, 40)}\u2026` : err;
+  }
+  return plan.requirement && plan.requirement.trim().length > 0
+    ? ""
+    : "Not defined";
+};
+
+const getRequirementPopupContent = (plan: PlanDto) => {
+  if (plan.isRequirementInProgress)
+    return "No requirement has been defined yet.";
+  if (plan.requirementError) {
+    return plan.requirementError;
+  }
+  return plan.requirement && plan.requirement.trim().length > 0
+    ? "Too long to render here"
+    : "Not defined";
+};
+
 export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
   taskId,
   plan,
   onEditStep,
 }) => {
+  const reqVariant = getRequirementStepVariant(plan);
+
   return (
     <ProgressStepper>
       <ProgressStep
-        variant={plan.requirement ? "success" : "pending"}
+        variant={reqVariant}
+        icon={plan.isRequirementInProgress ? <Spinner size="sm" /> : undefined}
         id={`req-${taskId}`}
         titleId={`req-title-${taskId}`}
-        aria-label={`Requirement step, ${plan.requirement ? "completed" : "pending"}`}
-        description={
-          plan.requirement
-            ? plan.requirement.length > 40
-              ? `${plan.requirement.substring(0, 40)}\u2026`
-              : plan.requirement
-            : "Not defined"
-        }
+        aria-label={`Requirement step, ${reqVariant}`}
+        description={getRequirementDescription(plan)}
         popoverRender={(stepRef) => (
           <Popover
             aria-label="Requirement details"
             headerContent={<div>Requirement</div>}
-            bodyContent={
-              <div>
-                {plan.requirement || "No requirement has been defined yet."}
-              </div>
-            }
+            bodyContent={<div>{getRequirementPopupContent(plan)}</div>}
             footerContent={
               <Button variant="link" isInline onClick={() => onEditStep(1)}>
                 {plan.requirement ? "Edit requirement" : "Add requirement"}

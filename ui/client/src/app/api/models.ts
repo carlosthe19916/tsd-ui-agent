@@ -53,15 +53,14 @@ export interface Label {
 export type TaskStatus = "OPEN" | "IN_PROGRESS" | "CLOSED";
 
 export type PlanStatus = "IN_PROGRESS" | "APPROVED";
-export type PlanType = "MANUAL" | "SEMI_MANUAL" | "AUTO";
-
 export interface PlanDto {
   id: number;
   content: string;
   requirement?: string;
   git?: GitDto;
+  isRequirementInProgress?: boolean;
+  requirementError?: string;
   status: PlanStatus;
-  type: PlanType;
   createdAt?: string;
   updatedAt?: string;
 }

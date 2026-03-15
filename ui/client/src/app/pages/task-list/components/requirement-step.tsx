@@ -7,6 +7,7 @@ import * as yup from "yup";
 
 import { CodeEditor, Language } from "@patternfly/react-code-editor";
 import {
+  Alert,
   Button,
   Content,
   Drawer,
@@ -18,6 +19,7 @@ import {
   Panel,
   PanelMain,
   PanelMainBody,
+  Spinner,
   ToggleGroup,
   ToggleGroupItem,
   Toolbar,
@@ -30,6 +32,7 @@ import EyeIcon from "@patternfly/react-icons/dist/esm/icons/eye-icon";
 import RobotIcon from "@patternfly/react-icons/dist/esm/icons/robot-icon";
 
 import { ThemeContext } from "@app/components/ThemeContext";
+import { useFetchTaskPlan } from "@app/queries/tasks";
 import { RequirementChatbot } from "./requirement-chatbot";
 import { useFormChangeHandler } from "@app/hooks/useFormChangeHandler";
 
@@ -48,11 +51,13 @@ const schema = yup.object({
 type ViewMode = "editor" | "preview" | "split";
 
 interface RequirementStepProps {
+  taskId: number;
   initialState: RequirementState;
   onStateChanged: (state: RequirementState) => void;
 }
 
 export const RequirementStep: React.FC<RequirementStepProps> = ({
+  taskId,
   initialState,
   onStateChanged,
 }) => {
@@ -70,13 +75,35 @@ export const RequirementStep: React.FC<RequirementStepProps> = ({
 
   const requirement = form.watch("requirement");
 
+  const { data: planData } = useFetchTaskPlan(taskId);
+
+  const isDiscovering = planData?.isRequirementInProgress;
+
+  React.useEffect(() => {
+    if (
+      !planData?.isRequirementInProgress &&
+      !planData?.requirementError &&
+      planData?.requirement
+    ) {
+      form.setValue("requirement", planData.requirement, {
+        shouldValidate: true,
+        shouldDirty: true,
+      });
+    }
+  }, [
+    planData?.requirement,
+    form,
+    planData?.requirementError,
+    planData?.isRequirementInProgress,
+  ]);
+
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
       <Drawer isExpanded={isChatbotOpen} isInline>
         <DrawerContent
           panelContent={
             <DrawerPanelContent isResizable defaultSize="400px" minSize="250px">
-              <RequirementChatbot />
+              <RequirementChatbot taskId={taskId} />
             </DrawerPanelContent>
           }
         >
@@ -121,6 +148,18 @@ export const RequirementStep: React.FC<RequirementStepProps> = ({
                 </ToolbarItem>
               </ToolbarContent>
             </Toolbar>
+            {isDiscovering && (
+              <Alert
+                variant="info"
+                isInline
+                isPlain
+                title={
+                  <>
+                    <Spinner size="sm" /> AI is enriching the requirement...
+                  </>
+                }
+              />
+            )}
             <Grid hasGutter>
               {viewMode !== "preview" && (
                 <GridItem span={viewMode === "split" ? 6 : 12}>

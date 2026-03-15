@@ -42,6 +42,7 @@ public class JiraIssueMapper implements Processor {
         ext.description = extractText(fields.description());
         ext.externalStatus = fields.status() != null ? fields.status().name() : null;
 
+        ext.labels = fields.labels() != null ? fields.labels() : List.of();
         ext.createdAt = fields.created() != null ? parseJiraDate(fields.created()) : null;
         ext.updatedAt = fields.updated() != null ? parseJiraDate(fields.updated()) : null;
         return ext;

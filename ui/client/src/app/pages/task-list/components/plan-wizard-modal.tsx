@@ -84,7 +84,6 @@ const PlanWizardModalContent: React.FC<{
         taskId: task.id,
         plan: {
           content: "",
-          requirement: requirementState.requirement,
           git: gitPayload,
           status: "IN_PROGRESS",
           type: "MANUAL",
@@ -118,6 +117,7 @@ const PlanWizardModalContent: React.FC<{
           footer={{ isNextDisabled: !requirementState.isValid }}
         >
           <RequirementStep
+            taskId={task.id}
             initialState={requirementState}
             onStateChanged={setRequirementState}
           />

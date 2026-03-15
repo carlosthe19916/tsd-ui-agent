@@ -2,7 +2,6 @@ package org.acme.dto;
 
 import jakarta.validation.constraints.NotNull;
 import org.acme.models.jpa.entity.PlanStatus;
-import org.acme.models.jpa.entity.PlanType;
 
 import java.time.Instant;
 
@@ -16,11 +15,12 @@ public class PlanDto {
 
     public GitDto git;
 
-    @NotNull
-    public PlanStatus status;
+    public boolean isRequirementInProgress;
+
+    public String requirementError;
 
     @NotNull
-    public PlanType type;
+    public PlanStatus status;
 
     public Instant createdAt;
 
