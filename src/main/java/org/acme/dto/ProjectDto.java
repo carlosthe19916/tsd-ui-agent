@@ -1,6 +1,5 @@
 package org.acme.dto;
 
-import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import org.acme.models.jpa.entity.SourceType;
 import org.acme.models.jpa.entity.SyncStatus;
@@ -24,10 +23,6 @@ public class ProjectDto {
 
     @NotNull
     public SourceType type;
-
-    @NotNull
-    @Valid
-    public GitDto git;
 
     @NotNull
     public CredentialDto credential;

@@ -9,8 +9,10 @@ export type SyncStatus =
   | "SYNC_ERROR";
 
 export interface GitDto {
+  id: number;
   url: string;
   branch?: string;
+  forkUrl?: string;
 }
 
 export interface CredentialDto {
@@ -89,7 +91,6 @@ export interface ProjectDto {
   apiUrl: string;
   query?: string;
   type: SourceType;
-  git: GitDto;
   credential: CredentialDto;
   syncStatus?: SyncStatus;
   lastSyncAt?: string;

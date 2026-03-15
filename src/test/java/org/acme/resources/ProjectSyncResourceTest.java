@@ -4,7 +4,6 @@ import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.InjectMock;
 import io.restassured.http.ContentType;
 import org.acme.dto.CredentialDto;
-import org.acme.dto.GitDto;
 import org.acme.dto.ProjectDto;
 import org.acme.models.jpa.entity.SourceType;
 import org.acme.models.jpa.entity.TaskStatus;
@@ -36,12 +35,6 @@ class ProjectSyncResourceTest {
         when(syncManager.fetchIssues(any())).thenReturn(List.of());
     }
 
-    private static GitDto defaultGit() {
-        GitDto dto = new GitDto();
-        dto.url = "https://github.com/test/repo";
-        return dto;
-    }
-
     private static int createCredential() {
         CredentialDto cred = new CredentialDto();
         cred.name = "sync-cred";
@@ -60,7 +53,6 @@ class ProjectSyncResourceTest {
         dto.name = "sync-project";
         dto.apiUrl = "https://github.com/owner/repo";
         dto.type = SourceType.GITHUB;
-        dto.git = defaultGit();
         CredentialDto credDto = new CredentialDto();
         credDto.id = (long) createCredential();
         dto.credential = credDto;

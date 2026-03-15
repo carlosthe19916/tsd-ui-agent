@@ -17,7 +17,6 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.acme.dto.GitContextDto;
-import org.acme.dto.GitDto;
 import org.acme.dto.ProjectDto;
 import org.acme.dto.TestConnectionDto;
 import org.acme.mapper.GitContextMapper;
@@ -86,17 +85,6 @@ public class ProjectResource {
         ProjectEntity entity = (ProjectEntity) ProjectEntity.findByIdOptional(id)
                 .orElseThrow(NotFoundException::new);
         projectService.update(entity, dto);
-        return projectMapper.toDto(entity);
-    }
-
-    @PUT
-    @Path("/{id}/git")
-    public ProjectDto updateGit(@PathParam("id") Long id, @Valid GitDto dto) {
-        ProjectEntity entity = (ProjectEntity) ProjectEntity.findByIdOptional(id)
-                .orElseThrow(NotFoundException::new);
-        entity.git.url = dto.url;
-        entity.git.branch = dto.branch;
-        entity.persist();
         return projectMapper.toDto(entity);
     }
 

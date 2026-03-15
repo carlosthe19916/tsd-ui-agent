@@ -4,7 +4,6 @@ import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
 import org.acme.dto.CredentialDto;
 import org.acme.dto.GitContextDto;
-import org.acme.dto.GitDto;
 import org.acme.dto.ProjectDto;
 import org.acme.models.jpa.entity.ContextType;
 import org.acme.models.jpa.entity.SourceType;
@@ -17,16 +16,6 @@ import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 
 @QuarkusTest
 class ProjectResourceTest {
-
-    private static GitDto git(String url) {
-        GitDto dto = new GitDto();
-        dto.url = url;
-        return dto;
-    }
-
-    private static GitDto defaultGit() {
-        return git("https://github.com/test");
-    }
 
     private static int createCredential() {
         CredentialDto cred = new CredentialDto();
@@ -46,7 +35,6 @@ class ProjectResourceTest {
         dto.name = name;
         dto.apiUrl = url;
         dto.type = type;
-        dto.git = defaultGit();
         CredentialDto credDto = new CredentialDto();
         credDto.id = (long) createCredential();
         dto.credential = credDto;
@@ -69,7 +57,6 @@ class ProjectResourceTest {
                 .body("apiUrl", is("https://example.com"))
                 .body("query", is("label=bug"))
                 .body("type", is("GITHUB"))
-                .body("git.url", is("https://github.com/test"))
                 .body("credential.id", notNullValue());
     }
 
@@ -86,25 +73,11 @@ class ProjectResourceTest {
     }
 
     @Test
-    void testCreateProjectGitValidationFails() {
-        ProjectDto dto = project("bad-git", "https://example.com", SourceType.GITHUB);
-        dto.git = new GitDto(); // missing required fields on git
-
-        given()
-                .contentType(ContentType.JSON)
-                .body(dto)
-                .when().post("/projects")
-                .then()
-                .statusCode(400);
-    }
-
-    @Test
     void testCreateProjectMissingCredentialFails() {
         ProjectDto dto = new ProjectDto();
         dto.name = "no-cred";
         dto.apiUrl = "https://example.com";
         dto.type = SourceType.GITHUB;
-        dto.git = defaultGit();
         // credential is null
 
         given()
@@ -121,7 +94,6 @@ class ProjectResourceTest {
         dto.name = "bad-cred-ref";
         dto.apiUrl = "https://example.com";
         dto.type = SourceType.GITHUB;
-        dto.git = defaultGit();
         CredentialDto badCred = new CredentialDto();
         badCred.id = 999999L;
         dto.credential = badCred;
@@ -157,7 +129,6 @@ class ProjectResourceTest {
         dto.name = "get-project";
         dto.apiUrl = "https://example.com";
         dto.type = SourceType.GITHUB;
-        dto.git = defaultGit();
         CredentialDto getCred = new CredentialDto();
         getCred.id = (long) credId;
         dto.credential = getCred;
@@ -222,29 +193,6 @@ class ProjectResourceTest {
                 .when().put("/projects/{id}", 9999)
                 .then()
                 .statusCode(404);
-    }
-
-    @Test
-    void testUpdateGit() {
-        int id = given()
-                .contentType(ContentType.JSON)
-                .body(project("git-update-project", "https://example.com", SourceType.GITHUB))
-                .when().post("/projects")
-                .then()
-                .statusCode(201)
-                .extract().path("id");
-
-        GitDto newGit = git("https://gitlab.com/test");
-        newGit.branch = "develop";
-
-        given()
-                .contentType(ContentType.JSON)
-                .body(newGit)
-                .when().put("/projects/{id}/git", id)
-                .then()
-                .statusCode(200)
-                .body("git.url", is("https://gitlab.com/test"))
-                .body("git.branch", is("develop"));
     }
 
     @Test
