@@ -70,7 +70,7 @@ public class TaskResource {
     @Context
     UriInfo uriInfo;
 
-    @ConfigProperty(name = "tsd-agent.discovery.ai.enabled", defaultValue = "true")
+    @ConfigProperty(name = "tsd-agent.discovery.ai.enabled")
     boolean aiDiscoveryEnabled;
 
     @GET

@@ -22,16 +22,16 @@ public class WorktreeService {
     @Inject
     GitManager gitManager;
 
-    @ConfigProperty(name = "tsd-agent.vscode.command", defaultValue = "code")
+    @ConfigProperty(name = "tsd-agent.vscode.command")
     String vscodeCommand;
 
-    @ConfigProperty(name = "tsd-agent.terminal.command", defaultValue = "ptyxis --new-window -d %s")
+    @ConfigProperty(name = "tsd-agent.terminal.command")
     String terminalCommand;
 
-    @ConfigProperty(name = "tsd-agent.terminal.exec-command", defaultValue = "ptyxis --new-window -d %s -x %c")
+    @ConfigProperty(name = "tsd-agent.terminal.exec-command")
     String terminalExecCommand;
 
-    @ConfigProperty(name = "tsd-agent.claude.command", defaultValue = "claude")
+    @ConfigProperty(name = "tsd-agent.claude.command")
     String claudeCommand;
 
     @Transactional
