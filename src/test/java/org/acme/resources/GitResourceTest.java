@@ -28,7 +28,7 @@ class GitResourceTest {
                 .thenReturn("/tmp/tsd-agent-ui-test/repo/default");
         when(gitManager.cloneRepository(anyString(), org.mockito.ArgumentMatchers.isNull()))
                 .thenReturn("/tmp/tsd-agent-ui-test/repo/default");
-        when(gitManager.addWorktree(anyString(), anyString(), anyString()))
+        when(gitManager.addWorktree(anyString(), anyString()))
                 .thenReturn("/tmp/tsd-agent-ui-test/repo/trees/my-worktree");
         doNothing().when(gitManager).removeWorktree(anyString(), anyString());
         doNothing().when(gitManager).setRemoteUrl(anyString(), anyString());

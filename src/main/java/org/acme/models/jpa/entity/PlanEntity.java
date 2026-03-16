@@ -37,6 +37,15 @@ public class PlanEntity extends PanacheEntityBase {
     @Column(name = "requirement_error", columnDefinition = "TEXT")
     public String requirementError;
 
+    @Column(name = "is_execution_plan_in_progress")
+    public boolean isExecutionPlanInProgress = false;
+
+    @Column(name = "execution_plan_error", columnDefinition = "TEXT")
+    public String executionPlanError;
+
+    @Column(name = "execution_plan_completed_at")
+    public Instant executionPlanCompletedAt;
+
     @NotNull
     @Enumerated(EnumType.STRING)
     @Column(name = "status")

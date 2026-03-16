@@ -18,6 +18,7 @@ interface PlanProgressStepperProps {
   taskId: number;
   plan: PlanDto;
   onEditStep: (step: number) => void;
+  onExecute?: () => void;
 }
 
 const getRequirementStepVariant = (plan: PlanDto) => {
@@ -49,10 +50,28 @@ const getRequirementPopupContent = (plan: PlanDto) => {
     : "Not defined";
 };
 
+const getExecutionStepVariant = (plan: PlanDto) => {
+  if (plan.isExecutionPlanInProgress) return "info";
+  if (plan.executionPlanError) return "danger";
+  if (plan.executionPlanCompletedAt) return "success";
+  return "pending";
+};
+
+const getExecutionDescription = (plan: PlanDto) => {
+  if (plan.isExecutionPlanInProgress) return "Executing...";
+  if (plan.executionPlanError) {
+    const err = plan.executionPlanError;
+    return err.length > 40 ? `${err.substring(0, 40)}\u2026` : err;
+  }
+  if (plan.executionPlanCompletedAt) return "Completed";
+  return "Not executed";
+};
+
 export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
   taskId,
   plan,
   onEditStep,
+  onExecute,
 }) => {
   const reqVariant = getRequirementStepVariant(plan);
 
@@ -165,6 +184,50 @@ export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
         )}
       >
         Plan
+      </ProgressStep>
+      <ProgressStep
+        variant={getExecutionStepVariant(plan)}
+        icon={
+          plan.isExecutionPlanInProgress ? <Spinner size="sm" /> : undefined
+        }
+        id={`execution-${taskId}`}
+        titleId={`execution-title-${taskId}`}
+        aria-label={`Execution step, ${getExecutionStepVariant(plan)}`}
+        description={getExecutionDescription(plan)}
+        popoverRender={(stepRef) => (
+          <Popover
+            aria-label="Execution details"
+            headerContent={<div>Execution</div>}
+            bodyContent={
+              plan.executionPlanError ? (
+                <div>{plan.executionPlanError}</div>
+              ) : plan.isExecutionPlanInProgress ? (
+                <div>Plan is currently being executed by Claude CLI...</div>
+              ) : plan.executionPlanCompletedAt ? (
+                <div>Execution completed successfully.</div>
+              ) : (
+                <div>Plan has not been executed yet.</div>
+              )
+            }
+            footerContent={
+              <Button
+                variant="link"
+                isInline
+                onClick={() => onExecute?.()}
+                isDisabled={
+                  !plan.git ||
+                  !plan.plan?.trim() ||
+                  plan.isExecutionPlanInProgress
+                }
+              >
+                Execute plan
+              </Button>
+            }
+            triggerRef={stepRef}
+          />
+        )}
+      >
+        Execution
       </ProgressStep>
     </ProgressStepper>
   );

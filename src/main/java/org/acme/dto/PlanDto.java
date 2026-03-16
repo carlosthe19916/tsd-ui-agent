@@ -18,6 +18,12 @@ public class PlanDto {
 
     public String requirementError;
 
+    public boolean isExecutionPlanInProgress;
+
+    public String executionPlanError;
+
+    public Instant executionPlanCompletedAt;
+
     public PlanStatus status;
 
     public Instant createdAt;

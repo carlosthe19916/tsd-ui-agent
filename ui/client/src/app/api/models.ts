@@ -60,6 +60,9 @@ export interface PlanDto {
   git?: GitDto;
   isRequirementInProgress?: boolean;
   requirementError?: string;
+  isExecutionPlanInProgress?: boolean;
+  executionPlanError?: string;
+  executionPlanCompletedAt?: string;
   status: PlanStatus;
   createdAt?: string;
   updatedAt?: string;

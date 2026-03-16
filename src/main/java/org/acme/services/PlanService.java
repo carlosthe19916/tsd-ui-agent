@@ -9,10 +9,16 @@ import org.acme.models.jpa.entity.TaskEntity;
 import org.acme.services.ai.RequirementSummarizerService;
 import org.acme.services.sync.ExternalIssueContext;
 import org.acme.services.sync.SyncManager;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
@@ -26,8 +32,110 @@ public class PlanService {
     @Inject
     RequirementSummarizerService requirementSummarizerService;
 
+    @Inject
+    WorktreeService worktreeService;
+
+    @ConfigProperty(name = "tsd-agent.claude.command")
+    String claudeCommand;
+
     public void triggerRequirementEnrichment(Long taskId) {
         Thread.startVirtualThread(() -> doRequirementEnrichment(taskId));
+    }
+
+    public void triggerPlanExecution(Long taskId) {
+        Thread.startVirtualThread(() -> doPlanExecution(taskId));
+    }
+
+    void doPlanExecution(Long taskId) {
+        ManagedContext requestContext = Arc.container().requestContext();
+        requestContext.activate();
+        try {
+            // Phase 1: Collect worktree path and plan text in a short transaction
+            record PlanExecutionContext(String worktreePath, String planText) {}
+
+            PlanExecutionContext context = QuarkusTransaction.requiringNew().call(() -> {
+                TaskEntity task = TaskEntity.findById(taskId);
+                if (task == null || task.plan == null) {
+                    LOG.warnf("Task %d or plan not found during plan execution", taskId);
+                    return null;
+                }
+
+                String path = worktreeService.ensureWorktree(task.plan);
+                return new PlanExecutionContext(path, task.plan.plan);
+            });
+
+            if (context == null) {
+                return;
+            }
+
+            // Phase 2: Run Claude CLI outside of any transaction
+            List<String> command = List.of(claudeCommand, "-p", "--permission-mode", "bypassPermissions", "--verbose", "--output-format", "stream-json");
+            LOG.infof("Task %d: Starting Claude CLI in %s", taskId, context.worktreePath());
+            LOG.infof("Task %d: Command: %s", taskId, String.join(" ", command));
+            LOG.infof("Task %d: Plan text length: %d chars", taskId, context.planText().length());
+
+            ProcessBuilder pb = new ProcessBuilder(command)
+                    .directory(new java.io.File(context.worktreePath()))
+                    .redirectErrorStream(true);
+            Process process = pb.start();
+
+            // Pipe plan text via stdin
+            try (OutputStream stdin = process.getOutputStream()) {
+                stdin.write(context.planText().getBytes(StandardCharsets.UTF_8));
+                LOG.infof("Task %d: Plan text written to stdin, closing stdin", taskId);
+            }
+
+            // Read stdout line by line, logging each line for debugging
+            StringBuilder output = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    LOG.infof("Task %d: claude> %s", taskId, line);
+                    output.append(line).append("\n");
+                }
+            }
+
+            boolean finished = process.waitFor(30, TimeUnit.MINUTES);
+            if (!finished) {
+                process.destroyForcibly();
+                throw new RuntimeException("Claude CLI timed out after 30 minutes");
+            }
+
+            int exitCode = process.exitValue();
+            LOG.infof("Task %d: Claude CLI exited with code %d", taskId, exitCode);
+            if (exitCode != 0) {
+                throw new RuntimeException("Claude CLI exited with code " + exitCode + ": " + output);
+            }
+
+            // Phase 3: Store success in a short transaction
+            QuarkusTransaction.requiringNew().run(() -> {
+                TaskEntity task = TaskEntity.findById(taskId);
+                if (task != null && task.plan != null) {
+                    task.plan.isExecutionPlanInProgress = false;
+                    task.plan.executionPlanError = null;
+                    task.plan.executionPlanCompletedAt = Instant.now();
+                    task.plan.updatedAt = Instant.now();
+                    task.plan.persist();
+                }
+            });
+        } catch (Exception e) {
+            LOG.errorf(e, "Plan execution failed for task %d", taskId);
+            try {
+                QuarkusTransaction.requiringNew().run(() -> {
+                    TaskEntity task = TaskEntity.findById(taskId);
+                    if (task != null && task.plan != null) {
+                        task.plan.isExecutionPlanInProgress = false;
+                        task.plan.executionPlanError = e.getMessage();
+                        task.plan.updatedAt = Instant.now();
+                        task.plan.persist();
+                    }
+                });
+            } catch (Exception inner) {
+                LOG.errorf(inner, "Failed to set error status for task %d plan execution", taskId);
+            }
+        } finally {
+            requestContext.terminate();
+        }
     }
 
     void doRequirementEnrichment(Long taskId) {

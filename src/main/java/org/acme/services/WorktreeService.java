@@ -45,9 +45,8 @@ public class WorktreeService {
         }
 
         String alias = "plan-" + plan.id;
-        String sourceBranch = (plan.git.branch == null || plan.git.branch.isBlank()) ? "HEAD" : plan.git.branch;
 
-        String worktreePath = gitManager.addWorktree(plan.git.localPath, alias, sourceBranch);
+        String worktreePath = gitManager.addWorktree(plan.git.localPath, alias);
         plan.worktreePath = worktreePath;
         plan.persist();
 
@@ -79,7 +78,7 @@ public class WorktreeService {
     public String openClaude(String worktreePath, Long taskId, String requirement, String planApiUrl, String existingSessionId) {
         try {
             if (existingSessionId != null) {
-                Path resumeScriptPath = Path.of(worktreePath, ".tsd-claude-resume.sh");
+                Path resumeScriptPath = Files.createTempFile("tsd-claude-resume-", ".sh");
                 String resumeScript = """
                         #!/bin/bash
                         %s --resume %s
@@ -102,7 +101,7 @@ public class WorktreeService {
             }
 
             String sessionId = java.util.UUID.randomUUID().toString();
-            Path scriptPath = Path.of(worktreePath, ".tsd-claude-plan.sh");
+            Path scriptPath = Files.createTempFile("tsd-claude-plan-", ".sh");
             String script = """
                     #!/bin/bash
                     TASK_URL="%s"
