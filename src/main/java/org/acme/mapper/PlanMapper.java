@@ -18,7 +18,7 @@ public class PlanMapper {
     public PlanDto toDto(PlanEntity entity) {
         PlanDto dto = new PlanDto();
         dto.id = entity.id;
-        dto.executionPlan = entity.executionPlan;
+        dto.plan = entity.plan;
         dto.requirement = entity.requirement;
         dto.isRequirementInProgress = entity.isRequirementInProgress;
         dto.requirementError = entity.requirementError;
@@ -35,7 +35,7 @@ public class PlanMapper {
 
     public PlanEntity toEntity(PlanDto dto) {
         PlanEntity entity = new PlanEntity();
-        entity.executionPlan = dto.executionPlan;
+        entity.plan = dto.plan;
         entity.requirement = dto.requirement;
         entity.status = dto.status != null ? dto.status : PlanStatus.IN_PROGRESS;
         entity.createdAt = Instant.now();
@@ -47,7 +47,7 @@ public class PlanMapper {
     }
 
     public void updateEntity(PlanDto dto, PlanEntity entity) {
-        entity.executionPlan = dto.executionPlan;
+        entity.plan = dto.plan;
         entity.requirement = dto.requirement;
         if (dto.status != null) {
             entity.status = dto.status;
@@ -70,8 +70,8 @@ public class PlanMapper {
     }
 
     public void patchEntity(PlanDto dto, PlanEntity entity) {
-        if (dto.executionPlan != null) {
-            entity.executionPlan = dto.executionPlan;
+        if (dto.plan != null) {
+            entity.plan = dto.plan;
         }
         if (dto.requirement != null) {
             entity.requirement = dto.requirement;

@@ -18,10 +18,7 @@ import {
   GitConfigurationStep,
   type GitConfigurationState,
 } from "./git-configuration-step";
-import {
-  ExecutionPlanStep,
-  type ExecutionPlanState,
-} from "./execution-plan-step";
+import { PlanStep, type PlanState } from "./execution-plan-step";
 
 interface PlanWizardModalProps {
   task: TaskDto | null;
@@ -64,16 +61,13 @@ const PlanWizardModalContent: React.FC<{
       isValid: true,
     });
 
-  const [executionPlanState, setExecutionPlanState] =
-    React.useState<ExecutionPlanState>({
-      executionPlan: task.plan?.executionPlan ?? "",
-      isValid: true,
-    });
+  const [planState, setPlanState] = React.useState<PlanState>({
+    plan: task.plan?.plan ?? "",
+    isValid: true,
+  });
 
   const isValid =
-    requirementState.isValid &&
-    gitConfigState.isValid &&
-    executionPlanState.isValid;
+    requirementState.isValid && gitConfigState.isValid && planState.isValid;
 
   const createMutation = useCreateTaskPlanMutation(onClose);
   const updateMutation = useUpdateTaskPlanMutation(onClose);
@@ -89,7 +83,7 @@ const PlanWizardModalContent: React.FC<{
         plan: {
           ...task.plan,
           requirement: requirementState.requirement,
-          executionPlan: executionPlanState.executionPlan,
+          plan: planState.plan,
           git: gitPayload,
         },
       });
@@ -97,7 +91,7 @@ const PlanWizardModalContent: React.FC<{
       createMutation.mutate({
         taskId: task.id,
         plan: {
-          executionPlan: executionPlanState.executionPlan,
+          plan: planState.plan,
           git: gitPayload,
           status: "IN_PROGRESS",
           type: "MANUAL",
@@ -151,7 +145,7 @@ const PlanWizardModalContent: React.FC<{
           />
         </WizardStep>
         <WizardStep
-          name="Execution Plan"
+          name="Plan"
           id="execution-plan-step"
           footer={{
             nextButtonText: "Save",
@@ -159,10 +153,10 @@ const PlanWizardModalContent: React.FC<{
             onNext: handleSave,
           }}
         >
-          <ExecutionPlanStep
+          <PlanStep
             taskId={task.id}
-            initialState={executionPlanState}
-            onStateChanged={setExecutionPlanState}
+            initialState={planState}
+            onStateChanged={setPlanState}
           />
         </WizardStep>
       </Wizard>

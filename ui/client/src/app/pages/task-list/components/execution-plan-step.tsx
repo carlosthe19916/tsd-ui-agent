@@ -33,27 +33,27 @@ import { ThemeContext } from "@app/components/ThemeContext";
 import { useFormChangeHandler } from "@app/hooks/useFormChangeHandler";
 import { RequirementChatbot } from "./requirement-chatbot";
 
-interface ExecutionPlanValues {
-  executionPlan: string;
+interface PlanValues {
+  plan: string;
 }
 
-export interface ExecutionPlanState extends ExecutionPlanValues {
+export interface PlanState extends PlanValues {
   isValid: boolean;
 }
 
 const schema = yup.object({
-  executionPlan: yup.string().defined().default(""),
+  plan: yup.string().defined().default(""),
 });
 
 type ViewMode = "editor" | "preview" | "split";
 
-interface ExecutionPlanStepProps {
+interface PlanStepProps {
   taskId: number;
-  initialState: ExecutionPlanState;
-  onStateChanged: (state: ExecutionPlanState) => void;
+  initialState: PlanState;
+  onStateChanged: (state: PlanState) => void;
 }
 
-export const ExecutionPlanStep: React.FC<ExecutionPlanStepProps> = ({
+export const PlanStep: React.FC<PlanStepProps> = ({
   taskId,
   initialState,
   onStateChanged,
@@ -62,15 +62,15 @@ export const ExecutionPlanStep: React.FC<ExecutionPlanStepProps> = ({
   const [viewMode, setViewMode] = React.useState<ViewMode>("editor");
   const [isChatbotOpen, setIsChatbotOpen] = React.useState(false);
 
-  const form = useForm<ExecutionPlanValues>({
+  const form = useForm<PlanValues>({
     resolver: yupResolver(schema),
     mode: "all",
-    defaultValues: { executionPlan: initialState.executionPlan },
+    defaultValues: { plan: initialState.plan },
   });
 
   useFormChangeHandler({ form, onStateChanged });
 
-  const executionPlan = form.watch("executionPlan");
+  const plan = form.watch("plan");
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
@@ -129,9 +129,9 @@ export const ExecutionPlanStep: React.FC<ExecutionPlanStepProps> = ({
                   <CodeEditor
                     isDarkTheme={isDark}
                     language={Language.markdown}
-                    code={executionPlan}
+                    code={plan}
                     onCodeChange={(value) =>
-                      form.setValue("executionPlan", value, {
+                      form.setValue("plan", value, {
                         shouldValidate: true,
                         shouldDirty: true,
                       })
@@ -148,7 +148,7 @@ export const ExecutionPlanStep: React.FC<ExecutionPlanStepProps> = ({
                     <PanelMain tabIndex={0} style={{ minHeight: "65.5vh" }}>
                       <PanelMainBody>
                         <Content>
-                          <ReactMarkdown>{executionPlan}</ReactMarkdown>
+                          <ReactMarkdown>{plan}</ReactMarkdown>
                         </Content>
                       </PanelMainBody>
                     </PanelMain>

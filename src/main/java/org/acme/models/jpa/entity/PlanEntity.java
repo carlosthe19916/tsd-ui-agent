@@ -26,7 +26,7 @@ public class PlanEntity extends PanacheEntityBase {
     public Long id;
 
     @Column(name = "execution_plan", columnDefinition = "TEXT")
-    public String executionPlan;
+    public String plan;
 
     @Column(name = "requirement", columnDefinition = "TEXT")
     public String requirement;
