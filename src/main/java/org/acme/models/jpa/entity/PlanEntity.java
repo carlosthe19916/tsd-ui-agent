@@ -25,8 +25,8 @@ public class PlanEntity extends PanacheEntityBase {
     @GeneratedValue(generator = "plan_sequence")
     public Long id;
 
-    @Column(name = "content", columnDefinition = "TEXT")
-    public String content;
+    @Column(name = "execution_plan", columnDefinition = "TEXT")
+    public String executionPlan;
 
     @Column(name = "requirement", columnDefinition = "TEXT")
     public String requirement;

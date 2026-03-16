@@ -9,7 +9,7 @@ public class PlanDto {
 
     public Long id;
 
-    public String content;
+    public String executionPlan;
 
     public String requirement;
 

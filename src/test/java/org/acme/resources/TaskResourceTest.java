@@ -293,10 +293,10 @@ class TaskResourceTest {
 
     // Plan sub-resource tests
 
-    private static PlanDto planDto(PlanStatus status, String content) {
+    private static PlanDto planDto(PlanStatus status, String executionPlan) {
         PlanDto dto = new PlanDto();
         dto.status = status;
-        dto.content = content;
+        dto.executionPlan = executionPlan;
         return dto;
     }
 
@@ -314,7 +314,7 @@ class TaskResourceTest {
                 .statusCode(201)
                 .body("id", notNullValue())
                 .body("status", is("IN_PROGRESS"))
-                .body("content", is("# My Plan"))
+                .body("executionPlan", is("# My Plan"))
                 .body("createdAt", notNullValue())
                 .body("updatedAt", notNullValue());
     }
@@ -335,7 +335,7 @@ class TaskResourceTest {
                 .then()
                 .statusCode(200)
                 .body("status", is("APPROVED"))
-                .body("content", is("# Auto Plan"));
+                .body("executionPlan", is("# Auto Plan"));
     }
 
     @Test
@@ -366,7 +366,42 @@ class TaskResourceTest {
                 .then()
                 .statusCode(200)
                 .body("status", is("APPROVED"))
-                .body("content", is("# Final"));
+                .body("executionPlan", is("# Final"));
+    }
+
+    @Test
+    void testCreateAndUpdatePlanExecutionPlan() {
+        int taskId = createTaskAndReturnId();
+
+        PlanDto plan = planDto(PlanStatus.IN_PROGRESS, "# Step 1\nDo something");
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(plan)
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(201)
+                .body("executionPlan", is("# Step 1\nDo something"));
+
+        given()
+                .when().get("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(200)
+                .body("executionPlan", is("# Step 1\nDo something"));
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(planDto(PlanStatus.APPROVED, "# Step 1\nUpdated plan"))
+                .when().put("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(200)
+                .body("executionPlan", is("# Step 1\nUpdated plan"));
+
+        given()
+                .when().get("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(200)
+                .body("executionPlan", is("# Step 1\nUpdated plan"));
     }
 
     @Test
@@ -424,10 +459,10 @@ class TaskResourceTest {
                 .extract().path("id");
     }
 
-    private static PlanDto planDto(PlanStatus status, String content, String requirement, Long gitId) {
+    private static PlanDto planDto(PlanStatus status, String executionPlan, String requirement, Long gitId) {
         PlanDto dto = new PlanDto();
         dto.status = status;
-        dto.content = content;
+        dto.executionPlan = executionPlan;
         dto.requirement = requirement;
         if (gitId != null) {
             GitDto git = new GitDto();
