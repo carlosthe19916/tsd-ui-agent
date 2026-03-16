@@ -67,6 +67,7 @@ class TaskResourceTest {
                 .thenReturn("/tmp/tsd-agent-ui-test/repo/trees/plan-worktree");
         doNothing().when(worktreeService).openVSCode(anyString());
         doNothing().when(worktreeService).openTerminal(anyString());
+        doNothing().when(worktreeService).openClaude(anyString(), any(), anyString(), anyString());
     }
 
     private int createProjectAndSync(SourceType type, List<ExternalIssue> issues) {
@@ -784,6 +785,54 @@ class TaskResourceTest {
     }
 
     @Test
+    void testOpenClaudeWithoutPlan() {
+        int taskId = createTaskAndReturnId();
+
+        given()
+                .contentType(ContentType.JSON)
+                .when().post("/tasks/{taskId}/plan/open-claude", taskId)
+                .then()
+                .statusCode(404);
+    }
+
+    @Test
+    void testOpenClaudeWithoutGit() {
+        int taskId = createTaskAndReturnId();
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(planDto(PlanStatus.IN_PROGRESS, "# Plan"))
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(201);
+
+        given()
+                .contentType(ContentType.JSON)
+                .when().post("/tasks/{taskId}/plan/open-claude", taskId)
+                .then()
+                .statusCode(400);
+    }
+
+    @Test
+    void testOpenClaudeSuccess() {
+        int taskId = createTaskAndReturnId();
+        int gitId = createGit("https://github.com/test/worktree-claude");
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(planDto(PlanStatus.IN_PROGRESS, "# Plan", null, (long) gitId))
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(201);
+
+        given()
+                .contentType(ContentType.JSON)
+                .when().post("/tasks/{taskId}/plan/open-claude", taskId)
+                .then()
+                .statusCode(204);
+    }
+
+    @Test
     void testOpenVSCodeForNonExistentTask() {
         given()
                 .contentType(ContentType.JSON)
@@ -815,6 +864,97 @@ class TaskResourceTest {
                 .statusCode(200)
                 .body("git.id", is(gitId2))
                 .body("worktreePath", nullValue());
+    }
+
+    // PATCH plan tests
+
+    @Test
+    void testPatchPlanExecutionPlanOnly() {
+        int taskId = createTaskAndReturnId();
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(planDto(PlanStatus.IN_PROGRESS, "# Draft"))
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(201);
+
+        PlanDto patch = new PlanDto();
+        patch.executionPlan = "# Updated";
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(patch)
+                .when().patch("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(200)
+                .body("executionPlan", is("# Updated"))
+                .body("status", is("IN_PROGRESS"));
+    }
+
+    @Test
+    void testPatchPlanStatusOnly() {
+        int taskId = createTaskAndReturnId();
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(planDto(PlanStatus.IN_PROGRESS, "# Plan"))
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(201);
+
+        PlanDto patch = new PlanDto();
+        patch.status = PlanStatus.APPROVED;
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(patch)
+                .when().patch("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(200)
+                .body("status", is("APPROVED"))
+                .body("executionPlan", is("# Plan"));
+    }
+
+    @Test
+    void testPatchPlanPreservesGitWhenNotSent() {
+        int taskId = createTaskAndReturnId();
+        int gitId = createGit("https://github.com/test/patch-git");
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(planDto(PlanStatus.IN_PROGRESS, "# Plan", null, (long) gitId))
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(201)
+                .body("git.id", is(gitId));
+
+        PlanDto patch = new PlanDto();
+        patch.executionPlan = "# New";
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(patch)
+                .when().patch("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(200)
+                .body("executionPlan", is("# New"))
+                .body("git.id", is(gitId));
+    }
+
+    @Test
+    void testPatchPlanNotFound() {
+        int taskId = createTaskAndReturnId();
+
+        PlanDto patch = new PlanDto();
+        patch.executionPlan = "# New";
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(patch)
+                .when().patch("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(404);
     }
 
     @Test

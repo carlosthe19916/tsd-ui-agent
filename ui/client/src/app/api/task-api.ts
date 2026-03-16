@@ -88,6 +88,11 @@ export const openTerminal = (taskId: number) =>
     .post<PlanDto>(`${BASE_URL}/${taskId}/plan/open-terminal`)
     .then((response) => response.data);
 
+export const openClaude = (taskId: number) =>
+  axios
+    .post<PlanDto>(`${BASE_URL}/${taskId}/plan/open-claude`)
+    .then((response) => response.data);
+
 export const sendChatMessage = async function* (
   taskId: number,
   content: string,

@@ -5,6 +5,7 @@ import {
   createTaskPlan,
   getTaskPlan,
   getTasks,
+  openClaude,
   openTerminal,
   openVSCode,
   updateTaskPlan,
@@ -63,6 +64,16 @@ export const useOpenTerminalMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (taskId: number) => openTerminal(taskId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [TASK_QUERY_KEY] });
+    },
+  });
+};
+
+export const useOpenClaudeMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (taskId: number) => openClaude(taskId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [TASK_QUERY_KEY] });
     },

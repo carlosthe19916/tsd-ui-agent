@@ -11,6 +11,8 @@ import org.jboss.logging.Logger;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
+import java.util.Set;
 
 @ApplicationScoped
 public class WorktreeService {
@@ -25,6 +27,12 @@ public class WorktreeService {
 
     @ConfigProperty(name = "tsd-agent.terminal.command", defaultValue = "ptyxis --new-window -d %s")
     String terminalCommand;
+
+    @ConfigProperty(name = "tsd-agent.terminal.exec-command", defaultValue = "ptyxis --new-window -d %s -- %c")
+    String terminalExecCommand;
+
+    @ConfigProperty(name = "tsd-agent.claude.command", defaultValue = "claude")
+    String claudeCommand;
 
     @Transactional
     public String ensureWorktree(PlanEntity plan) {
@@ -65,6 +73,51 @@ public class WorktreeService {
                     .start();
         } catch (IOException e) {
             throw new RuntimeException("Failed to open terminal: " + e.getMessage(), e);
+        }
+    }
+
+    public void openClaude(String worktreePath, Long taskId, String requirement, String planApiUrl) {
+        try {
+            Path scriptPath = Path.of(worktreePath, ".tsd-claude-plan.sh");
+            String script = """
+                    #!/bin/bash
+                    TASK_URL="%s"
+                    echo ""
+                    echo "=== Task Requirement ==="
+                    cat <<'REQUIREMENT_EOF'
+                    %s
+                    REQUIREMENT_EOF
+                    echo "========================"
+                    echo ""
+                    echo "Plan API URL: $TASK_URL"
+                    echo ""
+                    read -p "Should Claude create a plan for this? (yes/no): " confirm
+                    if [ "$confirm" = "yes" ]; then
+                      %s --permission-mode plan \\
+                        --append-system-prompt "Once the plan is ready, ask the user: 'Would you like me to save this plan to the app?' If they confirm, do an HTTP PATCH to $TASK_URL with a JSON body containing the field 'executionPlan' as a plain markdown string." \\
+                        "$(cat <<'PROMPT_EOF'
+                    %s
+                    PROMPT_EOF
+                    )"
+                    fi
+                    """.formatted(planApiUrl, requirement, claudeCommand, requirement);
+
+            Files.writeString(scriptPath, script);
+            Files.setPosixFilePermissions(scriptPath, Set.of(
+                    PosixFilePermission.OWNER_READ,
+                    PosixFilePermission.OWNER_WRITE,
+                    PosixFilePermission.OWNER_EXECUTE
+            ));
+
+            String resolved = terminalExecCommand
+                    .replace("%s", worktreePath)
+                    .replace("%c", scriptPath.toString());
+            String[] parts = resolved.split("\\s+");
+            new ProcessBuilder(parts)
+                    .inheritIO()
+                    .start();
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to open Claude: " + e.getMessage(), e);
         }
     }
 }

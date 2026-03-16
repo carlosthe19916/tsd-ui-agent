@@ -44,6 +44,7 @@ import InProgressIcon from "@patternfly/react-icons/dist/esm/icons/in-progress-i
 import PendingIcon from "@patternfly/react-icons/dist/esm/icons/pending-icon";
 import SortAmountDownIcon from "@patternfly/react-icons/dist/esm/icons/sort-amount-down-icon";
 import SortAmountUpIcon from "@patternfly/react-icons/dist/esm/icons/sort-amount-up-icon";
+import RobotIcon from "@patternfly/react-icons/dist/esm/icons/robot-icon";
 import TerminalIcon from "@patternfly/react-icons/dist/esm/icons/terminal-icon";
 
 import type { TaskDto, TaskStatus } from "@app/api/models";
@@ -53,6 +54,7 @@ import { FilterToolbar } from "@app/components/FilterToolbar";
 import { SimplePagination } from "@app/components/SimplePagination";
 import {
   useCreateTaskPlanMutation,
+  useOpenClaudeMutation,
   useOpenTerminalMutation,
   useOpenVSCodeMutation,
   useUpdateTaskPlanMutation,
@@ -112,6 +114,7 @@ const TaskListContent: React.FC = () => {
   );
   const openVSCodeMutation = useOpenVSCodeMutation();
   const openTerminalMutation = useOpenTerminalMutation();
+  const openClaudeMutation = useOpenClaudeMutation();
 
   return (
     <>
@@ -283,6 +286,21 @@ const TaskListContent: React.FC = () => {
                                   aria-label="Open Terminal"
                                 >
                                   Terminal
+                                </Button>
+                              </Tooltip>{" "}
+                              <Tooltip content="Open Claude">
+                                <Button
+                                  variant="control"
+                                  size="sm"
+                                  onClick={() =>
+                                    openClaudeMutation.mutate(task.id)
+                                  }
+                                  isLoading={openClaudeMutation.isPending}
+                                  isDisabled={openClaudeMutation.isPending}
+                                  icon={<RobotIcon />}
+                                  aria-label="Open Claude"
+                                >
+                                  Claude
                                 </Button>
                               </Tooltip>
                             </FlexItem>

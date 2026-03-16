@@ -14,13 +14,16 @@ import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PATCH;
 import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.UriInfo;
 import org.acme.dto.PlanDto;
 import org.acme.dto.SearchResultDto;
 import org.acme.dto.TaskDto;
@@ -63,6 +66,9 @@ public class TaskResource {
 
     @Inject
     TransactionManager transactionManager;
+
+    @Context
+    UriInfo uriInfo;
 
     @ConfigProperty(name = "tsd-agent.discovery.ai.enabled", defaultValue = "true")
     boolean aiDiscoveryEnabled;
@@ -223,6 +229,18 @@ public class TaskResource {
         return planMapper.toDto(task.plan);
     }
 
+    @PATCH
+    @Path("/{taskId}/plan")
+    public PlanDto patchPlan(@PathParam("taskId") Long taskId, PlanDto dto) {
+        TaskEntity task = (TaskEntity) TaskEntity.findByIdOptional(taskId)
+                .orElseThrow(NotFoundException::new);
+        if (task.plan == null) {
+            throw new NotFoundException();
+        }
+        planMapper.patchEntity(dto, task.plan);
+        return planMapper.toDto(task.plan);
+    }
+
     @DELETE
     @Path("/{taskId}/plan")
     public Response deletePlan(@PathParam("taskId") Long taskId) {
@@ -269,6 +287,25 @@ public class TaskResource {
 
         String path = worktreeService.ensureWorktree(task.plan);
         worktreeService.openTerminal(path);
+
+        return Response.noContent().build();
+    }
+
+    @POST
+    @Path("/{taskId}/plan/open-claude")
+    public Response openClaude(@PathParam("taskId") Long taskId) {
+        TaskEntity task = (TaskEntity) TaskEntity.findByIdOptional(taskId)
+                .orElseThrow(NotFoundException::new);
+        if (task.plan == null) {
+            throw new NotFoundException("Task has no plan");
+        }
+        if (task.plan.git == null) {
+            throw new BadRequestException("Plan has no git configuration");
+        }
+
+        String path = worktreeService.ensureWorktree(task.plan);
+        String planApiUrl = uriInfo.getBaseUri() + "tasks/" + taskId + "/plan";
+        worktreeService.openClaude(path, taskId, task.plan.requirement, planApiUrl);
 
         return Response.noContent().build();
     }
