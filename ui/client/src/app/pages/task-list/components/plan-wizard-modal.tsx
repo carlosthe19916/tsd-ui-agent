@@ -134,6 +134,10 @@ const PlanWizardModalContent: React.FC<{
           <GitConfigurationStep
             initialState={gitConfigState}
             onStateChanged={setGitConfigState}
+            worktreePath={task.plan?.worktreePath}
+            originalGitId={
+              task.plan?.git?.id ? String(task.plan.git.id) : undefined
+            }
           />
         </WizardStep>
       </Wizard>

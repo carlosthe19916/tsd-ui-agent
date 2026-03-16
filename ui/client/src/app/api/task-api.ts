@@ -78,6 +78,16 @@ export const getTaskPlan = (taskId: number) =>
     .get<PlanDto>(`${BASE_URL}/${taskId}/plan`)
     .then((response) => response.data);
 
+export const openVSCode = (taskId: number) =>
+  axios
+    .post<PlanDto>(`${BASE_URL}/${taskId}/plan/open-vscode`)
+    .then((response) => response.data);
+
+export const openTerminal = (taskId: number) =>
+  axios
+    .post<PlanDto>(`${BASE_URL}/${taskId}/plan/open-terminal`)
+    .then((response) => response.data);
+
 export const sendChatMessage = async function* (
   taskId: number,
   content: string,

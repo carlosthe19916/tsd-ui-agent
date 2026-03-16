@@ -1,6 +1,7 @@
 import React from "react";
 
 import {
+  Alert,
   FormGroup,
   MenuToggle,
   Select,
@@ -29,11 +30,15 @@ const schema = yup.object({
 interface GitConfigurationStepProps {
   initialState: GitConfigurationState;
   onStateChanged: (state: GitConfigurationState) => void;
+  worktreePath?: string;
+  originalGitId?: string;
 }
 
 export const GitConfigurationStep: React.FC<GitConfigurationStepProps> = ({
   initialState,
   onStateChanged,
+  worktreePath,
+  originalGitId,
 }) => {
   const { data: gits } = useFetchGits();
   const [isOpen, setIsOpen] = React.useState(false);
@@ -49,8 +54,20 @@ export const GitConfigurationStep: React.FC<GitConfigurationStepProps> = ({
   const selectedGitId = form.watch("gitId");
   const selectedGit = gits?.find((g) => String(g.id) === selectedGitId);
 
+  const showWorktreeWarning =
+    worktreePath && originalGitId && selectedGitId !== originalGitId;
+
   return (
     <FormGroup label="Git Repository" fieldId="git-select">
+      {showWorktreeWarning && (
+        <Alert
+          variant="warning"
+          isInline
+          isPlain
+          title="Changing the git repository will disconnect the current worktree. The old worktree will remain on disk. A new worktree will be created when you next open VSCode or Terminal."
+          style={{ marginBottom: "var(--pf-t--global--spacer--sm)" }}
+        />
+      )}
       <Controller
         control={form.control}
         name="gitId"

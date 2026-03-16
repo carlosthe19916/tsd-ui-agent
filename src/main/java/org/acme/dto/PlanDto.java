@@ -25,4 +25,6 @@ public class PlanDto {
     public Instant createdAt;
 
     public Instant updatedAt;
+
+    public String worktreePath;
 }
