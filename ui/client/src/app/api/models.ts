@@ -55,7 +55,7 @@ export type TaskStatus = "OPEN" | "IN_PROGRESS" | "CLOSED";
 export type PlanStatus = "IN_PROGRESS" | "APPROVED";
 export interface PlanDto {
   id: number;
-  executionPlan: string;
+  plan: string;
   requirement?: string;
   git?: GitDto;
   isRequirementInProgress?: boolean;

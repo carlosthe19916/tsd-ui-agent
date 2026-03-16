@@ -118,7 +118,7 @@ public class WorktreeService {
                     read -p "Should Claude create a plan for this? (yes/no): " confirm
                     if [ "$confirm" = "yes" ]; then
                       %s --session-id %s --permission-mode plan \\
-                        --append-system-prompt "Once the plan is ready, ask the user: 'Would you like me to save this plan to the app?' If they confirm, do an HTTP PATCH to $TASK_URL with a JSON body containing the field 'executionPlan' as a plain markdown string." \\
+                        --append-system-prompt "Once the plan is ready, ask the user: 'Would you like me to save this plan to the app?' If they confirm, do an HTTP PATCH to $TASK_URL with a JSON body containing the field 'plan' as a plain markdown string." \\
                         "$(cat <<'PROMPT_EOF'
                     %s
                     PROMPT_EOF

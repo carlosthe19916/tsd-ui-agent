@@ -8,7 +8,7 @@ public class PlanDto {
 
     public Long id;
 
-    public String executionPlan;
+    public String plan;
 
     public String requirement;
 

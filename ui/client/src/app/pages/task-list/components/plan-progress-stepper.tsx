@@ -134,41 +134,37 @@ export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
       </ProgressStep>
       <ProgressStep
         variant={
-          plan.executionPlan && plan.executionPlan.trim().length > 0
-            ? "success"
-            : "pending"
+          plan.plan && plan.plan.trim().length > 0 ? "success" : "pending"
         }
         id={`exec-plan-${taskId}`}
         titleId={`exec-plan-title-${taskId}`}
-        aria-label={`Execution plan step, ${plan.executionPlan && plan.executionPlan.trim().length > 0 ? "completed" : "pending"}`}
+        aria-label={`Plan step, ${plan.plan && plan.plan.trim().length > 0 ? "completed" : "pending"}`}
         description={
-          plan.executionPlan && plan.executionPlan.trim().length > 0
-            ? ""
-            : "Not defined"
+          plan.plan && plan.plan.trim().length > 0 ? "" : "Not defined"
         }
         popoverRender={(stepRef) => (
           <Popover
-            aria-label="Execution plan details"
-            headerContent={<div>Execution Plan</div>}
+            aria-label="Plan details"
+            headerContent={<div>Plan</div>}
             bodyContent={
-              plan.executionPlan && plan.executionPlan.trim().length > 0 ? (
+              plan.plan && plan.plan.trim().length > 0 ? (
                 <div>Too long to render here</div>
               ) : (
-                <div>No execution plan has been defined yet.</div>
+                <div>No plan has been defined yet.</div>
               )
             }
             footerContent={
               <Button variant="link" isInline onClick={() => onEditStep(3)}>
-                {plan.executionPlan && plan.executionPlan.trim().length > 0
-                  ? "Edit execution plan"
-                  : "Add execution plan"}
+                {plan.plan && plan.plan.trim().length > 0
+                  ? "Edit plan"
+                  : "Add plan"}
               </Button>
             }
             triggerRef={stepRef}
           />
         )}
       >
-        Execution Plan
+        Plan
       </ProgressStep>
     </ProgressStepper>
   );
