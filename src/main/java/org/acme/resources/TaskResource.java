@@ -305,7 +305,10 @@ public class TaskResource {
 
         String path = worktreeService.ensureWorktree(task.plan);
         String planApiUrl = uriInfo.getBaseUri() + "tasks/" + taskId + "/plan";
-        worktreeService.openClaude(path, taskId, task.plan.requirement, planApiUrl);
+        String sessionId = worktreeService.openClaude(path, taskId, task.plan.requirement, planApiUrl, task.plan.claudeSessionId);
+        if (task.plan.claudeSessionId == null) {
+            task.plan.claudeSessionId = sessionId;
+        }
 
         return Response.noContent().build();
     }

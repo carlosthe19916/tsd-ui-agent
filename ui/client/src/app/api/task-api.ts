@@ -93,6 +93,11 @@ export const openClaude = (taskId: number) =>
     .post<PlanDto>(`${BASE_URL}/${taskId}/plan/open-claude`)
     .then((response) => response.data);
 
+export const patchTaskPlan = (taskId: number, plan: Partial<PlanDto>) =>
+  axios
+    .patch<PlanDto>(`${BASE_URL}/${taskId}/plan`, plan)
+    .then((response) => response.data);
+
 export const sendChatMessage = async function* (
   taskId: number,
   content: string,

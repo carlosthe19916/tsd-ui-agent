@@ -25,4 +25,6 @@ public class PlanDto {
     public Instant updatedAt;
 
     public String worktreePath;
+
+    public String claudeSessionId;
 }

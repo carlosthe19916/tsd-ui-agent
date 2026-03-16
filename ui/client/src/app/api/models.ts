@@ -64,6 +64,7 @@ export interface PlanDto {
   createdAt?: string;
   updatedAt?: string;
   worktreePath?: string;
+  claudeSessionId?: string;
 }
 
 export interface TaskDto {

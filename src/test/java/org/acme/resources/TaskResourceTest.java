@@ -67,7 +67,8 @@ class TaskResourceTest {
                 .thenReturn("/tmp/tsd-agent-ui-test/repo/trees/plan-worktree");
         doNothing().when(worktreeService).openVSCode(anyString());
         doNothing().when(worktreeService).openTerminal(anyString());
-        doNothing().when(worktreeService).openClaude(anyString(), any(), anyString(), anyString());
+        when(worktreeService.openClaude(anyString(), any(), anyString(), anyString(), any()))
+                .thenReturn("test-session-id");
     }
 
     private int createProjectAndSync(SourceType type, List<ExternalIssue> issues) {
@@ -955,6 +956,69 @@ class TaskResourceTest {
                 .when().patch("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(404);
+    }
+
+    @Test
+    void testOpenClaudeGeneratesSessionId() {
+        int taskId = createTaskAndReturnId();
+        int gitId = createGit("https://github.com/test/claude-session");
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(planDto(PlanStatus.IN_PROGRESS, "# Plan", null, (long) gitId))
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(201)
+                .body("claudeSessionId", nullValue());
+
+        given()
+                .contentType(ContentType.JSON)
+                .when().post("/tasks/{taskId}/plan/open-claude", taskId)
+                .then()
+                .statusCode(204);
+
+        given()
+                .when().get("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(200)
+                .body("claudeSessionId", is("test-session-id"));
+    }
+
+    @Test
+    void testUpdatePlanClearsSessionIdOnGitChange() {
+        int taskId = createTaskAndReturnId();
+        int gitId1 = createGit("https://github.com/test/session-clear-1");
+        int gitId2 = createGit("https://github.com/test/session-clear-2");
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(planDto(PlanStatus.IN_PROGRESS, "# Plan", null, (long) gitId1))
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(201);
+
+        // Open Claude to generate session ID
+        given()
+                .contentType(ContentType.JSON)
+                .when().post("/tasks/{taskId}/plan/open-claude", taskId)
+                .then()
+                .statusCode(204);
+
+        given()
+                .when().get("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(200)
+                .body("claudeSessionId", is("test-session-id"));
+
+        // Change git repo — should clear session ID
+        given()
+                .contentType(ContentType.JSON)
+                .body(planDto(PlanStatus.IN_PROGRESS, "# Plan", null, (long) gitId2))
+                .when().put("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(200)
+                .body("git.id", is(gitId2))
+                .body("claudeSessionId", nullValue());
     }
 
     @Test

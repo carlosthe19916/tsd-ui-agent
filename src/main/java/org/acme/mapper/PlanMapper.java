@@ -26,6 +26,7 @@ public class PlanMapper {
         dto.createdAt = entity.createdAt;
         dto.updatedAt = entity.updatedAt;
         dto.worktreePath = entity.worktreePath;
+        dto.claudeSessionId = entity.claudeSessionId;
         if (entity.git != null) {
             dto.git = gitMapper.toDto(entity.git);
         }
@@ -64,6 +65,7 @@ public class PlanMapper {
 
         if (!java.util.Objects.equals(oldGitId, newGitId)) {
             entity.worktreePath = null;
+            entity.claudeSessionId = null;
         }
     }
 
@@ -77,6 +79,9 @@ public class PlanMapper {
         if (dto.status != null) {
             entity.status = dto.status;
         }
+        if (dto.claudeSessionId != null) {
+            entity.claudeSessionId = dto.claudeSessionId.isEmpty() ? null : dto.claudeSessionId;
+        }
         if (dto.git != null) {
             Long oldGitId = entity.git != null ? entity.git.id : null;
             if (dto.git.id != null) {
@@ -86,6 +91,7 @@ public class PlanMapper {
             }
             if (!java.util.Objects.equals(oldGitId, dto.git.id)) {
                 entity.worktreePath = null;
+                entity.claudeSessionId = null;
             }
         }
         entity.updatedAt = Instant.now();

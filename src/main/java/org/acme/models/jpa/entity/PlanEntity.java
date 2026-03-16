@@ -55,6 +55,9 @@ public class PlanEntity extends PanacheEntityBase {
     @Column(name = "worktree_path")
     public String worktreePath;
 
+    @Column(name = "claude_session_id")
+    public String claudeSessionId;
+
     @Version
     public int version;
 

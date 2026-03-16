@@ -8,6 +8,7 @@ import {
   openClaude,
   openTerminal,
   openVSCode,
+  patchTaskPlan,
   updateTaskPlan,
 } from "@app/api/task-api";
 
@@ -76,6 +77,23 @@ export const useOpenClaudeMutation = () => {
     mutationFn: (taskId: number) => openClaude(taskId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [TASK_QUERY_KEY] });
+    },
+  });
+};
+
+export const usePatchTaskPlanMutation = (onSuccess?: () => void) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      taskId,
+      plan,
+    }: {
+      taskId: number;
+      plan: Partial<PlanDto>;
+    }) => patchTaskPlan(taskId, plan),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [TASK_QUERY_KEY] });
+      onSuccess?.();
     },
   });
 };

@@ -28,7 +28,7 @@ public class WorktreeService {
     @ConfigProperty(name = "tsd-agent.terminal.command", defaultValue = "ptyxis --new-window -d %s")
     String terminalCommand;
 
-    @ConfigProperty(name = "tsd-agent.terminal.exec-command", defaultValue = "ptyxis --new-window -d %s -- %c")
+    @ConfigProperty(name = "tsd-agent.terminal.exec-command", defaultValue = "ptyxis --new-window -d %s -x %c")
     String terminalExecCommand;
 
     @ConfigProperty(name = "tsd-agent.claude.command", defaultValue = "claude")
@@ -76,8 +76,32 @@ public class WorktreeService {
         }
     }
 
-    public void openClaude(String worktreePath, Long taskId, String requirement, String planApiUrl) {
+    public String openClaude(String worktreePath, Long taskId, String requirement, String planApiUrl, String existingSessionId) {
         try {
+            if (existingSessionId != null) {
+                Path resumeScriptPath = Path.of(worktreePath, ".tsd-claude-resume.sh");
+                String resumeScript = """
+                        #!/bin/bash
+                        %s --resume %s
+                        """.formatted(claudeCommand, existingSessionId);
+                Files.writeString(resumeScriptPath, resumeScript);
+                Files.setPosixFilePermissions(resumeScriptPath, Set.of(
+                        PosixFilePermission.OWNER_READ,
+                        PosixFilePermission.OWNER_WRITE,
+                        PosixFilePermission.OWNER_EXECUTE
+                ));
+
+                String resolved = terminalExecCommand
+                        .replace("%s", worktreePath)
+                        .replace("%c", resumeScriptPath.toString());
+                String[] parts = resolved.split("\\s+");
+                new ProcessBuilder(parts)
+                        .inheritIO()
+                        .start();
+                return existingSessionId;
+            }
+
+            String sessionId = java.util.UUID.randomUUID().toString();
             Path scriptPath = Path.of(worktreePath, ".tsd-claude-plan.sh");
             String script = """
                     #!/bin/bash
@@ -93,14 +117,14 @@ public class WorktreeService {
                     echo ""
                     read -p "Should Claude create a plan for this? (yes/no): " confirm
                     if [ "$confirm" = "yes" ]; then
-                      %s --permission-mode plan \\
+                      %s --session-id %s --permission-mode plan \\
                         --append-system-prompt "Once the plan is ready, ask the user: 'Would you like me to save this plan to the app?' If they confirm, do an HTTP PATCH to $TASK_URL with a JSON body containing the field 'executionPlan' as a plain markdown string." \\
                         "$(cat <<'PROMPT_EOF'
                     %s
                     PROMPT_EOF
                     )"
                     fi
-                    """.formatted(planApiUrl, requirement, claudeCommand, requirement);
+                    """.formatted(planApiUrl, requirement, claudeCommand, sessionId, requirement);
 
             Files.writeString(scriptPath, script);
             Files.setPosixFilePermissions(scriptPath, Set.of(
@@ -116,6 +140,7 @@ public class WorktreeService {
             new ProcessBuilder(parts)
                     .inheritIO()
                     .start();
+            return sessionId;
         } catch (IOException e) {
             throw new RuntimeException("Failed to open Claude: " + e.getMessage(), e);
         }
