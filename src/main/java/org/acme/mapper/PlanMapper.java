@@ -24,6 +24,7 @@ public class PlanMapper {
         dto.status = entity.status;
         dto.createdAt = entity.createdAt;
         dto.updatedAt = entity.updatedAt;
+        dto.worktreePath = entity.worktreePath;
         if (entity.git != null) {
             dto.git = gitMapper.toDto(entity.git);
         }
@@ -48,10 +49,18 @@ public class PlanMapper {
         entity.requirement = dto.requirement;
         entity.status = dto.status;
         entity.updatedAt = Instant.now();
+
+        Long oldGitId = entity.git != null ? entity.git.id : null;
+        Long newGitId = dto.git != null ? dto.git.id : null;
+
         if (dto.git != null && dto.git.id != null) {
             entity.git = GitEntity.findById(dto.git.id);
         } else {
             entity.git = null;
+        }
+
+        if (!java.util.Objects.equals(oldGitId, newGitId)) {
+            entity.worktreePath = null;
         }
     }
 }

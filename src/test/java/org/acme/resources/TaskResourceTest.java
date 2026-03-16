@@ -17,6 +17,8 @@ import org.acme.services.sync.SyncManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import org.acme.services.WorktreeService;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -45,6 +47,9 @@ class TaskResourceTest {
     @InjectMock
     RequirementSummarizerService aiService;
 
+    @InjectMock
+    WorktreeService worktreeService;
+
     @BeforeEach
     void setup() {
         when(syncManager.fetchIssues(any())).thenReturn(List.of());
@@ -56,6 +61,12 @@ class TaskResourceTest {
                 .thenReturn("/tmp/tsd-agent-ui-test/repo/default");
         doNothing().when(gitManager).setRemoteUrl(anyString(), anyString());
         doNothing().when(gitManager).addForkRemote(anyString(), anyString());
+        when(gitManager.addWorktree(anyString(), anyString(), anyString()))
+                .thenAnswer(invocation -> "/tmp/tsd-agent-ui-test/repo/trees/" + invocation.getArgument(1));
+        when(worktreeService.ensureWorktree(any()))
+                .thenReturn("/tmp/tsd-agent-ui-test/repo/trees/plan-worktree");
+        doNothing().when(worktreeService).openVSCode(anyString());
+        doNothing().when(worktreeService).openTerminal(anyString());
     }
 
     private int createProjectAndSync(SourceType type, List<ExternalIssue> issues) {
@@ -637,6 +648,138 @@ class TaskResourceTest {
                 .statusCode(201)
                 .body("requirement", is("My explicit requirement"))
                 .body("isRequirementInProgress", is(true));
+    }
+
+    // Worktree / Open VSCode / Open Terminal tests
+
+    @Test
+    void testOpenVSCodeWithoutPlan() {
+        int taskId = createTaskAndReturnId();
+
+        given()
+                .contentType(ContentType.JSON)
+                .when().post("/tasks/{taskId}/plan/open-vscode", taskId)
+                .then()
+                .statusCode(404);
+    }
+
+    @Test
+    void testOpenVSCodeWithoutGit() {
+        int taskId = createTaskAndReturnId();
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(planDto(PlanStatus.IN_PROGRESS, "# Plan"))
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(201);
+
+        given()
+                .contentType(ContentType.JSON)
+                .when().post("/tasks/{taskId}/plan/open-vscode", taskId)
+                .then()
+                .statusCode(400);
+    }
+
+    @Test
+    void testOpenVSCodeSuccess() {
+        int taskId = createTaskAndReturnId();
+        int gitId = createGit("https://github.com/test/worktree-vscode");
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(planDto(PlanStatus.IN_PROGRESS, "# Plan", null, (long) gitId))
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(201);
+
+        given()
+                .contentType(ContentType.JSON)
+                .when().post("/tasks/{taskId}/plan/open-vscode", taskId)
+                .then()
+                .statusCode(204);
+    }
+
+    @Test
+    void testOpenTerminalWithoutPlan() {
+        int taskId = createTaskAndReturnId();
+
+        given()
+                .contentType(ContentType.JSON)
+                .when().post("/tasks/{taskId}/plan/open-terminal", taskId)
+                .then()
+                .statusCode(404);
+    }
+
+    @Test
+    void testOpenTerminalWithoutGit() {
+        int taskId = createTaskAndReturnId();
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(planDto(PlanStatus.IN_PROGRESS, "# Plan"))
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(201);
+
+        given()
+                .contentType(ContentType.JSON)
+                .when().post("/tasks/{taskId}/plan/open-terminal", taskId)
+                .then()
+                .statusCode(400);
+    }
+
+    @Test
+    void testOpenTerminalSuccess() {
+        int taskId = createTaskAndReturnId();
+        int gitId = createGit("https://github.com/test/worktree-terminal");
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(planDto(PlanStatus.IN_PROGRESS, "# Plan", null, (long) gitId))
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(201);
+
+        given()
+                .contentType(ContentType.JSON)
+                .when().post("/tasks/{taskId}/plan/open-terminal", taskId)
+                .then()
+                .statusCode(204);
+    }
+
+    @Test
+    void testOpenVSCodeForNonExistentTask() {
+        given()
+                .contentType(ContentType.JSON)
+                .when().post("/tasks/{taskId}/plan/open-vscode", 999999)
+                .then()
+                .statusCode(404);
+    }
+
+    @Test
+    void testUpdatePlanClearsWorktreePathOnGitChange() {
+        int taskId = createTaskAndReturnId();
+        int gitId1 = createGit("https://github.com/test/worktree-change-1");
+        int gitId2 = createGit("https://github.com/test/worktree-change-2");
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(planDto(PlanStatus.IN_PROGRESS, "# Plan", null, (long) gitId1))
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(201)
+                .body("git.id", is(gitId1));
+
+        // Change git repo
+        given()
+                .contentType(ContentType.JSON)
+                .body(planDto(PlanStatus.IN_PROGRESS, "# Plan", null, (long) gitId2))
+                .when().put("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(200)
+                .body("git.id", is(gitId2))
+                .body("worktreePath", nullValue());
     }
 
     @Test

@@ -5,6 +5,8 @@ import {
   createTaskPlan,
   getTaskPlan,
   getTasks,
+  openTerminal,
+  openVSCode,
   updateTaskPlan,
 } from "@app/api/task-api";
 
@@ -43,6 +45,26 @@ export const useUpdateTaskPlanMutation = (onSuccess?: () => void) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [TASK_QUERY_KEY] });
       onSuccess?.();
+    },
+  });
+};
+
+export const useOpenVSCodeMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (taskId: number) => openVSCode(taskId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [TASK_QUERY_KEY] });
+    },
+  });
+};
+
+export const useOpenTerminalMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (taskId: number) => openTerminal(taskId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [TASK_QUERY_KEY] });
     },
   });
 };

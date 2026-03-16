@@ -35,13 +35,16 @@ import {
   ToolbarContent,
   ToolbarGroup,
   ToolbarItem,
+  Tooltip,
 } from "@patternfly/react-core";
 import CheckCircleIcon from "@patternfly/react-icons/dist/esm/icons/check-circle-icon";
+import CodeIcon from "@patternfly/react-icons/dist/esm/icons/code-icon";
 import EllipsisVIcon from "@patternfly/react-icons/dist/esm/icons/ellipsis-v-icon";
 import InProgressIcon from "@patternfly/react-icons/dist/esm/icons/in-progress-icon";
 import PendingIcon from "@patternfly/react-icons/dist/esm/icons/pending-icon";
 import SortAmountDownIcon from "@patternfly/react-icons/dist/esm/icons/sort-amount-down-icon";
 import SortAmountUpIcon from "@patternfly/react-icons/dist/esm/icons/sort-amount-up-icon";
+import TerminalIcon from "@patternfly/react-icons/dist/esm/icons/terminal-icon";
 
 import type { TaskDto, TaskStatus } from "@app/api/models";
 import { ConfirmDialog } from "@app/components/ConfirmDialog";
@@ -50,6 +53,8 @@ import { FilterToolbar } from "@app/components/FilterToolbar";
 import { SimplePagination } from "@app/components/SimplePagination";
 import {
   useCreateTaskPlanMutation,
+  useOpenTerminalMutation,
+  useOpenVSCodeMutation,
   useUpdateTaskPlanMutation,
 } from "@app/queries/tasks";
 import { formatDateTime } from "@app/utils/utils";
@@ -105,6 +110,8 @@ const TaskListContent: React.FC = () => {
   const createPlanMutation = useCreateTaskPlanMutation(() =>
     setCreatePlanTask(null),
   );
+  const openVSCodeMutation = useOpenVSCodeMutation();
+  const openTerminalMutation = useOpenTerminalMutation();
 
   return (
     <>
@@ -246,20 +253,54 @@ const TaskListContent: React.FC = () => {
                               }}
                             />
                           </FlexItem>
-                          {task.plan.status === "IN_PROGRESS" && (
+                          {task.plan.git && (
                             <FlexItem>
-                              <Button
-                                variant="primary"
-                                size="sm"
-                                onClick={() => setApproveTask(task)}
-                              >
-                                Approve
-                              </Button>
+                              <Tooltip content="Open VSCode">
+                                <Button
+                                  variant="control"
+                                  size="sm"
+                                  onClick={() =>
+                                    openVSCodeMutation.mutate(task.id)
+                                  }
+                                  isLoading={openVSCodeMutation.isPending}
+                                  isDisabled={openVSCodeMutation.isPending}
+                                  icon={<CodeIcon />}
+                                  aria-label="Open VSCode"
+                                >
+                                  VSCode
+                                </Button>
+                              </Tooltip>{" "}
+                              <Tooltip content="Open Terminal">
+                                <Button
+                                  variant="control"
+                                  size="sm"
+                                  onClick={() =>
+                                    openTerminalMutation.mutate(task.id)
+                                  }
+                                  isLoading={openTerminalMutation.isPending}
+                                  isDisabled={openTerminalMutation.isPending}
+                                  icon={<TerminalIcon />}
+                                  aria-label="Open Terminal"
+                                >
+                                  Terminal
+                                </Button>
+                              </Tooltip>
                             </FlexItem>
                           )}
                         </Flex>
                       ) : (
                         "No plan"
+                      )}
+                    </DataListCell>,
+                    <DataListCell key="approve" width={1}>
+                      {task.plan?.status === "IN_PROGRESS" && (
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => setApproveTask(task)}
+                        >
+                          Approve
+                        </Button>
                       )}
                     </DataListCell>,
                   ]}

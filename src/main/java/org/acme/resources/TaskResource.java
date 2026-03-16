@@ -8,6 +8,7 @@ import jakarta.transaction.TransactionManager;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
+import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
@@ -29,6 +30,7 @@ import org.acme.models.jpa.entity.PlanEntity;
 import org.acme.models.jpa.entity.TaskEntity;
 import org.acme.models.jpa.entity.TaskStatus;
 import org.acme.services.PlanService;
+import org.acme.services.WorktreeService;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.util.HashMap;
@@ -55,6 +57,9 @@ public class TaskResource {
 
     @Inject
     PlanService planService;
+
+    @Inject
+    WorktreeService worktreeService;
 
     @Inject
     TransactionManager transactionManager;
@@ -229,6 +234,42 @@ public class TaskResource {
         PlanEntity plan = task.plan;
         task.plan = null;
         plan.delete();
+        return Response.noContent().build();
+    }
+
+    @POST
+    @Path("/{taskId}/plan/open-vscode")
+    public Response openVSCode(@PathParam("taskId") Long taskId) {
+        TaskEntity task = (TaskEntity) TaskEntity.findByIdOptional(taskId)
+                .orElseThrow(NotFoundException::new);
+        if (task.plan == null) {
+            throw new NotFoundException("Task has no plan");
+        }
+        if (task.plan.git == null) {
+            throw new BadRequestException("Plan has no git configuration");
+        }
+
+        String path = worktreeService.ensureWorktree(task.plan);
+        worktreeService.openVSCode(path);
+
+        return Response.noContent().build();
+    }
+
+    @POST
+    @Path("/{taskId}/plan/open-terminal")
+    public Response openTerminal(@PathParam("taskId") Long taskId) {
+        TaskEntity task = (TaskEntity) TaskEntity.findByIdOptional(taskId)
+                .orElseThrow(NotFoundException::new);
+        if (task.plan == null) {
+            throw new NotFoundException("Task has no plan");
+        }
+        if (task.plan.git == null) {
+            throw new BadRequestException("Plan has no git configuration");
+        }
+
+        String path = worktreeService.ensureWorktree(task.plan);
+        worktreeService.openTerminal(path);
+
         return Response.noContent().build();
     }
 }

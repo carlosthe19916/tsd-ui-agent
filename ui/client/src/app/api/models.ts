@@ -63,6 +63,7 @@ export interface PlanDto {
   status: PlanStatus;
   createdAt?: string;
   updatedAt?: string;
+  worktreePath?: string;
 }
 
 export interface TaskDto {
