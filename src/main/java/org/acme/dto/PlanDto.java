@@ -1,6 +1,5 @@
 package org.acme.dto;
 
-import jakarta.validation.constraints.NotNull;
 import org.acme.models.jpa.entity.PlanStatus;
 
 import java.time.Instant;
@@ -9,7 +8,7 @@ public class PlanDto {
 
     public Long id;
 
-    public String content;
+    public String executionPlan;
 
     public String requirement;
 
@@ -19,7 +18,6 @@ public class PlanDto {
 
     public String requirementError;
 
-    @NotNull
     public PlanStatus status;
 
     public Instant createdAt;
@@ -27,4 +25,6 @@ public class PlanDto {
     public Instant updatedAt;
 
     public String worktreePath;
+
+    public String claudeSessionId;
 }

@@ -67,6 +67,8 @@ class TaskResourceTest {
                 .thenReturn("/tmp/tsd-agent-ui-test/repo/trees/plan-worktree");
         doNothing().when(worktreeService).openVSCode(anyString());
         doNothing().when(worktreeService).openTerminal(anyString());
+        when(worktreeService.openClaude(anyString(), any(), anyString(), anyString(), any()))
+                .thenReturn("test-session-id");
     }
 
     private int createProjectAndSync(SourceType type, List<ExternalIssue> issues) {
@@ -293,10 +295,10 @@ class TaskResourceTest {
 
     // Plan sub-resource tests
 
-    private static PlanDto planDto(PlanStatus status, String content) {
+    private static PlanDto planDto(PlanStatus status, String executionPlan) {
         PlanDto dto = new PlanDto();
         dto.status = status;
-        dto.content = content;
+        dto.executionPlan = executionPlan;
         return dto;
     }
 
@@ -314,7 +316,7 @@ class TaskResourceTest {
                 .statusCode(201)
                 .body("id", notNullValue())
                 .body("status", is("IN_PROGRESS"))
-                .body("content", is("# My Plan"))
+                .body("executionPlan", is("# My Plan"))
                 .body("createdAt", notNullValue())
                 .body("updatedAt", notNullValue());
     }
@@ -335,7 +337,7 @@ class TaskResourceTest {
                 .then()
                 .statusCode(200)
                 .body("status", is("APPROVED"))
-                .body("content", is("# Auto Plan"));
+                .body("executionPlan", is("# Auto Plan"));
     }
 
     @Test
@@ -366,7 +368,42 @@ class TaskResourceTest {
                 .then()
                 .statusCode(200)
                 .body("status", is("APPROVED"))
-                .body("content", is("# Final"));
+                .body("executionPlan", is("# Final"));
+    }
+
+    @Test
+    void testCreateAndUpdatePlanExecutionPlan() {
+        int taskId = createTaskAndReturnId();
+
+        PlanDto plan = planDto(PlanStatus.IN_PROGRESS, "# Step 1\nDo something");
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(plan)
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(201)
+                .body("executionPlan", is("# Step 1\nDo something"));
+
+        given()
+                .when().get("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(200)
+                .body("executionPlan", is("# Step 1\nDo something"));
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(planDto(PlanStatus.APPROVED, "# Step 1\nUpdated plan"))
+                .when().put("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(200)
+                .body("executionPlan", is("# Step 1\nUpdated plan"));
+
+        given()
+                .when().get("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(200)
+                .body("executionPlan", is("# Step 1\nUpdated plan"));
     }
 
     @Test
@@ -424,10 +461,10 @@ class TaskResourceTest {
                 .extract().path("id");
     }
 
-    private static PlanDto planDto(PlanStatus status, String content, String requirement, Long gitId) {
+    private static PlanDto planDto(PlanStatus status, String executionPlan, String requirement, Long gitId) {
         PlanDto dto = new PlanDto();
         dto.status = status;
-        dto.content = content;
+        dto.executionPlan = executionPlan;
         dto.requirement = requirement;
         if (gitId != null) {
             GitDto git = new GitDto();
@@ -749,6 +786,54 @@ class TaskResourceTest {
     }
 
     @Test
+    void testOpenClaudeWithoutPlan() {
+        int taskId = createTaskAndReturnId();
+
+        given()
+                .contentType(ContentType.JSON)
+                .when().post("/tasks/{taskId}/plan/open-claude", taskId)
+                .then()
+                .statusCode(404);
+    }
+
+    @Test
+    void testOpenClaudeWithoutGit() {
+        int taskId = createTaskAndReturnId();
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(planDto(PlanStatus.IN_PROGRESS, "# Plan"))
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(201);
+
+        given()
+                .contentType(ContentType.JSON)
+                .when().post("/tasks/{taskId}/plan/open-claude", taskId)
+                .then()
+                .statusCode(400);
+    }
+
+    @Test
+    void testOpenClaudeSuccess() {
+        int taskId = createTaskAndReturnId();
+        int gitId = createGit("https://github.com/test/worktree-claude");
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(planDto(PlanStatus.IN_PROGRESS, "# Plan", null, (long) gitId))
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(201);
+
+        given()
+                .contentType(ContentType.JSON)
+                .when().post("/tasks/{taskId}/plan/open-claude", taskId)
+                .then()
+                .statusCode(204);
+    }
+
+    @Test
     void testOpenVSCodeForNonExistentTask() {
         given()
                 .contentType(ContentType.JSON)
@@ -780,6 +865,160 @@ class TaskResourceTest {
                 .statusCode(200)
                 .body("git.id", is(gitId2))
                 .body("worktreePath", nullValue());
+    }
+
+    // PATCH plan tests
+
+    @Test
+    void testPatchPlanExecutionPlanOnly() {
+        int taskId = createTaskAndReturnId();
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(planDto(PlanStatus.IN_PROGRESS, "# Draft"))
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(201);
+
+        PlanDto patch = new PlanDto();
+        patch.executionPlan = "# Updated";
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(patch)
+                .when().patch("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(200)
+                .body("executionPlan", is("# Updated"))
+                .body("status", is("IN_PROGRESS"));
+    }
+
+    @Test
+    void testPatchPlanStatusOnly() {
+        int taskId = createTaskAndReturnId();
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(planDto(PlanStatus.IN_PROGRESS, "# Plan"))
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(201);
+
+        PlanDto patch = new PlanDto();
+        patch.status = PlanStatus.APPROVED;
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(patch)
+                .when().patch("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(200)
+                .body("status", is("APPROVED"))
+                .body("executionPlan", is("# Plan"));
+    }
+
+    @Test
+    void testPatchPlanPreservesGitWhenNotSent() {
+        int taskId = createTaskAndReturnId();
+        int gitId = createGit("https://github.com/test/patch-git");
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(planDto(PlanStatus.IN_PROGRESS, "# Plan", null, (long) gitId))
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(201)
+                .body("git.id", is(gitId));
+
+        PlanDto patch = new PlanDto();
+        patch.executionPlan = "# New";
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(patch)
+                .when().patch("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(200)
+                .body("executionPlan", is("# New"))
+                .body("git.id", is(gitId));
+    }
+
+    @Test
+    void testPatchPlanNotFound() {
+        int taskId = createTaskAndReturnId();
+
+        PlanDto patch = new PlanDto();
+        patch.executionPlan = "# New";
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(patch)
+                .when().patch("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(404);
+    }
+
+    @Test
+    void testOpenClaudeGeneratesSessionId() {
+        int taskId = createTaskAndReturnId();
+        int gitId = createGit("https://github.com/test/claude-session");
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(planDto(PlanStatus.IN_PROGRESS, "# Plan", null, (long) gitId))
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(201)
+                .body("claudeSessionId", nullValue());
+
+        given()
+                .contentType(ContentType.JSON)
+                .when().post("/tasks/{taskId}/plan/open-claude", taskId)
+                .then()
+                .statusCode(204);
+
+        given()
+                .when().get("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(200)
+                .body("claudeSessionId", is("test-session-id"));
+    }
+
+    @Test
+    void testUpdatePlanClearsSessionIdOnGitChange() {
+        int taskId = createTaskAndReturnId();
+        int gitId1 = createGit("https://github.com/test/session-clear-1");
+        int gitId2 = createGit("https://github.com/test/session-clear-2");
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(planDto(PlanStatus.IN_PROGRESS, "# Plan", null, (long) gitId1))
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(201);
+
+        // Open Claude to generate session ID
+        given()
+                .contentType(ContentType.JSON)
+                .when().post("/tasks/{taskId}/plan/open-claude", taskId)
+                .then()
+                .statusCode(204);
+
+        given()
+                .when().get("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(200)
+                .body("claudeSessionId", is("test-session-id"));
+
+        // Change git repo — should clear session ID
+        given()
+                .contentType(ContentType.JSON)
+                .body(planDto(PlanStatus.IN_PROGRESS, "# Plan", null, (long) gitId2))
+                .when().put("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(200)
+                .body("git.id", is(gitId2))
+                .body("claudeSessionId", nullValue());
     }
 
     @Test

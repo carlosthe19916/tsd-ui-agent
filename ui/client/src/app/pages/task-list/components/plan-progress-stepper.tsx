@@ -132,6 +132,44 @@ export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
       >
         Git Configuration
       </ProgressStep>
+      <ProgressStep
+        variant={
+          plan.executionPlan && plan.executionPlan.trim().length > 0
+            ? "success"
+            : "pending"
+        }
+        id={`exec-plan-${taskId}`}
+        titleId={`exec-plan-title-${taskId}`}
+        aria-label={`Execution plan step, ${plan.executionPlan && plan.executionPlan.trim().length > 0 ? "completed" : "pending"}`}
+        description={
+          plan.executionPlan && plan.executionPlan.trim().length > 0
+            ? ""
+            : "Not defined"
+        }
+        popoverRender={(stepRef) => (
+          <Popover
+            aria-label="Execution plan details"
+            headerContent={<div>Execution Plan</div>}
+            bodyContent={
+              plan.executionPlan && plan.executionPlan.trim().length > 0 ? (
+                <div>Too long to render here</div>
+              ) : (
+                <div>No execution plan has been defined yet.</div>
+              )
+            }
+            footerContent={
+              <Button variant="link" isInline onClick={() => onEditStep(3)}>
+                {plan.executionPlan && plan.executionPlan.trim().length > 0
+                  ? "Edit execution plan"
+                  : "Add execution plan"}
+              </Button>
+            }
+            triggerRef={stepRef}
+          />
+        )}
+      >
+        Execution Plan
+      </ProgressStep>
     </ProgressStepper>
   );
 };

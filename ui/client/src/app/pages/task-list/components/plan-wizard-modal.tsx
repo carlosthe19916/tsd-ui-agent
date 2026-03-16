@@ -18,6 +18,10 @@ import {
   GitConfigurationStep,
   type GitConfigurationState,
 } from "./git-configuration-step";
+import {
+  ExecutionPlanStep,
+  type ExecutionPlanState,
+} from "./execution-plan-step";
 
 interface PlanWizardModalProps {
   task: TaskDto | null;
@@ -60,7 +64,16 @@ const PlanWizardModalContent: React.FC<{
       isValid: true,
     });
 
-  const isValid = requirementState.isValid && gitConfigState.isValid;
+  const [executionPlanState, setExecutionPlanState] =
+    React.useState<ExecutionPlanState>({
+      executionPlan: task.plan?.executionPlan ?? "",
+      isValid: true,
+    });
+
+  const isValid =
+    requirementState.isValid &&
+    gitConfigState.isValid &&
+    executionPlanState.isValid;
 
   const createMutation = useCreateTaskPlanMutation(onClose);
   const updateMutation = useUpdateTaskPlanMutation(onClose);
@@ -76,6 +89,7 @@ const PlanWizardModalContent: React.FC<{
         plan: {
           ...task.plan,
           requirement: requirementState.requirement,
+          executionPlan: executionPlanState.executionPlan,
           git: gitPayload,
         },
       });
@@ -83,7 +97,7 @@ const PlanWizardModalContent: React.FC<{
       createMutation.mutate({
         taskId: task.id,
         plan: {
-          content: "",
+          executionPlan: executionPlanState.executionPlan,
           git: gitPayload,
           status: "IN_PROGRESS",
           type: "MANUAL",
@@ -125,11 +139,7 @@ const PlanWizardModalContent: React.FC<{
         <WizardStep
           name="Git Configuration"
           id="git-config-step"
-          footer={{
-            nextButtonText: "Save",
-            isNextDisabled: !isValid,
-            onNext: handleSave,
-          }}
+          footer={{ isNextDisabled: !gitConfigState.isValid }}
         >
           <GitConfigurationStep
             initialState={gitConfigState}
@@ -138,6 +148,21 @@ const PlanWizardModalContent: React.FC<{
             originalGitId={
               task.plan?.git?.id ? String(task.plan.git.id) : undefined
             }
+          />
+        </WizardStep>
+        <WizardStep
+          name="Execution Plan"
+          id="execution-plan-step"
+          footer={{
+            nextButtonText: "Save",
+            isNextDisabled: !isValid,
+            onNext: handleSave,
+          }}
+        >
+          <ExecutionPlanStep
+            taskId={task.id}
+            initialState={executionPlanState}
+            onStateChanged={setExecutionPlanState}
           />
         </WizardStep>
       </Wizard>
