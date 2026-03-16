@@ -292,6 +292,52 @@ public class TaskResource {
     }
 
     @POST
+    @Path("/{taskId}/plan/execute")
+    public Response executePlan(@PathParam("taskId") Long taskId) {
+        TaskEntity task = (TaskEntity) TaskEntity.findByIdOptional(taskId)
+                .orElseThrow(NotFoundException::new);
+        if (task.plan == null) {
+            throw new NotFoundException("Task has no plan");
+        }
+        if (task.plan.git == null) {
+            throw new BadRequestException("Plan has no git configuration");
+        }
+        if (task.plan.plan == null || task.plan.plan.isBlank()) {
+            throw new BadRequestException("Plan has no execution plan text");
+        }
+
+        // Concurrency guard: if already in progress, return current state
+        if (task.plan.isExecutionPlanInProgress) {
+            return Response.status(Response.Status.ACCEPTED)
+                    .entity(planMapper.toDto(task.plan))
+                    .build();
+        }
+
+        task.plan.isExecutionPlanInProgress = true;
+        task.plan.executionPlanError = null;
+
+        try {
+            transactionManager.getTransaction().registerSynchronization(new Synchronization() {
+                @Override
+                public void beforeCompletion() {}
+
+                @Override
+                public void afterCompletion(int status) {
+                    if (status == jakarta.transaction.Status.STATUS_COMMITTED) {
+                        planService.triggerPlanExecution(taskId);
+                    }
+                }
+            });
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to register plan execution", e);
+        }
+
+        return Response.status(Response.Status.ACCEPTED)
+                .entity(planMapper.toDto(task.plan))
+                .build();
+    }
+
+    @POST
     @Path("/{taskId}/plan/open-claude")
     public Response openClaude(@PathParam("taskId") Long taskId) {
         TaskEntity task = (TaskEntity) TaskEntity.findByIdOptional(taskId)

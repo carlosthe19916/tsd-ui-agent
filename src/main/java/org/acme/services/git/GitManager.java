@@ -91,7 +91,7 @@ public class GitManager {
         }
     }
 
-    public String addWorktree(String mainClonePath, String alias, String sourceBranch) {
+    public String addWorktree(String mainClonePath, String alias) {
         Path repoRoot = Path.of(mainClonePath).getParent();
         String worktreeDir = repoRoot.resolve("trees").resolve(alias).toString();
 
@@ -99,7 +99,7 @@ public class GitManager {
             template.requestBodyAndHeaders("direct:git-worktree-add", null, Map.of(
                     "workingDir", mainClonePath,
                     "worktreeDir", worktreeDir,
-                    "sourceBranch", sourceBranch
+                    "branchName", alias
             ));
         } catch (GitException e) {
             throw e;

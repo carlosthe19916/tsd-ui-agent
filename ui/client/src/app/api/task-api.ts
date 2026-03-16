@@ -93,6 +93,11 @@ export const openClaude = (taskId: number) =>
     .post<PlanDto>(`${BASE_URL}/${taskId}/plan/open-claude`)
     .then((response) => response.data);
 
+export const executePlan = (taskId: number) =>
+  axios
+    .post<PlanDto>(`${BASE_URL}/${taskId}/plan/execute`)
+    .then((response) => response.data);
+
 export const patchTaskPlan = (taskId: number, plan: Partial<PlanDto>) =>
   axios
     .patch<PlanDto>(`${BASE_URL}/${taskId}/plan`, plan)

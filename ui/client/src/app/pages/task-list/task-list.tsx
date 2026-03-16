@@ -55,6 +55,7 @@ import { FilterToolbar } from "@app/components/FilterToolbar";
 import { SimplePagination } from "@app/components/SimplePagination";
 import {
   useCreateTaskPlanMutation,
+  useExecutePlanMutation,
   useOpenClaudeMutation,
   useOpenTerminalMutation,
   useOpenVSCodeMutation,
@@ -120,6 +121,7 @@ const TaskListContent: React.FC = () => {
   const openVSCodeMutation = useOpenVSCodeMutation();
   const openTerminalMutation = useOpenTerminalMutation();
   const openClaudeMutation = useOpenClaudeMutation();
+  const executePlanMutation = useExecutePlanMutation();
   const patchPlanMutation = usePatchTaskPlanMutation(() =>
     setClearClaudeTask(null),
   );
@@ -262,6 +264,9 @@ const TaskListContent: React.FC = () => {
                                 setWizardTask(task);
                                 setWizardInitialStep(step);
                               }}
+                              onExecute={() =>
+                                executePlanMutation.mutate(task.id)
+                              }
                             />
                           </FlexItem>
                           {task.plan.git && (

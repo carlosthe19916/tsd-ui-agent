@@ -39,8 +39,8 @@ public class GitRoutes extends RouteBuilder {
         from("direct:git-worktree-add")
                 .process(exchange -> {
                     String worktreeDir = exchange.getIn().getHeader("worktreeDir", String.class);
-                    String sourceBranch = exchange.getIn().getHeader("sourceBranch", String.class);
-                    exchange.getIn().setHeader("CamelExecCommandArgs", List.of("worktree", "add", worktreeDir, sourceBranch));
+                    String branchName = exchange.getIn().getHeader("branchName", String.class);
+                    exchange.getIn().setHeader("CamelExecCommandArgs", List.of("worktree", "add", "-b", branchName, worktreeDir));
                     exchange.getIn().setHeader("CamelExecCommandWorkingDir", exchange.getIn().getHeader("workingDir", String.class));
                 })
                 .to("exec:git");

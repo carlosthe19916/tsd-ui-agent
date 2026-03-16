@@ -61,7 +61,7 @@ class TaskResourceTest {
                 .thenReturn("/tmp/tsd-agent-ui-test/repo/default");
         doNothing().when(gitManager).setRemoteUrl(anyString(), anyString());
         doNothing().when(gitManager).addForkRemote(anyString(), anyString());
-        when(gitManager.addWorktree(anyString(), anyString(), anyString()))
+        when(gitManager.addWorktree(anyString(), anyString()))
                 .thenAnswer(invocation -> "/tmp/tsd-agent-ui-test/repo/trees/" + invocation.getArgument(1));
         when(worktreeService.ensureWorktree(any()))
                 .thenReturn("/tmp/tsd-agent-ui-test/repo/trees/plan-worktree");

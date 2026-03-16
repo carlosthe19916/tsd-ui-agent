@@ -22,6 +22,9 @@ public class PlanMapper {
         dto.requirement = entity.requirement;
         dto.isRequirementInProgress = entity.isRequirementInProgress;
         dto.requirementError = entity.requirementError;
+        dto.isExecutionPlanInProgress = entity.isExecutionPlanInProgress;
+        dto.executionPlanError = entity.executionPlanError;
+        dto.executionPlanCompletedAt = entity.executionPlanCompletedAt;
         dto.status = entity.status;
         dto.createdAt = entity.createdAt;
         dto.updatedAt = entity.updatedAt;
