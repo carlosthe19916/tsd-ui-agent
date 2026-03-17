@@ -1,10 +1,16 @@
 import React from "react";
 
 import {
+  ActionList,
+  ActionListGroup,
+  ActionListItem,
+  Button,
   Modal,
   Wizard,
+  WizardFooterWrapper,
   WizardHeader,
   WizardStep,
+  useWizardContext,
 } from "@patternfly/react-core";
 
 import type { GitDto, TaskDto } from "@app/api/models";
@@ -41,6 +47,58 @@ export const PlanWizardModal: React.FC<PlanWizardModalProps> = ({
       onClose={onClose}
       initialStep={initialStep}
     />
+  );
+};
+
+const PlanWizardFooter: React.FC<{
+  isValid: boolean;
+  isSaving: boolean;
+  onSave: () => void;
+}> = ({ isValid, isSaving, onSave }) => {
+  const { activeStep, goToNextStep, goToPrevStep, close, steps } =
+    useWizardContext();
+
+  const isFirstStep = activeStep.index === 1;
+  const isLastStep = activeStep.index === steps.length;
+
+  return (
+    <WizardFooterWrapper>
+      <ActionList>
+        <ActionListGroup>
+          {!isFirstStep && (
+            <ActionListItem>
+              <Button variant="secondary" onClick={goToPrevStep}>
+                Back
+              </Button>
+            </ActionListItem>
+          )}
+          {!isLastStep && (
+            <ActionListItem>
+              <Button variant="secondary" onClick={goToNextStep}>
+                Next
+              </Button>
+            </ActionListItem>
+          )}
+          <ActionListItem>
+            <Button
+              variant="primary"
+              onClick={onSave}
+              isDisabled={!isValid || isSaving}
+              isLoading={isSaving}
+            >
+              Save
+            </Button>
+          </ActionListItem>
+        </ActionListGroup>
+        <ActionListGroup>
+          <ActionListItem>
+            <Button variant="link" onClick={close}>
+              Cancel
+            </Button>
+          </ActionListItem>
+        </ActionListGroup>
+      </ActionList>
+    </WizardFooterWrapper>
   );
 };
 
@@ -100,6 +158,8 @@ const PlanWizardModalContent: React.FC<{
     }
   };
 
+  const isSaving = createMutation.isPending || updateMutation.isPending;
+
   return (
     <Modal
       isOpen
@@ -118,23 +178,22 @@ const PlanWizardModalContent: React.FC<{
           />
         }
         startIndex={initialStep}
+        footer={
+          <PlanWizardFooter
+            isValid={isValid}
+            isSaving={isSaving}
+            onSave={handleSave}
+          />
+        }
       >
-        <WizardStep
-          name="Requirement"
-          id="requirement-step"
-          footer={{ isNextDisabled: !requirementState.isValid }}
-        >
+        <WizardStep name="Requirement" id="requirement-step">
           <RequirementStep
             taskId={task.id}
             initialState={requirementState}
             onStateChanged={setRequirementState}
           />
         </WizardStep>
-        <WizardStep
-          name="Git Configuration"
-          id="git-config-step"
-          footer={{ isNextDisabled: !gitConfigState.isValid }}
-        >
+        <WizardStep name="Git Configuration" id="git-config-step">
           <GitConfigurationStep
             initialState={gitConfigState}
             onStateChanged={setGitConfigState}
@@ -144,15 +203,7 @@ const PlanWizardModalContent: React.FC<{
             }
           />
         </WizardStep>
-        <WizardStep
-          name="Plan"
-          id="execution-plan-step"
-          footer={{
-            nextButtonText: "Save",
-            isNextDisabled: !isValid,
-            onNext: handleSave,
-          }}
-        >
+        <WizardStep name="Plan" id="execution-plan-step">
           <PlanStep
             taskId={task.id}
             initialState={planState}

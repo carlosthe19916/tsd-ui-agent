@@ -189,35 +189,54 @@ public class TaskResource {
             plan.requirement = (task.description != null && !task.description.isBlank()) ? task.description : task.title;
         }
 
-        // Set discovery status based on AI availability
-        if (aiDiscoveryEnabled && task.description != null && !task.description.isBlank()) {
-            plan.isRequirementInProgress = true;
-        }
-
         plan.persist();
         task.plan = plan;
 
-        // Trigger async AI enrichment after transaction commits
-        if (plan.isRequirementInProgress) {
-            try {
-                transactionManager.getTransaction().registerSynchronization(new Synchronization() {
-                    @Override
-                    public void beforeCompletion() {}
-
-                    @Override
-                    public void afterCompletion(int status) {
-                        if (status == jakarta.transaction.Status.STATUS_COMMITTED) {
-                            planService.triggerRequirementEnrichment(taskId);
-                        }
-                    }
-                });
-            } catch (Exception e) {
-                throw new RuntimeException("Failed to register requirement AI enrichment", e);
-            }
-        }
-
         return Response.status(Response.Status.CREATED)
                 .entity(planMapper.toDto(plan))
+                .build();
+    }
+
+    @POST
+    @Path("/{taskId}/plan/enrich-requirement")
+    public Response enrichRequirement(@PathParam("taskId") Long taskId) {
+        TaskEntity task = (TaskEntity) TaskEntity.findByIdOptional(taskId)
+                .orElseThrow(NotFoundException::new);
+        if (task.plan == null) {
+            throw new NotFoundException("Task has no plan");
+        }
+        if (!aiDiscoveryEnabled) {
+            throw new BadRequestException("AI discovery is not enabled");
+        }
+
+        // Concurrency guard
+        if (task.plan.isRequirementInProgress) {
+            return Response.status(Response.Status.ACCEPTED)
+                    .entity(planMapper.toDto(task.plan))
+                    .build();
+        }
+
+        task.plan.isRequirementInProgress = true;
+        task.plan.requirementError = null;
+
+        try {
+            transactionManager.getTransaction().registerSynchronization(new Synchronization() {
+                @Override
+                public void beforeCompletion() {}
+
+                @Override
+                public void afterCompletion(int status) {
+                    if (status == jakarta.transaction.Status.STATUS_COMMITTED) {
+                        planService.triggerRequirementEnrichment(taskId);
+                    }
+                }
+            });
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to register requirement AI enrichment", e);
+        }
+
+        return Response.status(Response.Status.ACCEPTED)
+                .entity(planMapper.toDto(task.plan))
                 .build();
     }
 

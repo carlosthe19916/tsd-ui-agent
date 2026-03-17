@@ -13,6 +13,7 @@ import {
 } from "@patternfly/react-core";
 
 import type { PlanDto } from "@app/api/models";
+import { useEnrichRequirementMutation } from "@app/queries/tasks";
 
 interface PlanProgressStepperProps {
   taskId: number;
@@ -92,6 +93,7 @@ export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
   onExecute,
   onChangeRequest,
 }) => {
+  const enrichMutation = useEnrichRequirementMutation();
   const reqVariant = getRequirementStepVariant(plan);
 
   return (
@@ -109,9 +111,20 @@ export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
             headerContent={<div>Requirement</div>}
             bodyContent={<div>{getRequirementPopupContent(plan)}</div>}
             footerContent={
-              <Button variant="link" isInline onClick={() => onEditStep(1)}>
-                {plan.requirement ? "Edit requirement" : "Add requirement"}
-              </Button>
+              <div style={{ display: "flex", gap: 16 }}>
+                <Button variant="link" isInline onClick={() => onEditStep(1)}>
+                  {plan.requirement ? "Edit requirement" : "Add requirement"}
+                </Button>
+                <Button
+                  variant="link"
+                  isInline
+                  onClick={() => enrichMutation.mutate(taskId)}
+                  isDisabled={plan.isRequirementInProgress}
+                  isLoading={enrichMutation.isPending}
+                >
+                  Enrich with AI
+                </Button>
+              </div>
             }
             triggerRef={stepRef}
           />

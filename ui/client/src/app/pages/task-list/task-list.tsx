@@ -239,7 +239,7 @@ const TaskListContent: React.FC = () => {
                               {task.type === "GITHUB" && "#"}
                               {task.externalId}
                             </a>{" "}
-                            ({task.type})
+                            {task.project.name} ({task.type.toLowerCase()})
                           </small>
                         </FlexItem>
                         <FlexItem>
@@ -468,7 +468,7 @@ const TaskListContent: React.FC = () => {
         isOpen={createPlanTask !== null}
         title="Create plan"
         titleIconVariant="info"
-        message={`Create a new plan for "${createPlanTask?.title}"? This will auto-populate the requirement from the task description and trigger AI enrichment.`}
+        message={`Create a new plan for "${createPlanTask?.title}"? This will auto-populate the requirement from the task description.`}
         confirmBtnLabel="Create"
         cancelBtnLabel="Cancel"
         confirmBtnVariant={ButtonVariant.primary}

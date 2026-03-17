@@ -4,6 +4,7 @@ import type { HubRequestParams, New, PlanDto } from "@app/api/models";
 import {
   createChangeRequest,
   createTaskPlan,
+  enrichRequirement,
   executePlan,
   getTaskPlan,
   getTasks,
@@ -80,6 +81,16 @@ export const useOpenClaudeMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (taskId: number) => openClaude(taskId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [TASK_QUERY_KEY] });
+    },
+  });
+};
+
+export const useEnrichRequirementMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (taskId: number) => enrichRequirement(taskId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [TASK_QUERY_KEY] });
     },

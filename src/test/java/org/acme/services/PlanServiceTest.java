@@ -110,7 +110,7 @@ class PlanServiceTest {
         int projectId = createProjectAndSync(List.of(issue("disc-1", "Discovery task")));
         int taskId = getTaskId(projectId);
 
-        // Create plan — auto-triggers discovery since task has description
+        // Create plan
         PlanDto plan = new PlanDto();
         given()
                 .contentType(ContentType.JSON)
@@ -118,6 +118,13 @@ class PlanServiceTest {
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201)
+                .body("isRequirementInProgress", is(false));
+
+        // Trigger enrichment via separate endpoint
+        given()
+                .when().post("/tasks/{taskId}/plan/enrich-requirement", taskId)
+                .then()
+                .statusCode(202)
                 .body("isRequirementInProgress", is(true));
 
         // Poll for completion
@@ -131,12 +138,10 @@ class PlanServiceTest {
 
     @Test
     void testDiscoveryErrorSetsErrorStatus() {
-        when(aiService.summarize(anyString(), anyString(), anyString(), anyString()))
-                .thenThrow(new RuntimeException("LLM unavailable"));
-
         int projectId = createProjectAndSync(List.of(issue("disc-err-1", "Error task")));
         int taskId = getTaskId(projectId);
 
+        // Create plan first
         PlanDto plan = new PlanDto();
         given()
                 .contentType(ContentType.JSON)
@@ -144,6 +149,16 @@ class PlanServiceTest {
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201)
+                .body("isRequirementInProgress", is(false));
+
+        // Now configure the mock to throw and trigger enrichment
+        when(aiService.summarize(anyString(), anyString(), anyString(), anyString()))
+                .thenThrow(new RuntimeException("LLM unavailable"));
+
+        given()
+                .when().post("/tasks/{taskId}/plan/enrich-requirement", taskId)
+                .then()
+                .statusCode(202)
                 .body("isRequirementInProgress", is(true));
 
         await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
@@ -166,7 +181,7 @@ class PlanServiceTest {
         int projectId = createProjectAndSync(List.of(issue("disc-conf-1", "Conflict task")));
         int taskId = getTaskId(projectId);
 
-        // Create plan — auto-triggers discovery
+        // Create plan
         PlanDto plan = new PlanDto();
         given()
                 .contentType(ContentType.JSON)
@@ -174,6 +189,13 @@ class PlanServiceTest {
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201)
+                .body("isRequirementInProgress", is(false));
+
+        // Trigger enrichment via separate endpoint
+        given()
+                .when().post("/tasks/{taskId}/plan/enrich-requirement", taskId)
+                .then()
+                .statusCode(202)
                 .body("isRequirementInProgress", is(true));
 
         // Verify plan shows IN_PROGRESS while AI is working
