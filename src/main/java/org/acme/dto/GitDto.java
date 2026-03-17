@@ -13,7 +13,5 @@ public class GitDto {
 
     public String forkUrl;
 
-    public String gitToken;
-
-    public Boolean hasGitToken;
+    public CredentialDto credential;
 }

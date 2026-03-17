@@ -453,14 +453,31 @@ class TaskResourceTest {
 
     // Plan requirement & git tests
 
+    private int createCredential(String name) {
+        CredentialDto cred = new CredentialDto();
+        cred.name = name;
+        cred.token = "test-token-" + name;
+        return given()
+                .contentType(ContentType.JSON)
+                .body(cred)
+                .when().post("/credentials")
+                .then()
+                .statusCode(201)
+                .extract().path("id");
+    }
+
     private int createGit(String url) {
         return createGit(url, null);
     }
 
-    private int createGit(String url, String gitToken) {
+    private int createGit(String url, Long credentialId) {
         GitDto gitDto = new GitDto();
         gitDto.url = url;
-        gitDto.gitToken = gitToken;
+        if (credentialId != null) {
+            CredentialDto credDto = new CredentialDto();
+            credDto.id = credentialId;
+            gitDto.credential = credDto;
+        }
         return given()
                 .contentType(ContentType.JSON)
                 .body(gitDto)
@@ -1036,7 +1053,7 @@ class TaskResourceTest {
     }
 
     @Test
-    void testChangeRequestWithoutGitToken() {
+    void testChangeRequestWithoutCredential() {
         int taskId = createTaskAndReturnId();
         int gitId = createGit("https://github.com/test/cr-no-token");
 
@@ -1055,9 +1072,10 @@ class TaskResourceTest {
     }
 
     @Test
-    void testPlanGitHasGitTokenFieldNotRawToken() {
+    void testPlanGitCredentialDoesNotExposeToken() {
+        int credId = createCredential("plan-git-cred");
         int taskId = createTaskAndReturnId();
-        int gitId = createGit("https://github.com/test/token-field", "secret-token");
+        int gitId = createGit("https://github.com/test/token-field", (long) credId);
 
         given()
                 .contentType(ContentType.JSON)
@@ -1065,21 +1083,24 @@ class TaskResourceTest {
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201)
-                .body("git.hasGitToken", is(true))
-                .body("git.gitToken", nullValue());
+                .body("git.credential.id", is(credId))
+                .body("git.credential.name", is("plan-git-cred"))
+                .body("git.credential.token", nullValue());
 
         given()
                 .when().get("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(200)
-                .body("git.hasGitToken", is(true))
-                .body("git.gitToken", nullValue());
+                .body("git.credential.id", is(credId))
+                .body("git.credential.name", is("plan-git-cred"))
+                .body("git.credential.token", nullValue());
     }
 
     @Test
     void testChangeRequestWithoutExecution() {
+        int credId = createCredential("cr-no-exec-cred");
         int taskId = createTaskAndReturnId();
-        int gitId = createGit("https://github.com/test/cr-no-exec", "test-token");
+        int gitId = createGit("https://github.com/test/cr-no-exec", (long) credId);
 
         given()
                 .contentType(ContentType.JSON)

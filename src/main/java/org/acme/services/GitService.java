@@ -3,10 +3,12 @@ package org.acme.services;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
 import org.acme.dto.GitDto;
 import org.acme.mapper.GitMapper;
+import org.acme.models.jpa.entity.CredentialEntity;
 import org.acme.models.jpa.entity.GitEntity;
 import org.acme.services.git.GitManager;
 import org.jboss.logging.Logger;
@@ -27,6 +29,7 @@ public class GitService {
 
     public GitEntity create(GitDto dto) {
         GitEntity entity = gitMapper.toEntity(dto);
+        entity.credential = resolveCredential(dto);
         normalizeBranch(entity);
         checkDuplicate(entity.url, entity.branch, null);
 
@@ -47,6 +50,7 @@ public class GitService {
     public GitEntity update(GitDto dto, GitEntity entity) {
         String oldForkUrl = entity.forkUrl;
         gitMapper.updateEntity(dto, entity);
+        entity.credential = resolveCredential(dto);
         normalizeBranch(entity);
         checkDuplicate(entity.url, entity.branch, entity.id);
 
@@ -66,6 +70,14 @@ public class GitService {
 
         entity.persist();
         return entity;
+    }
+
+    private CredentialEntity resolveCredential(GitDto dto) {
+        if (dto.credential == null || dto.credential.id == null) {
+            return null;
+        }
+        return (CredentialEntity) CredentialEntity.findByIdOptional(dto.credential.id)
+                .orElseThrow(() -> new NotFoundException("Credential not found"));
     }
 
     private void normalizeBranch(GitEntity entity) {

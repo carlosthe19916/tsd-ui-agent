@@ -7,52 +7,88 @@ BASE_URL="${BASE_URL:-http://localhost:8080}"
 : "${GITHUB_PAT:?Environment variable GITHUB_PAT is not set}"
 : "${JIRA_TOKEN:?Environment variable JIRA_TOKEN is not set}"
 
-# Create credential: github
-echo "Creating credential 'github'..."
-GITHUB_CREDENTIAL_ID=$(http --json POST "$BASE_URL/credentials" \
-  name=github token="$GITHUB_PAT" | jq -r '.id')
-echo "Created credential 'github' with id: $GITHUB_CREDENTIAL_ID"
+# Helper functions
 
-# Create credential: jira
-echo "Creating credential 'jira'..."
-JIRA_CREDENTIAL_ID=$(http --json POST "$BASE_URL/credentials" \
-  name=jira token="$JIRA_TOKEN" | jq -r '.id')
-echo "Created credential 'jira' with id: $JIRA_CREDENTIAL_ID"
+create_credential() {
+  local name="$1"
+  local token="$2"
+  echo "Creating credential '$name'..." >&2
+  local id
+  id=$(http --json POST "$BASE_URL/credentials" \
+    name="$name" token="$token" | jq -r '.id')
+  echo "Created credential '$name' with id: $id" >&2
+  echo "$id"
+}
 
-# Create git repository
-echo "Creating git repository..."
-http --json POST "$BASE_URL/gits" \
-  url=git@github.com:carlosthe19916/tsd-ui-agent.git \
-  gitToken=$GITHUB_PAT
-echo "Created git repository"
+create_git() {
+  local url="$1"
+  local credential_id="$2"
+  local fork_url="${3:-}"
+  local repo_name
+  repo_name=$(basename "$url" .git)
+  echo "Creating $repo_name repository..."
+  local args=(url="$url" credential:="{\"id\": $credential_id}")
+  if [[ -n "$fork_url" ]]; then
+    args+=(forkUrl="$fork_url")
+  fi
+  http --json POST "$BASE_URL/gits" "${args[@]}"
+  echo "Created $repo_name repository"
+}
 
-# Create project: tsd-ui-agent (GitHub)
-echo "Creating project 'tsd-ui-agent'..."
-GITHUB_PROJECT_ID=$(http --json POST "$BASE_URL/projects" \
-  name=tsd-ui-agent \
-  type=GITHUB \
-  apiUrl=https://api.github.com/repos/carlosthe19916/tsd-ui-agent \
-  credential:="{\"id\": $GITHUB_CREDENTIAL_ID}" \
-  query="is:issue state:open " | jq -r '.id')
-echo "Created project 'tsd-ui-agent' with id: $GITHUB_PROJECT_ID"
+create_project() {
+  local name="$1"
+  local type="$2"
+  local api_url="$3"
+  local credential_id="$4"
+  local query="$5"
+  echo "Creating project '$name'..." >&2
+  local id
+  id=$(http --json POST "$BASE_URL/projects" \
+    name="$name" type="$type" apiUrl="$api_url" \
+    credential:="{\"id\": $credential_id}" \
+    query="$query" | jq -r '.id')
+  echo "Created project '$name' with id: $id" >&2
+  echo "$id"
+}
 
-# Create project: atlasian-carlosthe19916 (Jira)
-echo "Creating project 'atlasian-carlosthe19916'..."
-JIRA_PROJECT_ID=$(http --json POST "$BASE_URL/projects" \
-  name=atlasian-carlosthe19916 \
-  type=JIRA \
-  apiUrl=https://carlosthe19916-1773473418920.atlassian.net/ \
-  credential:="{\"id\": $JIRA_CREDENTIAL_ID}" \
-  query="project = KAN ORDER BY created DESC" | jq -r '.id')
-echo "Created project 'atlasian-carlosthe19916' with id: $JIRA_PROJECT_ID"
+sync_project() {
+  local name="$1"
+  local project_id="$2"
+  echo "Syncing project '$name'..."
+  http POST "$BASE_URL/projects/$project_id/sync"
+  echo "Synced project '$name'"
+}
+
+# Credentials
+GITHUB_CREDENTIAL_ID=$(create_credential github "$GITHUB_PAT")
+JIRA_CREDENTIAL_ID=$(create_credential jira "$JIRA_TOKEN")
+
+# Git repositories
+create_git git@github.com:carlosthe19916/tsd-ui-agent.git "$GITHUB_CREDENTIAL_ID"
+
+create_git git@github.com:trustificationdemo/trustify.git "$GITHUB_CREDENTIAL_ID" \
+  git@github.com:carlosthe19916/trustify.git
+create_git git@github.com:trustificationdemo/trustify-ui.git "$GITHUB_CREDENTIAL_ID" \
+  git@github.com:carlosthe19916/trustify-ui.git
+
+# Projects
+TSD_UI_AGENT_PROJECT_ID=$(create_project tsd-ui-agent GITHUB \
+  https://api.github.com/repos/carlosthe19916/tsd-ui-agent "$GITHUB_CREDENTIAL_ID" \
+  "is:issue state:open ")
+TRUSTIFY_PROJECT_ID=$(create_project trustify GITHUB \
+  https://api.github.com/repos/trustificationdemo/trustify "$GITHUB_CREDENTIAL_ID" \
+  "is:issue state:open ")
+TRUSTIFY_UI_PROJECT_ID=$(create_project trustify-ui GITHUB \
+  https://api.github.com/repos/trustificationdemo/trustify-ui "$GITHUB_CREDENTIAL_ID" \
+  "is:issue state:open ")
+JIRA_PROJECT_ID=$(create_project atlasian-carlosthe19916 JIRA \
+  https://carlosthe19916-1773473418920.atlassian.net/ "$JIRA_CREDENTIAL_ID" \
+  "project = KAN ORDER BY created DESC")
 
 # Sync projects
-echo "Syncing project 'tsd-ui-agent'..."
-http POST "$BASE_URL/projects/$GITHUB_PROJECT_ID/sync"
-echo "Synced project 'tsd-ui-agent'"
-
-echo "Syncing project 'atlasian-carlosthe19916'..."
-http POST "$BASE_URL/projects/$JIRA_PROJECT_ID/sync"
-echo "Synced project 'atlasian-carlosthe19916'"
+sync_project tsd-ui-agent "$TSD_UI_AGENT_PROJECT_ID"
+sync_project trustify "$TRUSTIFY_PROJECT_ID"
+sync_project trustify-ui "$TRUSTIFY_UI_PROJECT_ID"
+#sync_project atlasian-carlosthe19916 "$JIRA_PROJECT_ID"
 
 echo "Done! Seed data created successfully."

@@ -352,8 +352,8 @@ public class TaskResource {
         if (task.plan.git == null) {
             throw new BadRequestException("Plan has no git configuration");
         }
-        if (task.plan.git.gitToken == null || task.plan.git.gitToken.isBlank()) {
-            throw new BadRequestException("Git configuration has no API token for PR/MR creation");
+        if (task.plan.git.credential == null) {
+            throw new BadRequestException("Git configuration has no credential for PR/MR creation");
         }
         if (task.plan.executionPlanCompletedAt == null) {
             throw new BadRequestException("Plan execution has not completed");

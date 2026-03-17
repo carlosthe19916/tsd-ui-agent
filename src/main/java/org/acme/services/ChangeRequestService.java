@@ -50,6 +50,7 @@ public class ChangeRequestService {
                     String apiUrl, Long planId, String gitToken
             ) {}
 
+
             ChangeRequestContext context = QuarkusTransaction.requiringNew().call(() -> {
                 TaskEntity task = TaskEntity.findById(taskId);
                 if (task == null || task.plan == null || task.plan.git == null) {
@@ -65,7 +66,7 @@ public class ChangeRequestService {
                 String requirement = task.plan.requirement;
                 String apiUrlVal = task.project.apiUrl;
                 Long planId = task.plan.id;
-                String gitToken = task.plan.git.gitToken;
+                String gitToken = task.plan.git.credential != null ? task.plan.git.credential.token : null;
 
                 return new ChangeRequestContext(
                         worktreePath, mainClonePath, gitUrl,

@@ -127,14 +127,31 @@ class ChangeRequestServiceTest {
                 .extract().path("data[0].id");
     }
 
+    private int createCredential(String name) {
+        CredentialDto cred = new CredentialDto();
+        cred.name = name;
+        cred.token = "test-token-" + name;
+        return given()
+                .contentType(ContentType.JSON)
+                .body(cred)
+                .when().post("/credentials")
+                .then()
+                .statusCode(201)
+                .extract().path("id");
+    }
+
     private int createGit(String url) {
         return createGit(url, null);
     }
 
-    private int createGit(String url, String gitToken) {
+    private int createGit(String url, Long credentialId) {
         GitDto gitDto = new GitDto();
         gitDto.url = url;
-        gitDto.gitToken = gitToken;
+        if (credentialId != null) {
+            CredentialDto credDto = new CredentialDto();
+            credDto.id = credentialId;
+            gitDto.credential = credDto;
+        }
         return given()
                 .contentType(ContentType.JSON)
                 .body(gitDto)
@@ -148,7 +165,8 @@ class ChangeRequestServiceTest {
     void testChangeRequestRequiresExecutionCompletion() {
         int projectId = createProjectAndSync(List.of(issue("cr-noexec-1", "CR no exec task")));
         int taskId = getTaskId(projectId);
-        int gitId = createGit("https://github.com/test/cr-noexec", "test-token");
+        int credId = createCredential("cr-noexec-cred");
+        int gitId = createGit("https://github.com/test/cr-noexec", (long) credId);
 
         PlanDto plan = new PlanDto();
         plan.plan = "# Test plan";
@@ -194,7 +212,7 @@ class ChangeRequestServiceTest {
     }
 
     @Test
-    void testChangeRequestRequiresGitToken() {
+    void testChangeRequestRequiresCredential() {
         int projectId = createProjectAndSync(List.of(issue("cr-notoken-1", "CR no token task")));
         int taskId = getTaskId(projectId);
         int gitId = createGit("https://github.com/test/cr-notoken");
