@@ -23,11 +23,11 @@ import org.acme.services.GitService;
 import java.util.List;
 import java.util.stream.Collectors;
 
-@Transactional
 @ApplicationScoped
 @Path("/gits")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
+@Transactional
 public class GitResource {
 
     @Inject
