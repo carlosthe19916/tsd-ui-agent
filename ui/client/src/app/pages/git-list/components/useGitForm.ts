@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useForm } from "react-hook-form";
 
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -12,7 +12,7 @@ export interface GitFormValues {
   url: string;
   branch: string;
   forkUrl: string;
-  gitToken: string;
+  credentialId: string;
 }
 
 const buildSchema = (existingGits: GitDto[], editId: number | undefined) =>
@@ -53,7 +53,7 @@ const buildSchema = (existingGits: GitDto[], editId: number | undefined) =>
           );
         },
       ),
-    gitToken: yup.string().defined().default(""),
+    credentialId: yup.string().defined().default(""),
     forkUrl: yup
       .string()
       .defined()
@@ -74,14 +74,14 @@ const mapGitToFormValues = (git: GitDto | null): GitFormValues => {
       url: "",
       branch: "",
       forkUrl: "",
-      gitToken: "",
+      credentialId: "",
     };
   }
   return {
     url: git.url,
     branch: git.branch ?? "",
     forkUrl: git.forkUrl ?? "",
-    gitToken: "",
+    credentialId: git.credential?.id?.toString() ?? "",
   };
 };
 
@@ -91,7 +91,6 @@ export const useGitForm = (
   onClose: () => void,
 ) => {
   const isEditing = !!git?.id;
-  const [isTokenEnabled, setIsTokenEnabled] = useState(!isEditing);
 
   const { mutateAsync: createGit } = useCreateGitMutation(onClose);
   const { mutateAsync: updateGit } = useUpdateGitMutation(onClose);
@@ -120,13 +119,17 @@ export const useGitForm = (
   };
 
   const onSubmit = form.handleSubmit((values: GitFormValues) => {
+    const credential = values.credentialId
+      ? { id: Number(values.credentialId), name: "" }
+      : undefined;
+
     if (isEditing) {
       const dto: GitDto = {
         id: git.id,
         url: values.url,
         branch: values.branch || undefined,
         forkUrl: values.forkUrl || undefined,
-        gitToken: isTokenEnabled ? values.gitToken || undefined : undefined,
+        credential,
       };
       return updateGit(dto).catch(handleConflictError);
     } else {
@@ -134,7 +137,7 @@ export const useGitForm = (
         url: values.url,
         branch: values.branch || undefined,
         forkUrl: values.forkUrl || undefined,
-        gitToken: values.gitToken || undefined,
+        credential,
       };
       return createGit(dto).catch(handleConflictError);
     }
@@ -143,7 +146,7 @@ export const useGitForm = (
   const isSubmitDisabled =
     !form.formState.isValid ||
     form.formState.isSubmitting ||
-    (!form.formState.isDirty && isEditing && !isTokenEnabled);
+    (!form.formState.isDirty && isEditing);
 
   const isCancelDisabled = form.formState.isSubmitting;
 
@@ -153,7 +156,5 @@ export const useGitForm = (
     isSubmitDisabled,
     isCancelDisabled,
     isEditing,
-    isTokenEnabled,
-    setIsTokenEnabled,
   };
 };

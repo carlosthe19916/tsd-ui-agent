@@ -3,6 +3,7 @@ package org.acme.resources;
 import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
+import org.acme.dto.CredentialDto;
 import org.acme.dto.GitDto;
 import org.acme.services.git.GitManager;
 import org.junit.jupiter.api.BeforeEach;
@@ -11,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doNothing;
@@ -38,6 +40,19 @@ class GitResourceTest {
         doNothing().when(gitManager).deleteClonedDirectory(anyString());
     }
 
+    private int createCredential(String name) {
+        CredentialDto cred = new CredentialDto();
+        cred.name = name;
+        cred.token = "test-token-" + name;
+        return given()
+                .contentType(ContentType.JSON)
+                .body(cred)
+                .when().post("/credentials")
+                .then()
+                .statusCode(201)
+                .extract().path("id");
+    }
+
     private static GitDto git(String url) {
         return git(url, null);
     }
@@ -50,12 +65,16 @@ class GitResourceTest {
         return git(url, branch, forkUrl, null);
     }
 
-    private static GitDto git(String url, String branch, String forkUrl, String gitToken) {
+    private static GitDto git(String url, String branch, String forkUrl, Long credentialId) {
         GitDto dto = new GitDto();
         dto.url = url;
         dto.branch = branch;
         dto.forkUrl = forkUrl;
-        dto.gitToken = gitToken;
+        if (credentialId != null) {
+            CredentialDto cred = new CredentialDto();
+            cred.id = credentialId;
+            dto.credential = cred;
+        }
         return dto;
     }
 
@@ -263,7 +282,7 @@ class GitResourceTest {
                 .then()
                 .statusCode(201)
                 .body("id", notNullValue())
-                .body("forkUrl", org.hamcrest.CoreMatchers.nullValue());
+                .body("forkUrl", nullValue());
     }
 
     @Test
@@ -314,39 +333,54 @@ class GitResourceTest {
                 .when().put("/gits/{id}", id)
                 .then()
                 .statusCode(200)
-                .body("forkUrl", org.hamcrest.CoreMatchers.nullValue());
+                .body("forkUrl", nullValue());
     }
 
     @Test
-    void testCreateGitWithTokenDoesNotExposeToken() {
+    void testCreateGitWithCredential() {
+        int credId = createCredential("git-cred-create");
+
         given()
                 .contentType(ContentType.JSON)
-                .body(git("https://github.com/token/create.git", null, null, "my-secret-token"))
+                .body(git("https://github.com/cred/create.git", null, null, (long) credId))
                 .when().post("/gits")
                 .then()
                 .statusCode(201)
                 .body("id", notNullValue())
-                .body("url", is("https://github.com/token/create.git"))
-                .body("gitToken", org.hamcrest.CoreMatchers.nullValue())
-                .body("hasGitToken", is(true));
+                .body("url", is("https://github.com/cred/create.git"))
+                .body("credential.id", is(credId))
+                .body("credential.name", is("git-cred-create"))
+                .body("credential.token", nullValue());
     }
 
     @Test
-    void testCreateGitWithoutTokenHasGitTokenFalse() {
+    void testCreateGitWithoutCredential() {
         given()
                 .contentType(ContentType.JSON)
-                .body(git("https://github.com/token/notoken.git"))
+                .body(git("https://github.com/cred/notoken.git"))
                 .when().post("/gits")
                 .then()
                 .statusCode(201)
-                .body("hasGitToken", is(false));
+                .body("credential", nullValue());
+    }
+
+    @Test
+    void testCreateGitWithNonExistentCredential() {
+        given()
+                .contentType(ContentType.JSON)
+                .body(git("https://github.com/cred/notfound.git", null, null, 999999L))
+                .when().post("/gits")
+                .then()
+                .statusCode(404);
     }
 
     @Test
     void testGetGitDoesNotExposeToken() {
+        int credId = createCredential("git-cred-get");
+
         int id = given()
                 .contentType(ContentType.JSON)
-                .body(git("https://github.com/token/get.git", null, null, "secret-123"))
+                .body(git("https://github.com/cred/get.git", null, null, (long) credId))
                 .when().post("/gits")
                 .then()
                 .statusCode(201)
@@ -356,56 +390,64 @@ class GitResourceTest {
                 .when().get("/gits/{id}", id)
                 .then()
                 .statusCode(200)
-                .body("gitToken", org.hamcrest.CoreMatchers.nullValue())
-                .body("hasGitToken", is(true));
+                .body("credential.id", is(credId))
+                .body("credential.name", is("git-cred-get"))
+                .body("credential.token", nullValue());
     }
 
     @Test
-    void testUpdateGitPreservesTokenWhenNotSent() {
+    void testUpdateGitCanChangeCredential() {
+        int credId1 = createCredential("git-cred-change-1");
+        int credId2 = createCredential("git-cred-change-2");
+
         int id = given()
                 .contentType(ContentType.JSON)
-                .body(git("https://github.com/token/preserve.git", null, null, "original-token"))
+                .body(git("https://github.com/cred/change.git", null, null, (long) credId1))
                 .when().post("/gits")
                 .then()
                 .statusCode(201)
-                .body("hasGitToken", is(true))
-                .extract().path("id");
-
-        // Update without sending gitToken — should preserve existing token
-        given()
-                .contentType(ContentType.JSON)
-                .body(git("https://github.com/token/preserve.git"))
-                .when().put("/gits/{id}", id)
-                .then()
-                .statusCode(200)
-                .body("hasGitToken", is(true));
-    }
-
-    @Test
-    void testUpdateGitCanChangeToken() {
-        int id = given()
-                .contentType(ContentType.JSON)
-                .body(git("https://github.com/token/change.git", null, null, "old-token"))
-                .when().post("/gits")
-                .then()
-                .statusCode(201)
+                .body("credential.id", is(credId1))
                 .extract().path("id");
 
         given()
                 .contentType(ContentType.JSON)
-                .body(git("https://github.com/token/change.git", null, null, "new-token"))
+                .body(git("https://github.com/cred/change.git", null, null, (long) credId2))
                 .when().put("/gits/{id}", id)
                 .then()
                 .statusCode(200)
-                .body("hasGitToken", is(true))
-                .body("gitToken", org.hamcrest.CoreMatchers.nullValue());
+                .body("credential.id", is(credId2))
+                .body("credential.name", is("git-cred-change-2"));
+    }
+
+    @Test
+    void testUpdateGitCanRemoveCredential() {
+        int credId = createCredential("git-cred-remove");
+
+        int id = given()
+                .contentType(ContentType.JSON)
+                .body(git("https://github.com/cred/remove.git", null, null, (long) credId))
+                .when().post("/gits")
+                .then()
+                .statusCode(201)
+                .body("credential.id", is(credId))
+                .extract().path("id");
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(git("https://github.com/cred/remove.git"))
+                .when().put("/gits/{id}", id)
+                .then()
+                .statusCode(200)
+                .body("credential", nullValue());
     }
 
     @Test
     void testListGitsDoesNotExposeToken() {
+        int credId = createCredential("git-cred-list");
+
         given()
                 .contentType(ContentType.JSON)
-                .body(git("https://github.com/token/list.git", null, null, "list-token"))
+                .body(git("https://github.com/cred/list.git", null, null, (long) credId))
                 .when().post("/gits")
                 .then()
                 .statusCode(201);
@@ -414,8 +456,8 @@ class GitResourceTest {
                 .when().get("/gits")
                 .then()
                 .statusCode(200)
-                .body("find { it.url == 'https://github.com/token/list.git' }.gitToken", org.hamcrest.CoreMatchers.nullValue())
-                .body("find { it.url == 'https://github.com/token/list.git' }.hasGitToken", is(true));
+                .body("find { it.url == 'https://github.com/cred/list.git' }.credential.token", nullValue())
+                .body("find { it.url == 'https://github.com/cred/list.git' }.credential.name", is("git-cred-list"));
     }
 
     @Test

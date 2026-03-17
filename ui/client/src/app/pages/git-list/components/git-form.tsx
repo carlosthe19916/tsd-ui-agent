@@ -1,25 +1,23 @@
 import type React from "react";
 import type { Control } from "react-hook-form";
 
-import { Checkbox, Form } from "@patternfly/react-core";
+import { Form, FormSelect, FormSelectOption } from "@patternfly/react-core";
 
-import { HookFormPFTextInput } from "@app/components/HookFormPFFields";
+import {
+  HookFormPFGroupController,
+  HookFormPFTextInput,
+} from "@app/components/HookFormPFFields";
+import { useFetchCredentials } from "@app/queries/credentials";
 
 import type { GitFormValues } from "./useGitForm";
 
 interface GitFormProps {
   control: Control<GitFormValues>;
-  isEditing: boolean;
-  isTokenEnabled: boolean;
-  onToggleToken: (checked: boolean) => void;
 }
 
-export const GitForm: React.FC<GitFormProps> = ({
-  control,
-  isEditing,
-  isTokenEnabled,
-  onToggleToken,
-}) => {
+export const GitForm: React.FC<GitFormProps> = ({ control }) => {
+  const { data: credentials } = useFetchCredentials();
+
   return (
     <Form>
       <HookFormPFTextInput
@@ -43,23 +41,35 @@ export const GitForm: React.FC<GitFormProps> = ({
         fieldId="forkUrl"
         placeholder="Optional fork remote URL"
       />
-      <HookFormPFTextInput
+      <HookFormPFGroupController
         control={control}
-        name="gitToken"
-        label="API Token"
-        fieldId="gitToken"
-        placeholder="Optional token for PR/MR creation"
-        type="password"
-        isDisabled={isEditing && !isTokenEnabled}
+        name="credentialId"
+        label="Credential"
+        fieldId="credentialId"
+        renderInput={({ field: { onChange, onBlur, value, name, ref } }) => (
+          <FormSelect
+            ref={ref}
+            name={name}
+            id="credentialId"
+            onChange={onChange}
+            onBlur={onBlur}
+            value={value}
+          >
+            <FormSelectOption
+              value=""
+              label="Select a credential"
+              isPlaceholder
+            />
+            {credentials?.map((cred) => (
+              <FormSelectOption
+                key={cred.id}
+                value={String(cred.id)}
+                label={cred.name}
+              />
+            ))}
+          </FormSelect>
+        )}
       />
-      {isEditing && (
-        <Checkbox
-          id="update-token"
-          label="Update token"
-          isChecked={isTokenEnabled}
-          onChange={(_event, checked) => onToggleToken(checked)}
-        />
-      )}
     </Form>
   );
 };

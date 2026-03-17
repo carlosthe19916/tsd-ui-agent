@@ -13,8 +13,7 @@ export interface GitDto {
   url: string;
   branch?: string;
   forkUrl?: string;
-  gitToken?: string;
-  hasGitToken?: boolean;
+  credential?: CredentialDto;
 }
 
 export interface CredentialDto {

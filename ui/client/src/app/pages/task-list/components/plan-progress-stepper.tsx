@@ -155,9 +155,11 @@ export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
                     </DescriptionListGroup>
                   )}
                   <DescriptionListGroup>
-                    <DescriptionListTerm>API Token</DescriptionListTerm>
+                    <DescriptionListTerm>Credential</DescriptionListTerm>
                     <DescriptionListDescription>
-                      {plan.git.hasGitToken ? "Configured" : "Not configured"}
+                      {plan.git.credential
+                        ? plan.git.credential.name
+                        : "Not configured"}
                     </DescriptionListDescription>
                   </DescriptionListGroup>
                 </DescriptionList>
@@ -282,10 +284,10 @@ export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
                     View Pull Request
                   </a>
                 </div>
-              ) : !plan.git?.hasGitToken ? (
+              ) : !plan.git?.credential ? (
                 <div>
-                  API token is not configured in the git settings. A token is
-                  required to create pull/merge requests.
+                  No credential is configured in the git settings. A credential
+                  is required to create pull/merge requests.
                 </div>
               ) : (
                 <div>No pull request has been created yet.</div>
@@ -310,7 +312,7 @@ export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
                   isDisabled={
                     !plan.executionPlanCompletedAt ||
                     plan.isChangeRequestInProgress ||
-                    !plan.git?.hasGitToken
+                    !plan.git?.credential
                   }
                 >
                   Create PR
