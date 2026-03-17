@@ -40,6 +40,12 @@ public class GitEntity extends PanacheEntityBase {
     @Column(name = "local_path")
     public String localPath;
 
+    @Column(name = "is_clone_in_progress")
+    public boolean isCloneInProgress;
+
+    @Column(name = "clone_error")
+    public String cloneError;
+
     @Version
     public int version;
 

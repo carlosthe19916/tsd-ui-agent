@@ -14,4 +14,10 @@ public class GitDto {
     public String forkUrl;
 
     public CredentialDto credential;
+
+    public String localPath;
+
+    public boolean isCloneInProgress;
+
+    public String cloneError;
 }

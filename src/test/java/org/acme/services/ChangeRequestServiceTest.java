@@ -152,13 +152,21 @@ class ChangeRequestServiceTest {
             credDto.id = credentialId;
             gitDto.credential = credDto;
         }
-        return given()
+        int id = given()
                 .contentType(ContentType.JSON)
                 .body(gitDto)
                 .when().post("/gits")
                 .then()
                 .statusCode(201)
                 .extract().path("id");
+        await().atMost(5, TimeUnit.SECONDS).untilAsserted(() ->
+                given()
+                        .when().get("/gits/{id}", id)
+                        .then()
+                        .statusCode(200)
+                        .body("isCloneInProgress", is(false))
+        );
+        return id;
     }
 
     @Test
