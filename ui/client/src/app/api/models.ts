@@ -13,6 +13,8 @@ export interface GitDto {
   url: string;
   branch?: string;
   forkUrl?: string;
+  gitToken?: string;
+  hasGitToken?: boolean;
 }
 
 export interface CredentialDto {
@@ -52,7 +54,6 @@ export interface Label {
 
 export type TaskStatus = "OPEN" | "IN_PROGRESS" | "CLOSED";
 
-export type PlanStatus = "IN_PROGRESS" | "APPROVED";
 export interface PlanDto {
   id: number;
   plan: string;
@@ -63,11 +64,13 @@ export interface PlanDto {
   isExecutionPlanInProgress?: boolean;
   executionPlanError?: string;
   executionPlanCompletedAt?: string;
-  status: PlanStatus;
   createdAt?: string;
   updatedAt?: string;
   worktreePath?: string;
   claudeSessionId?: string;
+  isChangeRequestInProgress?: boolean;
+  changeRequestError?: string;
+  changeRequestUrl?: string;
 }
 
 export interface TaskDto {

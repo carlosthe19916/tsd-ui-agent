@@ -30,6 +30,9 @@ public class GitEntity extends PanacheEntityBase {
     @Column(name = "fork_url")
     public String forkUrl;
 
+    @Column(name = "git_token")
+    public String gitToken;
+
     @Column(name = "local_path")
     public String localPath;
 

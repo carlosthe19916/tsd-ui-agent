@@ -22,7 +22,8 @@ echo "Created credential 'jira' with id: $JIRA_CREDENTIAL_ID"
 # Create git repository
 echo "Creating git repository..."
 http --json POST "$BASE_URL/gits" \
-  url=git@github.com:carlosthe19916/tsd-ui-agent.git
+  url=git@github.com:carlosthe19916/tsd-ui-agent.git \
+  gitToken=$GITHUB_PAT
 echo "Created git repository"
 
 # Create project: tsd-ui-agent (GitHub)

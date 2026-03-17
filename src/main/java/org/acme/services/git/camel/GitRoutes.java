@@ -34,7 +34,7 @@ public class GitRoutes extends RouteBuilder {
                     args.add(localPath);
                     exchange.getIn().setHeader("CamelExecCommandArgs", args);
                 })
-                .to("exec:git");
+                .to("exec:git?exitValues=0");
 
         from("direct:git-worktree-add")
                 .process(exchange -> {
@@ -43,7 +43,7 @@ public class GitRoutes extends RouteBuilder {
                     exchange.getIn().setHeader("CamelExecCommandArgs", List.of("worktree", "add", "-b", branchName, worktreeDir));
                     exchange.getIn().setHeader("CamelExecCommandWorkingDir", exchange.getIn().getHeader("workingDir", String.class));
                 })
-                .to("exec:git");
+                .to("exec:git?exitValues=0");
 
         from("direct:git-remote-set-url")
                 .process(exchange -> {
@@ -51,7 +51,7 @@ public class GitRoutes extends RouteBuilder {
                     exchange.getIn().setHeader("CamelExecCommandArgs", List.of("remote", "set-url", "origin", remotePath));
                     exchange.getIn().setHeader("CamelExecCommandWorkingDir", exchange.getIn().getHeader("workingDir", String.class));
                 })
-                .to("exec:git");
+                .to("exec:git?exitValues=0");
 
         from("direct:git-remote-add-fork")
                 .process(exchange -> {
@@ -59,7 +59,7 @@ public class GitRoutes extends RouteBuilder {
                     exchange.getIn().setHeader("CamelExecCommandArgs", List.of("remote", "add", "fork", remotePath));
                     exchange.getIn().setHeader("CamelExecCommandWorkingDir", exchange.getIn().getHeader("workingDir", String.class));
                 })
-                .to("exec:git");
+                .to("exec:git?exitValues=0");
 
         from("direct:git-remote-set-url-fork")
                 .process(exchange -> {
@@ -67,14 +67,14 @@ public class GitRoutes extends RouteBuilder {
                     exchange.getIn().setHeader("CamelExecCommandArgs", List.of("remote", "set-url", "fork", remotePath));
                     exchange.getIn().setHeader("CamelExecCommandWorkingDir", exchange.getIn().getHeader("workingDir", String.class));
                 })
-                .to("exec:git");
+                .to("exec:git?exitValues=0");
 
         from("direct:git-remote-remove-fork")
                 .process(exchange -> {
                     exchange.getIn().setHeader("CamelExecCommandArgs", List.of("remote", "remove", "fork"));
                     exchange.getIn().setHeader("CamelExecCommandWorkingDir", exchange.getIn().getHeader("workingDir", String.class));
                 })
-                .to("exec:git");
+                .to("exec:git?exitValues=0");
 
         from("direct:git-worktree-remove")
                 .process(exchange -> {
@@ -82,6 +82,47 @@ public class GitRoutes extends RouteBuilder {
                     exchange.getIn().setHeader("CamelExecCommandArgs", List.of("worktree", "remove", worktreeDir));
                     exchange.getIn().setHeader("CamelExecCommandWorkingDir", exchange.getIn().getHeader("workingDir", String.class));
                 })
-                .to("exec:git");
+                .to("exec:git?exitValues=0");
+
+        from("direct:git-add")
+                .process(exchange -> {
+                    exchange.getIn().setHeader("CamelExecCommandArgs", List.of("add", "."));
+                    exchange.getIn().setHeader("CamelExecCommandWorkingDir", exchange.getIn().getHeader("workingDir", String.class));
+                })
+                .to("exec:git?exitValues=0");
+
+        from("direct:git-commit")
+                .process(exchange -> {
+                    String commitMessage = exchange.getIn().getHeader("commitMessage", String.class);
+                    exchange.getIn().setHeader("CamelExecCommandArgs", List.of("commit", "-m", commitMessage));
+                    exchange.getIn().setHeader("CamelExecCommandWorkingDir", exchange.getIn().getHeader("workingDir", String.class));
+                })
+                .to("exec:git?exitValues=0");
+
+        from("direct:git-push")
+                .process(exchange -> {
+                    String remoteName = exchange.getIn().getHeader("remoteName", String.class);
+                    String branchName = exchange.getIn().getHeader("branchName", String.class);
+                    exchange.getIn().setHeader("CamelExecCommandArgs", List.of("push", remoteName, branchName));
+                    exchange.getIn().setHeader("CamelExecCommandWorkingDir", exchange.getIn().getHeader("workingDir", String.class));
+                })
+                .to("exec:git?exitValues=0");
+
+        from("direct:git-push-url")
+                .process(exchange -> {
+                    String url = exchange.getIn().getHeader("pushUrl", String.class);
+                    String refspec = exchange.getIn().getHeader("refspec", String.class);
+                    exchange.getIn().setHeader("CamelExecCommandArgs", List.of("push", url, refspec));
+                    exchange.getIn().setHeader("CamelExecCommandWorkingDir", exchange.getIn().getHeader("workingDir", String.class));
+                })
+                .to("exec:git?exitValues=0");
+
+        from("direct:git-rev-parse")
+                .process(exchange -> {
+                    exchange.getIn().setHeader("CamelExecCommandArgs", List.of("rev-parse", "--abbrev-ref", "HEAD"));
+                    exchange.getIn().setHeader("CamelExecCommandWorkingDir", exchange.getIn().getHeader("workingDir", String.class));
+                })
+                .to("exec:git?exitValues=0")
+                .convertBodyTo(String.class);
     }
 }

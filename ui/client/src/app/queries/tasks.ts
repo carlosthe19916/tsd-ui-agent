@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type { HubRequestParams, New, PlanDto } from "@app/api/models";
 import {
+  createChangeRequest,
   createTaskPlan,
   executePlan,
   getTaskPlan,
@@ -23,7 +24,8 @@ export const useFetchTasks = (params: HubRequestParams) => {
       const hasInProgress = query.state.data?.data?.some(
         (task) =>
           task.plan?.isRequirementInProgress ||
-          task.plan?.isExecutionPlanInProgress,
+          task.plan?.isExecutionPlanInProgress ||
+          task.plan?.isChangeRequestInProgress,
       );
       return hasInProgress ? 3000 : false;
     },
@@ -94,6 +96,16 @@ export const useExecutePlanMutation = () => {
   });
 };
 
+export const useCreateChangeRequestMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (taskId: number) => createChangeRequest(taskId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [TASK_QUERY_KEY] });
+    },
+  });
+};
+
 export const usePatchTaskPlanMutation = (onSuccess?: () => void) => {
   const queryClient = useQueryClient();
   return useMutation({
@@ -118,7 +130,11 @@ export const useFetchTaskPlan = (taskId: number, enabled = true) => {
     enabled,
     refetchInterval: (query) => {
       const data = query.state.data;
-      if (data?.isRequirementInProgress || data?.isExecutionPlanInProgress) {
+      if (
+        data?.isRequirementInProgress ||
+        data?.isExecutionPlanInProgress ||
+        data?.isChangeRequestInProgress
+      ) {
         return 2000;
       }
       return false;

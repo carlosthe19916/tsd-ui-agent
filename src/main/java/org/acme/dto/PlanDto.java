@@ -1,7 +1,5 @@
 package org.acme.dto;
 
-import org.acme.models.jpa.entity.PlanStatus;
-
 import java.time.Instant;
 
 public class PlanDto {
@@ -24,8 +22,6 @@ public class PlanDto {
 
     public Instant executionPlanCompletedAt;
 
-    public PlanStatus status;
-
     public Instant createdAt;
 
     public Instant updatedAt;
@@ -33,4 +29,10 @@ public class PlanDto {
     public String worktreePath;
 
     public String claudeSessionId;
+
+    public boolean isChangeRequestInProgress;
+
+    public String changeRequestError;
+
+    public String changeRequestUrl;
 }

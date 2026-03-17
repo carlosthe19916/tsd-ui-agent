@@ -43,9 +43,9 @@ import CodeIcon from "@patternfly/react-icons/dist/esm/icons/code-icon";
 import EllipsisVIcon from "@patternfly/react-icons/dist/esm/icons/ellipsis-v-icon";
 import InProgressIcon from "@patternfly/react-icons/dist/esm/icons/in-progress-icon";
 import PendingIcon from "@patternfly/react-icons/dist/esm/icons/pending-icon";
+import RobotIcon from "@patternfly/react-icons/dist/esm/icons/robot-icon";
 import SortAmountDownIcon from "@patternfly/react-icons/dist/esm/icons/sort-amount-down-icon";
 import SortAmountUpIcon from "@patternfly/react-icons/dist/esm/icons/sort-amount-up-icon";
-import RobotIcon from "@patternfly/react-icons/dist/esm/icons/robot-icon";
 import TerminalIcon from "@patternfly/react-icons/dist/esm/icons/terminal-icon";
 
 import type { TaskDto, TaskStatus } from "@app/api/models";
@@ -54,13 +54,13 @@ import { ConditionalDataListBody } from "@app/components/DataListControls";
 import { FilterToolbar } from "@app/components/FilterToolbar";
 import { SimplePagination } from "@app/components/SimplePagination";
 import {
+  useCreateChangeRequestMutation,
   useCreateTaskPlanMutation,
   useExecutePlanMutation,
   useOpenClaudeMutation,
   useOpenTerminalMutation,
   useOpenVSCodeMutation,
   usePatchTaskPlanMutation,
-  useUpdateTaskPlanMutation,
 } from "@app/queries/tasks";
 import { formatDateTime } from "@app/utils/utils";
 import { ButtonVariant } from "@patternfly/react-core";
@@ -104,7 +104,6 @@ const TaskListContent: React.FC = () => {
   const [openKebabId, setOpenKebabId] = React.useState<number | null>(null);
   const [wizardTask, setWizardTask] = React.useState<TaskDto | null>(null);
   const [wizardInitialStep, setWizardInitialStep] = React.useState(1);
-  const [approveTask, setApproveTask] = React.useState<TaskDto | null>(null);
   const [createPlanTask, setCreatePlanTask] = React.useState<TaskDto | null>(
     null,
   );
@@ -112,9 +111,6 @@ const TaskListContent: React.FC = () => {
     null,
   );
 
-  const updatePlanMutation = useUpdateTaskPlanMutation(() =>
-    setApproveTask(null),
-  );
   const createPlanMutation = useCreateTaskPlanMutation(() =>
     setCreatePlanTask(null),
   );
@@ -122,6 +118,7 @@ const TaskListContent: React.FC = () => {
   const openTerminalMutation = useOpenTerminalMutation();
   const openClaudeMutation = useOpenClaudeMutation();
   const executePlanMutation = useExecutePlanMutation();
+  const changeRequestMutation = useCreateChangeRequestMutation();
   const patchPlanMutation = usePatchTaskPlanMutation(() =>
     setClearClaudeTask(null),
   );
@@ -250,7 +247,7 @@ const TaskListContent: React.FC = () => {
                         </FlexItem>
                       </Flex>
                     </DataListCell>,
-                    <DataListCell key="plan" width={3}>
+                    <DataListCell key="plan" width={3} isFilled>
                       {task.plan ? (
                         <Flex
                           direction={{ default: "column" }}
@@ -267,95 +264,85 @@ const TaskListContent: React.FC = () => {
                               onExecute={() =>
                                 executePlanMutation.mutate(task.id)
                               }
+                              onChangeRequest={() =>
+                                changeRequestMutation.mutate(task.id)
+                              }
                             />
                           </FlexItem>
-                          {task.plan.git && (
-                            <FlexItem>
-                              <Flex gap={{ default: "gapMd" }}>
-                                <FlexItem>
-                                  <Tooltip content="Open VSCode">
-                                    <Button
-                                      variant="control"
-                                      size="sm"
-                                      onClick={() =>
-                                        openVSCodeMutation.mutate(task.id)
-                                      }
-                                      isLoading={openVSCodeMutation.isPending}
-                                      isDisabled={openVSCodeMutation.isPending}
-                                      icon={<CodeIcon />}
-                                      aria-label="Open VSCode"
-                                    >
-                                      VSCode
-                                    </Button>
-                                  </Tooltip>{" "}
-                                  <Tooltip content="Open Terminal">
-                                    <Button
-                                      variant="control"
-                                      size="sm"
-                                      onClick={() =>
-                                        openTerminalMutation.mutate(task.id)
-                                      }
-                                      isLoading={openTerminalMutation.isPending}
-                                      isDisabled={
-                                        openTerminalMutation.isPending
-                                      }
-                                      icon={<TerminalIcon />}
-                                      aria-label="Open Terminal"
-                                    >
-                                      Terminal
-                                    </Button>
-                                  </Tooltip>
-                                </FlexItem>
-                                <FlexItem>
-                                  <Tooltip content="Open Claude">
-                                    <Button
-                                      variant="control"
-                                      size="sm"
-                                      onClick={() =>
-                                        openClaudeMutation.mutate(task.id)
-                                      }
-                                      isLoading={openClaudeMutation.isPending}
-                                      isDisabled={openClaudeMutation.isPending}
-                                      icon={<RobotIcon />}
-                                      aria-label="Open Claude"
-                                    >
-                                      Claude
-                                    </Button>
-                                  </Tooltip>
-                                  {task.plan.claudeSessionId && (
-                                    <>
-                                      {" "}
-                                      <Tooltip content="Clear Claude session">
-                                        <Button
-                                          variant="control"
-                                          size="sm"
-                                          onClick={() =>
-                                            setClearClaudeTask(task)
-                                          }
-                                          icon={<CloseIcon />}
-                                          aria-label="Clear Claude session"
-                                        ></Button>
-                                      </Tooltip>
-                                    </>
-                                  )}
-                                </FlexItem>
-                              </Flex>
-                            </FlexItem>
-                          )}
                         </Flex>
                       ) : (
                         "No plan"
                       )}
                     </DataListCell>,
-                    <DataListCell key="approve" width={1}>
-                      {task.plan?.status === "IN_PROGRESS" && (
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          onClick={() => setApproveTask(task)}
-                        >
-                          Approve
-                        </Button>
+                    <DataListCell key="outcomes" alignRight>
+                      {task?.plan?.git && (
+                        <FlexItem>
+                          <Flex gap={{ default: "gapMd" }}>
+                            <FlexItem>
+                              <Tooltip content="Open VSCode">
+                                <Button
+                                  variant="control"
+                                  size="sm"
+                                  onClick={() =>
+                                    openVSCodeMutation.mutate(task.id)
+                                  }
+                                  isLoading={openVSCodeMutation.isPending}
+                                  isDisabled={openVSCodeMutation.isPending}
+                                  icon={<CodeIcon />}
+                                  aria-label="Open VSCode"
+                                >
+                                  VSCode
+                                </Button>
+                              </Tooltip>{" "}
+                              <Tooltip content="Open Terminal">
+                                <Button
+                                  variant="control"
+                                  size="sm"
+                                  onClick={() =>
+                                    openTerminalMutation.mutate(task.id)
+                                  }
+                                  isLoading={openTerminalMutation.isPending}
+                                  isDisabled={openTerminalMutation.isPending}
+                                  icon={<TerminalIcon />}
+                                  aria-label="Open Terminal"
+                                >
+                                  Terminal
+                                </Button>
+                              </Tooltip>
+                            </FlexItem>
+                            <FlexItem>
+                              <Tooltip content="Open Claude">
+                                <Button
+                                  variant="control"
+                                  size="sm"
+                                  onClick={() =>
+                                    openClaudeMutation.mutate(task.id)
+                                  }
+                                  isLoading={openClaudeMutation.isPending}
+                                  isDisabled={openClaudeMutation.isPending}
+                                  icon={<RobotIcon />}
+                                  aria-label="Open Claude"
+                                >
+                                  Claude
+                                </Button>
+                              </Tooltip>
+                              {task.plan.claudeSessionId && (
+                                <>
+                                  {" "}
+                                  <Tooltip content="Clear Claude session">
+                                    <Button
+                                      variant="control"
+                                      size="sm"
+                                      onClick={() => setClearClaudeTask(task)}
+                                      icon={<CloseIcon />}
+                                      aria-label="Clear Claude session"
+                                    ></Button>
+                                  </Tooltip>
+                                </>
+                              )}
+                            </FlexItem>
+                          </Flex>
+                        </FlexItem>
                       )}
                     </DataListCell>,
                   ]}
@@ -491,9 +478,7 @@ const TaskListContent: React.FC = () => {
             createPlanMutation.mutate({
               taskId: createPlanTask.id,
               plan: {
-                content: "",
-                status: "IN_PROGRESS",
-                type: "MANUAL",
+                plan: "",
               },
             });
           }
@@ -521,27 +506,6 @@ const TaskListContent: React.FC = () => {
         }}
         onClose={() => setClearClaudeTask(null)}
         onCancel={() => setClearClaudeTask(null)}
-      />
-
-      <ConfirmDialog
-        isOpen={approveTask !== null}
-        title="Approve plan"
-        titleIconVariant="warning"
-        message="Are you sure you want to approve this plan?"
-        confirmBtnLabel="Approve"
-        cancelBtnLabel="Cancel"
-        confirmBtnVariant={ButtonVariant.primary}
-        inProgress={updatePlanMutation.isPending}
-        onConfirm={() => {
-          if (approveTask?.plan) {
-            updatePlanMutation.mutate({
-              taskId: approveTask.id,
-              plan: { ...approveTask.plan, status: "APPROVED" },
-            });
-          }
-        }}
-        onClose={() => setApproveTask(null)}
-        onCancel={() => setApproveTask(null)}
       />
     </>
   );

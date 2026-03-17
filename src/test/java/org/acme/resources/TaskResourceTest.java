@@ -7,7 +7,6 @@ import org.acme.dto.CredentialDto;
 import org.acme.dto.GitDto;
 import org.acme.dto.PlanDto;
 import org.acme.dto.ProjectDto;
-import org.acme.models.jpa.entity.PlanStatus;
 import org.acme.models.jpa.entity.SourceType;
 import org.acme.models.jpa.entity.TaskStatus;
 import org.acme.services.git.GitManager;
@@ -17,6 +16,7 @@ import org.acme.services.sync.SyncManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import org.acme.services.ChangeRequestService;
 import org.acme.services.WorktreeService;
 
 import java.time.Instant;
@@ -50,6 +50,9 @@ class TaskResourceTest {
     @InjectMock
     WorktreeService worktreeService;
 
+    @InjectMock
+    ChangeRequestService changeRequestService;
+
     @BeforeEach
     void setup() {
         when(syncManager.fetchIssues(any())).thenReturn(List.of());
@@ -69,6 +72,11 @@ class TaskResourceTest {
         doNothing().when(worktreeService).openTerminal(anyString());
         when(worktreeService.openClaude(anyString(), any(), anyString(), anyString(), any()))
                 .thenReturn("test-session-id");
+        doNothing().when(gitManager).addAll(anyString());
+        doNothing().when(gitManager).commit(anyString(), anyString());
+        doNothing().when(gitManager).push(anyString(), anyString(), anyString());
+        when(gitManager.getCurrentBranch(anyString())).thenReturn("main");
+        doNothing().when(changeRequestService).triggerChangeRequest(any());
     }
 
     private int createProjectAndSync(SourceType type, List<ExternalIssue> issues) {
@@ -295,9 +303,8 @@ class TaskResourceTest {
 
     // Plan sub-resource tests
 
-    private static PlanDto planDto(PlanStatus status, String plan) {
+    private static PlanDto planDto(String plan) {
         PlanDto dto = new PlanDto();
-        dto.status = status;
         dto.plan = plan;
         return dto;
     }
@@ -306,7 +313,7 @@ class TaskResourceTest {
     void testCreatePlan() {
         int taskId = createTaskAndReturnId();
 
-        PlanDto plan = planDto(PlanStatus.IN_PROGRESS,"# My Plan");
+        PlanDto plan = planDto("# My Plan");
 
         given()
                 .contentType(ContentType.JSON)
@@ -315,7 +322,6 @@ class TaskResourceTest {
                 .then()
                 .statusCode(201)
                 .body("id", notNullValue())
-                .body("status", is("IN_PROGRESS"))
                 .body("plan", is("# My Plan"))
                 .body("createdAt", notNullValue())
                 .body("updatedAt", notNullValue());
@@ -327,7 +333,7 @@ class TaskResourceTest {
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto(PlanStatus.APPROVED,"# Auto Plan"))
+                .body(planDto("# Auto Plan"))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201);
@@ -336,7 +342,6 @@ class TaskResourceTest {
                 .when().get("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(200)
-                .body("status", is("APPROVED"))
                 .body("plan", is("# Auto Plan"));
     }
 
@@ -356,18 +361,17 @@ class TaskResourceTest {
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto(PlanStatus.IN_PROGRESS,"# Draft"))
+                .body(planDto("# Draft"))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201);
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto(PlanStatus.APPROVED,"# Final"))
+                .body(planDto("# Final"))
                 .when().put("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(200)
-                .body("status", is("APPROVED"))
                 .body("plan", is("# Final"));
     }
 
@@ -375,7 +379,7 @@ class TaskResourceTest {
     void testCreateAndUpdatePlan() {
         int taskId = createTaskAndReturnId();
 
-        PlanDto plan = planDto(PlanStatus.IN_PROGRESS, "# Step 1\nDo something");
+        PlanDto plan = planDto("# Step 1\nDo something");
 
         given()
                 .contentType(ContentType.JSON)
@@ -393,7 +397,7 @@ class TaskResourceTest {
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto(PlanStatus.APPROVED, "# Step 1\nUpdated plan"))
+                .body(planDto("# Step 1\nUpdated plan"))
                 .when().put("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(200)
@@ -412,7 +416,7 @@ class TaskResourceTest {
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto(PlanStatus.IN_PROGRESS,"# To delete"))
+                .body(planDto("# To delete"))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201);
@@ -434,14 +438,14 @@ class TaskResourceTest {
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto(PlanStatus.IN_PROGRESS,"# First"))
+                .body(planDto("# First"))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201);
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto(PlanStatus.APPROVED,"# Second"))
+                .body(planDto("# Second"))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(409);
@@ -450,8 +454,13 @@ class TaskResourceTest {
     // Plan requirement & git tests
 
     private int createGit(String url) {
+        return createGit(url, null);
+    }
+
+    private int createGit(String url, String gitToken) {
         GitDto gitDto = new GitDto();
         gitDto.url = url;
+        gitDto.gitToken = gitToken;
         return given()
                 .contentType(ContentType.JSON)
                 .body(gitDto)
@@ -461,9 +470,8 @@ class TaskResourceTest {
                 .extract().path("id");
     }
 
-    private static PlanDto planDto(PlanStatus status, String plan, String requirement, Long gitId) {
+    private static PlanDto planDto(String plan, String requirement, Long gitId) {
         PlanDto dto = new PlanDto();
-        dto.status = status;
         dto.plan = plan;
         dto.requirement = requirement;
         if (gitId != null) {
@@ -478,7 +486,7 @@ class TaskResourceTest {
     void testCreatePlanWithRequirement() {
         int taskId = createTaskAndReturnId();
 
-        PlanDto plan = planDto(PlanStatus.IN_PROGRESS,"# Content", "Must support Java 25", null);
+        PlanDto plan = planDto("# Content", "Must support Java 25", null);
 
         given()
                 .contentType(ContentType.JSON)
@@ -500,7 +508,7 @@ class TaskResourceTest {
         int taskId = createTaskAndReturnId();
         int gitId = createGit("https://github.com/test/plan-git");
 
-        PlanDto plan = planDto(PlanStatus.IN_PROGRESS,"# Content", null, (long) gitId);
+        PlanDto plan = planDto("# Content", null, (long) gitId);
 
         given()
                 .contentType(ContentType.JSON)
@@ -524,7 +532,7 @@ class TaskResourceTest {
         int taskId = createTaskAndReturnId();
         int gitId = createGit("https://github.com/test/plan-both");
 
-        PlanDto plan = planDto(PlanStatus.APPROVED,"# Both", "Requirement text", (long) gitId);
+        PlanDto plan = planDto("# Both", "Requirement text", (long) gitId);
 
         given()
                 .contentType(ContentType.JSON)
@@ -543,14 +551,14 @@ class TaskResourceTest {
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto(PlanStatus.IN_PROGRESS,"# Draft", "Old requirement", null))
+                .body(planDto("# Draft", "Old requirement", null))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201);
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto(PlanStatus.IN_PROGRESS,"# Draft", "New requirement", null))
+                .body(planDto("# Draft", "New requirement", null))
                 .when().put("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(200)
@@ -565,7 +573,7 @@ class TaskResourceTest {
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto(PlanStatus.IN_PROGRESS,"# Plan", null, (long) gitId1))
+                .body(planDto("# Plan", null, (long) gitId1))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201)
@@ -573,7 +581,7 @@ class TaskResourceTest {
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto(PlanStatus.IN_PROGRESS,"# Plan", null, (long) gitId2))
+                .body(planDto("# Plan", null, (long) gitId2))
                 .when().put("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(200)
@@ -588,7 +596,7 @@ class TaskResourceTest {
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto(PlanStatus.IN_PROGRESS,"# Plan", null, (long) gitId))
+                .body(planDto("# Plan", null, (long) gitId))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201)
@@ -596,7 +604,7 @@ class TaskResourceTest {
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto(PlanStatus.IN_PROGRESS,"# Plan", null, null))
+                .body(planDto("# Plan", null, null))
                 .when().put("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(200)
@@ -607,7 +615,7 @@ class TaskResourceTest {
     void testCreatePlanWithInvalidGitId() {
         int taskId = createTaskAndReturnId();
 
-        PlanDto plan = planDto(PlanStatus.IN_PROGRESS,"# Plan", null, 999999L);
+        PlanDto plan = planDto("# Plan", null, 999999L);
 
         given()
                 .contentType(ContentType.JSON)
@@ -635,7 +643,7 @@ class TaskResourceTest {
     void testCreatePlanAutoPopulatesRequirementFromDescription() {
         int taskId = createTaskWithDescriptionAndReturnId("Detailed task description");
 
-        PlanDto plan = planDto(PlanStatus.IN_PROGRESS,"# Content");
+        PlanDto plan = planDto("# Content");
 
         given()
                 .contentType(ContentType.JSON)
@@ -659,7 +667,7 @@ class TaskResourceTest {
     void testCreatePlanAutoPopulatesRequirementFromTitleWhenNoDescription() {
         int taskId = createTaskAndReturnId();
 
-        PlanDto plan = planDto(PlanStatus.IN_PROGRESS,"# Content");
+        PlanDto plan = planDto("# Content");
 
         given()
                 .contentType(ContentType.JSON)
@@ -675,7 +683,7 @@ class TaskResourceTest {
     void testCreatePlanPreservesExplicitRequirement() {
         int taskId = createTaskWithDescriptionAndReturnId("Some description");
 
-        PlanDto plan = planDto(PlanStatus.IN_PROGRESS,"# Content", "My explicit requirement", null);
+        PlanDto plan = planDto("# Content", "My explicit requirement", null);
 
         given()
                 .contentType(ContentType.JSON)
@@ -706,7 +714,7 @@ class TaskResourceTest {
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto(PlanStatus.IN_PROGRESS, "# Plan"))
+                .body(planDto("# Plan"))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201);
@@ -725,7 +733,7 @@ class TaskResourceTest {
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto(PlanStatus.IN_PROGRESS, "# Plan", null, (long) gitId))
+                .body(planDto("# Plan", null, (long) gitId))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201);
@@ -754,7 +762,7 @@ class TaskResourceTest {
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto(PlanStatus.IN_PROGRESS, "# Plan"))
+                .body(planDto("# Plan"))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201);
@@ -773,7 +781,7 @@ class TaskResourceTest {
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto(PlanStatus.IN_PROGRESS, "# Plan", null, (long) gitId))
+                .body(planDto("# Plan", null, (long) gitId))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201);
@@ -802,7 +810,7 @@ class TaskResourceTest {
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto(PlanStatus.IN_PROGRESS, "# Plan"))
+                .body(planDto("# Plan"))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201);
@@ -821,7 +829,7 @@ class TaskResourceTest {
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto(PlanStatus.IN_PROGRESS, "# Plan", null, (long) gitId))
+                .body(planDto("# Plan", null, (long) gitId))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201);
@@ -850,7 +858,7 @@ class TaskResourceTest {
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto(PlanStatus.IN_PROGRESS, "# Plan", null, (long) gitId1))
+                .body(planDto("# Plan", null, (long) gitId1))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201)
@@ -859,7 +867,7 @@ class TaskResourceTest {
         // Change git repo
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto(PlanStatus.IN_PROGRESS, "# Plan", null, (long) gitId2))
+                .body(planDto("# Plan", null, (long) gitId2))
                 .when().put("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(200)
@@ -875,7 +883,7 @@ class TaskResourceTest {
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto(PlanStatus.IN_PROGRESS, "# Draft"))
+                .body(planDto("# Draft"))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201);
@@ -889,32 +897,7 @@ class TaskResourceTest {
                 .when().patch("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(200)
-                .body("plan", is("# Updated"))
-                .body("status", is("IN_PROGRESS"));
-    }
-
-    @Test
-    void testPatchPlanStatusOnly() {
-        int taskId = createTaskAndReturnId();
-
-        given()
-                .contentType(ContentType.JSON)
-                .body(planDto(PlanStatus.IN_PROGRESS, "# Plan"))
-                .when().post("/tasks/{taskId}/plan", taskId)
-                .then()
-                .statusCode(201);
-
-        PlanDto patch = new PlanDto();
-        patch.status = PlanStatus.APPROVED;
-
-        given()
-                .contentType(ContentType.JSON)
-                .body(patch)
-                .when().patch("/tasks/{taskId}/plan", taskId)
-                .then()
-                .statusCode(200)
-                .body("status", is("APPROVED"))
-                .body("plan", is("# Plan"));
+                .body("plan", is("# Updated"));
     }
 
     @Test
@@ -924,7 +907,7 @@ class TaskResourceTest {
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto(PlanStatus.IN_PROGRESS, "# Plan", null, (long) gitId))
+                .body(planDto("# Plan", null, (long) gitId))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201)
@@ -965,7 +948,7 @@ class TaskResourceTest {
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto(PlanStatus.IN_PROGRESS, "# Plan", null, (long) gitId))
+                .body(planDto("# Plan", null, (long) gitId))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201)
@@ -992,7 +975,7 @@ class TaskResourceTest {
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto(PlanStatus.IN_PROGRESS, "# Plan", null, (long) gitId1))
+                .body(planDto("# Plan", null, (long) gitId1))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201);
@@ -1013,12 +996,112 @@ class TaskResourceTest {
         // Change git repo — should clear session ID
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto(PlanStatus.IN_PROGRESS, "# Plan", null, (long) gitId2))
+                .body(planDto("# Plan", null, (long) gitId2))
                 .when().put("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(200)
                 .body("git.id", is(gitId2))
                 .body("claudeSessionId", nullValue());
+    }
+
+    // Change Request endpoint tests
+
+    @Test
+    void testChangeRequestWithoutPlan() {
+        int taskId = createTaskAndReturnId();
+
+        given()
+                .contentType(ContentType.JSON)
+                .when().post("/tasks/{taskId}/plan/change-request", taskId)
+                .then()
+                .statusCode(404);
+    }
+
+    @Test
+    void testChangeRequestWithoutGit() {
+        int taskId = createTaskAndReturnId();
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(planDto("# Plan"))
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(201);
+
+        given()
+                .contentType(ContentType.JSON)
+                .when().post("/tasks/{taskId}/plan/change-request", taskId)
+                .then()
+                .statusCode(400);
+    }
+
+    @Test
+    void testChangeRequestWithoutGitToken() {
+        int taskId = createTaskAndReturnId();
+        int gitId = createGit("https://github.com/test/cr-no-token");
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(planDto("# Plan", null, (long) gitId))
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(201);
+
+        given()
+                .contentType(ContentType.JSON)
+                .when().post("/tasks/{taskId}/plan/change-request", taskId)
+                .then()
+                .statusCode(400);
+    }
+
+    @Test
+    void testPlanGitHasGitTokenFieldNotRawToken() {
+        int taskId = createTaskAndReturnId();
+        int gitId = createGit("https://github.com/test/token-field", "secret-token");
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(planDto("# Plan", null, (long) gitId))
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(201)
+                .body("git.hasGitToken", is(true))
+                .body("git.gitToken", nullValue());
+
+        given()
+                .when().get("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(200)
+                .body("git.hasGitToken", is(true))
+                .body("git.gitToken", nullValue());
+    }
+
+    @Test
+    void testChangeRequestWithoutExecution() {
+        int taskId = createTaskAndReturnId();
+        int gitId = createGit("https://github.com/test/cr-no-exec", "test-token");
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(planDto("# Plan", null, (long) gitId))
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(201);
+
+        given()
+                .contentType(ContentType.JSON)
+                .when().post("/tasks/{taskId}/plan/change-request", taskId)
+                .then()
+                .statusCode(400);
+    }
+
+    @Test
+    void testChangeRequestForNonExistentTask() {
+        given()
+                .contentType(ContentType.JSON)
+                .when().post("/tasks/{taskId}/plan/change-request", 999999)
+                .then()
+                .statusCode(404);
     }
 
     @Test
@@ -1028,7 +1111,7 @@ class TaskResourceTest {
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto(PlanStatus.APPROVED,"# Listed", "List requirement", (long) gitId))
+                .body(planDto("# Listed", "List requirement", (long) gitId))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201);

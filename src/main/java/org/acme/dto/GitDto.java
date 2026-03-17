@@ -12,4 +12,8 @@ public class GitDto {
     public String branch;
 
     public String forkUrl;
+
+    public String gitToken;
+
+    public Boolean hasGitToken;
 }
