@@ -32,6 +32,7 @@ import org.acme.mapper.TaskMapper;
 import org.acme.models.jpa.entity.PlanEntity;
 import org.acme.models.jpa.entity.TaskEntity;
 import org.acme.models.jpa.entity.TaskStatus;
+import org.acme.services.ChangeRequestService;
 import org.acme.services.PlanService;
 import org.acme.services.WorktreeService;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -60,6 +61,9 @@ public class TaskResource {
 
     @Inject
     PlanService planService;
+
+    @Inject
+    ChangeRequestService changeRequestService;
 
     @Inject
     WorktreeService worktreeService;
@@ -330,6 +334,60 @@ public class TaskResource {
             });
         } catch (Exception e) {
             throw new RuntimeException("Failed to register plan execution", e);
+        }
+
+        return Response.status(Response.Status.ACCEPTED)
+                .entity(planMapper.toDto(task.plan))
+                .build();
+    }
+
+    @POST
+    @Path("/{taskId}/plan/change-request")
+    public Response createChangeRequest(@PathParam("taskId") Long taskId) {
+        TaskEntity task = (TaskEntity) TaskEntity.findByIdOptional(taskId)
+                .orElseThrow(NotFoundException::new);
+        if (task.plan == null) {
+            throw new NotFoundException("Task has no plan");
+        }
+        if (task.plan.git == null) {
+            throw new BadRequestException("Plan has no git configuration");
+        }
+        if (task.plan.git.gitToken == null || task.plan.git.gitToken.isBlank()) {
+            throw new BadRequestException("Git configuration has no API token for PR/MR creation");
+        }
+        if (task.plan.executionPlanCompletedAt == null) {
+            throw new BadRequestException("Plan execution has not completed");
+        }
+
+        // If already has a URL, return it
+        if (task.plan.changeRequestUrl != null) {
+            return Response.ok(planMapper.toDto(task.plan)).build();
+        }
+
+        // Concurrency guard
+        if (task.plan.isChangeRequestInProgress) {
+            return Response.status(Response.Status.ACCEPTED)
+                    .entity(planMapper.toDto(task.plan))
+                    .build();
+        }
+
+        task.plan.isChangeRequestInProgress = true;
+        task.plan.changeRequestError = null;
+
+        try {
+            transactionManager.getTransaction().registerSynchronization(new Synchronization() {
+                @Override
+                public void beforeCompletion() {}
+
+                @Override
+                public void afterCompletion(int status) {
+                    if (status == jakarta.transaction.Status.STATUS_COMMITTED) {
+                        changeRequestService.triggerChangeRequest(taskId);
+                    }
+                }
+            });
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to register change request", e);
         }
 
         return Response.status(Response.Status.ACCEPTED)

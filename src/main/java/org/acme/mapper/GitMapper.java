@@ -13,6 +13,7 @@ public class GitMapper {
         dto.url = entity.url;
         dto.branch = entity.branch;
         dto.forkUrl = entity.forkUrl;
+        dto.hasGitToken = entity.gitToken != null && !entity.gitToken.isBlank();
         return dto;
     }
 
@@ -21,6 +22,7 @@ public class GitMapper {
         entity.url = dto.url;
         entity.branch = dto.branch;
         entity.forkUrl = dto.forkUrl;
+        entity.gitToken = dto.gitToken;
         return entity;
     }
 
@@ -28,5 +30,8 @@ public class GitMapper {
         entity.url = dto.url;
         entity.branch = dto.branch;
         entity.forkUrl = dto.forkUrl;
+        if (dto.gitToken != null) {
+            entity.gitToken = dto.gitToken;
+        }
     }
 }

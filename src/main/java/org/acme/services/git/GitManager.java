@@ -161,6 +161,117 @@ public class GitManager {
         }
     }
 
+    public void addAll(String workingDir) {
+        try {
+            template.requestBodyAndHeaders("direct:git-add", null, Map.of(
+                    "workingDir", workingDir
+            ));
+        } catch (GitException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new GitException("Failed to git add: " + e.getMessage(), e);
+        }
+    }
+
+    public void commit(String workingDir, String message) {
+        try {
+            template.requestBodyAndHeaders("direct:git-commit", null, Map.of(
+                    "workingDir", workingDir,
+                    "commitMessage", message
+            ));
+        } catch (GitException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new GitException("Failed to git commit: " + e.getMessage(), e);
+        }
+    }
+
+    public void push(String workingDir, String remoteName, String branchName) {
+        try {
+            template.requestBodyAndHeaders("direct:git-push", null, Map.of(
+                    "workingDir", workingDir,
+                    "remoteName", remoteName,
+                    "branchName", branchName
+            ));
+        } catch (GitException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new GitException("Failed to git push: " + e.getMessage(), e);
+        }
+    }
+
+    public void pushToUrl(String workingDir, String url, String refspec) {
+        try {
+            template.requestBodyAndHeaders("direct:git-push-url", null, Map.of(
+                    "workingDir", workingDir,
+                    "pushUrl", url,
+                    "refspec", refspec
+            ));
+        } catch (GitException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new GitException("Failed to git push to URL: " + e.getMessage(), e);
+        }
+    }
+
+    public static String extractHost(String gitUrl) {
+        // HTTPS: https://github.com/owner/repo.git → github.com
+        var protocolMatcher = PROTOCOL_PREFIX.matcher(gitUrl);
+        if (protocolMatcher.find()) {
+            String withoutProtocol = protocolMatcher.replaceFirst("");
+            int slashIdx = withoutProtocol.indexOf('/');
+            return slashIdx >= 0 ? withoutProtocol.substring(0, slashIdx) : withoutProtocol;
+        }
+        // SSH: git@github.com:owner/repo.git → github.com
+        var sshMatcher = SSH_SHORTHAND.matcher(gitUrl);
+        if (sshMatcher.matches()) {
+            return sshMatcher.group(2);
+        }
+        return gitUrl;
+    }
+
+    public String getCurrentBranch(String workingDir) {
+        try {
+            Object result = template.requestBodyAndHeaders("direct:git-rev-parse", null, Map.of(
+                    "workingDir", workingDir
+            ));
+            return result.toString().trim();
+        } catch (GitException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new GitException("Failed to get current branch: " + e.getMessage(), e);
+        }
+    }
+
+    public static String extractOwnerRepo(String gitUrl) {
+        String result = gitUrl;
+
+        // Strip protocol prefix
+        result = PROTOCOL_PREFIX.matcher(result).replaceFirst("");
+
+        // Normalize SSH shorthand (git@host:path → host/path)
+        var sshMatcher = SSH_SHORTHAND.matcher(result);
+        if (sshMatcher.matches()) {
+            result = sshMatcher.group(2) + "/" + sshMatcher.group(3);
+        }
+
+        // Strip leading slashes
+        result = result.replaceFirst("^/+", "");
+
+        // Strip trailing .git
+        if (result.endsWith(".git")) {
+            result = result.substring(0, result.length() - 4);
+        }
+
+        // Remove host part (e.g. "github.com/owner/repo" → "owner/repo")
+        int firstSlash = result.indexOf('/');
+        if (firstSlash >= 0) {
+            result = result.substring(firstSlash + 1);
+        }
+
+        return result;
+    }
+
     public void deleteClonedDirectory(String localPath) {
         Path repoParentDir = Path.of(localPath).getParent();
         if (repoParentDir == null || !Files.exists(repoParentDir)) {

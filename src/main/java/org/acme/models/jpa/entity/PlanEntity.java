@@ -3,8 +3,6 @@ package org.acme.models.jpa.entity;
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
@@ -12,8 +10,6 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
-import jakarta.validation.constraints.NotNull;
-
 import java.time.Instant;
 import java.util.Objects;
 
@@ -46,11 +42,6 @@ public class PlanEntity extends PanacheEntityBase {
     @Column(name = "execution_plan_completed_at")
     public Instant executionPlanCompletedAt;
 
-    @NotNull
-    @Enumerated(EnumType.STRING)
-    @Column(name = "status")
-    public PlanStatus status = PlanStatus.IN_PROGRESS;
-
     @Column(name = "created_at")
     public Instant createdAt;
 
@@ -66,6 +57,15 @@ public class PlanEntity extends PanacheEntityBase {
 
     @Column(name = "claude_session_id")
     public String claudeSessionId;
+
+    @Column(name = "is_change_request_in_progress")
+    public boolean isChangeRequestInProgress = false;
+
+    @Column(name = "change_request_error", columnDefinition = "TEXT")
+    public String changeRequestError;
+
+    @Column(name = "change_request_url")
+    public String changeRequestUrl;
 
     @Version
     public int version;

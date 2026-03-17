@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -12,6 +12,7 @@ export interface GitFormValues {
   url: string;
   branch: string;
   forkUrl: string;
+  gitToken: string;
 }
 
 const buildSchema = (existingGits: GitDto[], editId: number | undefined) =>
@@ -52,6 +53,7 @@ const buildSchema = (existingGits: GitDto[], editId: number | undefined) =>
           );
         },
       ),
+    gitToken: yup.string().defined().default(""),
     forkUrl: yup
       .string()
       .defined()
@@ -72,12 +74,14 @@ const mapGitToFormValues = (git: GitDto | null): GitFormValues => {
       url: "",
       branch: "",
       forkUrl: "",
+      gitToken: "",
     };
   }
   return {
     url: git.url,
     branch: git.branch ?? "",
     forkUrl: git.forkUrl ?? "",
+    gitToken: "",
   };
 };
 
@@ -87,6 +91,7 @@ export const useGitForm = (
   onClose: () => void,
 ) => {
   const isEditing = !!git?.id;
+  const [isTokenEnabled, setIsTokenEnabled] = useState(!isEditing);
 
   const { mutateAsync: createGit } = useCreateGitMutation(onClose);
   const { mutateAsync: updateGit } = useUpdateGitMutation(onClose);
@@ -121,6 +126,7 @@ export const useGitForm = (
         url: values.url,
         branch: values.branch || undefined,
         forkUrl: values.forkUrl || undefined,
+        gitToken: isTokenEnabled ? values.gitToken || undefined : undefined,
       };
       return updateGit(dto).catch(handleConflictError);
     } else {
@@ -128,6 +134,7 @@ export const useGitForm = (
         url: values.url,
         branch: values.branch || undefined,
         forkUrl: values.forkUrl || undefined,
+        gitToken: values.gitToken || undefined,
       };
       return createGit(dto).catch(handleConflictError);
     }
@@ -136,9 +143,17 @@ export const useGitForm = (
   const isSubmitDisabled =
     !form.formState.isValid ||
     form.formState.isSubmitting ||
-    (!form.formState.isDirty && isEditing);
+    (!form.formState.isDirty && isEditing && !isTokenEnabled);
 
   const isCancelDisabled = form.formState.isSubmitting;
 
-  return { form, onSubmit, isSubmitDisabled, isCancelDisabled, isEditing };
+  return {
+    form,
+    onSubmit,
+    isSubmitDisabled,
+    isCancelDisabled,
+    isEditing,
+    isTokenEnabled,
+    setIsTokenEnabled,
+  };
 };

@@ -47,10 +47,15 @@ class GitResourceTest {
     }
 
     private static GitDto git(String url, String branch, String forkUrl) {
+        return git(url, branch, forkUrl, null);
+    }
+
+    private static GitDto git(String url, String branch, String forkUrl, String gitToken) {
         GitDto dto = new GitDto();
         dto.url = url;
         dto.branch = branch;
         dto.forkUrl = forkUrl;
+        dto.gitToken = gitToken;
         return dto;
     }
 
@@ -310,6 +315,107 @@ class GitResourceTest {
                 .then()
                 .statusCode(200)
                 .body("forkUrl", org.hamcrest.CoreMatchers.nullValue());
+    }
+
+    @Test
+    void testCreateGitWithTokenDoesNotExposeToken() {
+        given()
+                .contentType(ContentType.JSON)
+                .body(git("https://github.com/token/create.git", null, null, "my-secret-token"))
+                .when().post("/gits")
+                .then()
+                .statusCode(201)
+                .body("id", notNullValue())
+                .body("url", is("https://github.com/token/create.git"))
+                .body("gitToken", org.hamcrest.CoreMatchers.nullValue())
+                .body("hasGitToken", is(true));
+    }
+
+    @Test
+    void testCreateGitWithoutTokenHasGitTokenFalse() {
+        given()
+                .contentType(ContentType.JSON)
+                .body(git("https://github.com/token/notoken.git"))
+                .when().post("/gits")
+                .then()
+                .statusCode(201)
+                .body("hasGitToken", is(false));
+    }
+
+    @Test
+    void testGetGitDoesNotExposeToken() {
+        int id = given()
+                .contentType(ContentType.JSON)
+                .body(git("https://github.com/token/get.git", null, null, "secret-123"))
+                .when().post("/gits")
+                .then()
+                .statusCode(201)
+                .extract().path("id");
+
+        given()
+                .when().get("/gits/{id}", id)
+                .then()
+                .statusCode(200)
+                .body("gitToken", org.hamcrest.CoreMatchers.nullValue())
+                .body("hasGitToken", is(true));
+    }
+
+    @Test
+    void testUpdateGitPreservesTokenWhenNotSent() {
+        int id = given()
+                .contentType(ContentType.JSON)
+                .body(git("https://github.com/token/preserve.git", null, null, "original-token"))
+                .when().post("/gits")
+                .then()
+                .statusCode(201)
+                .body("hasGitToken", is(true))
+                .extract().path("id");
+
+        // Update without sending gitToken — should preserve existing token
+        given()
+                .contentType(ContentType.JSON)
+                .body(git("https://github.com/token/preserve.git"))
+                .when().put("/gits/{id}", id)
+                .then()
+                .statusCode(200)
+                .body("hasGitToken", is(true));
+    }
+
+    @Test
+    void testUpdateGitCanChangeToken() {
+        int id = given()
+                .contentType(ContentType.JSON)
+                .body(git("https://github.com/token/change.git", null, null, "old-token"))
+                .when().post("/gits")
+                .then()
+                .statusCode(201)
+                .extract().path("id");
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(git("https://github.com/token/change.git", null, null, "new-token"))
+                .when().put("/gits/{id}", id)
+                .then()
+                .statusCode(200)
+                .body("hasGitToken", is(true))
+                .body("gitToken", org.hamcrest.CoreMatchers.nullValue());
+    }
+
+    @Test
+    void testListGitsDoesNotExposeToken() {
+        given()
+                .contentType(ContentType.JSON)
+                .body(git("https://github.com/token/list.git", null, null, "list-token"))
+                .when().post("/gits")
+                .then()
+                .statusCode(201);
+
+        given()
+                .when().get("/gits")
+                .then()
+                .statusCode(200)
+                .body("find { it.url == 'https://github.com/token/list.git' }.gitToken", org.hamcrest.CoreMatchers.nullValue())
+                .body("find { it.url == 'https://github.com/token/list.git' }.hasGitToken", is(true));
     }
 
     @Test

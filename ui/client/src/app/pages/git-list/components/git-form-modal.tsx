@@ -80,8 +80,15 @@ const GitFormModalForm: React.FC<GitFormModalFormProps> = ({
   existingGits,
   onClose,
 }) => {
-  const { form, onSubmit, isSubmitDisabled, isCancelDisabled, isEditing } =
-    useGitForm(git, existingGits, onClose);
+  const {
+    form,
+    onSubmit,
+    isSubmitDisabled,
+    isCancelDisabled,
+    isEditing,
+    isTokenEnabled,
+    setIsTokenEnabled,
+  } = useGitForm(git, existingGits, onClose);
 
   return (
     <Modal
@@ -94,7 +101,12 @@ const GitFormModalForm: React.FC<GitFormModalFormProps> = ({
         title={isEditing ? "Edit git repository" : "Create git repository"}
       />
       <ModalBody>
-        <GitForm control={form.control} />
+        <GitForm
+          control={form.control}
+          isEditing={isEditing}
+          isTokenEnabled={isTokenEnabled}
+          onToggleToken={setIsTokenEnabled}
+        />
       </ModalBody>
       <ModalFooter>
         <Button

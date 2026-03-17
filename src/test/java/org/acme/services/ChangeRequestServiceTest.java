@@ -4,11 +4,13 @@ import io.quarkus.test.InjectMock;
 import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
 import org.acme.dto.CredentialDto;
+import org.acme.dto.GitDto;
 import org.acme.dto.PlanDto;
 import org.acme.dto.ProjectDto;
 import org.acme.models.jpa.entity.SourceType;
 import org.acme.models.jpa.entity.TaskStatus;
 import org.acme.services.ai.RequirementSummarizerService;
+import org.acme.services.git.GitManager;
 import org.acme.services.sync.ExternalIssue;
 import org.acme.services.sync.SyncManager;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,19 +23,28 @@ import java.util.concurrent.TimeUnit;
 import static io.restassured.RestAssured.given;
 import static org.awaitility.Awaitility.await;
 import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
 
 @QuarkusTest
-class PlanServiceTest {
+class ChangeRequestServiceTest {
 
     @InjectMock
     SyncManager syncManager;
 
     @InjectMock
     RequirementSummarizerService aiService;
+
+    @InjectMock
+    GitManager gitManager;
+
+    @InjectMock
+    WorktreeService worktreeService;
+
+    @InjectMock
+    ChangeRequestService changeRequestService;
 
     @BeforeEach
     void setup() {
@@ -42,13 +53,24 @@ class PlanServiceTest {
         when(syncManager.fetchLabels(any())).thenReturn(List.of());
         when(aiService.summarize(anyString(), anyString(), anyString(), anyString()))
                 .thenReturn("## Summary\nDefault test requirement");
+        when(gitManager.cloneRepository(anyString(), anyString()))
+                .thenReturn("/tmp/tsd-agent-ui-test/repo/default");
+        when(gitManager.cloneRepository(anyString(), org.mockito.ArgumentMatchers.isNull()))
+                .thenReturn("/tmp/tsd-agent-ui-test/repo/default");
+        doNothing().when(gitManager).setRemoteUrl(anyString(), anyString());
+        doNothing().when(gitManager).addForkRemote(anyString(), anyString());
+        when(gitManager.addWorktree(anyString(), anyString()))
+                .thenAnswer(invocation -> "/tmp/tsd-agent-ui-test/repo/trees/" + invocation.getArgument(1));
+        when(worktreeService.ensureWorktree(any()))
+                .thenReturn("/tmp/tsd-agent-ui-test/repo/trees/plan-worktree");
+        doNothing().when(changeRequestService).triggerChangeRequest(any());
     }
 
     private int createProjectAndSync(List<ExternalIssue> issues) {
         when(syncManager.fetchIssues(any())).thenReturn(issues);
 
         CredentialDto cred = new CredentialDto();
-        cred.name = "disc-cred-" + System.nanoTime();
+        cred.name = "cr-cred-" + System.nanoTime();
         cred.token = "test-token";
 
         int credId = given()
@@ -60,7 +82,7 @@ class PlanServiceTest {
                 .extract().path("id");
 
         ProjectDto dto = new ProjectDto();
-        dto.name = "disc-project-" + System.nanoTime();
+        dto.name = "cr-project-" + System.nanoTime();
         dto.apiUrl = "https://github.com/owner/repo";
         dto.type = SourceType.GITHUB;
         CredentialDto credDto = new CredentialDto();
@@ -105,81 +127,108 @@ class PlanServiceTest {
                 .extract().path("data[0].id");
     }
 
-    @Test
-    void testDiscoveryCompletesSuccessfully() {
-        int projectId = createProjectAndSync(List.of(issue("disc-1", "Discovery task")));
-        int taskId = getTaskId(projectId);
+    private int createGit(String url) {
+        return createGit(url, null);
+    }
 
-        // Create plan — auto-triggers discovery since task has description
-        PlanDto plan = new PlanDto();
-        given()
+    private int createGit(String url, String gitToken) {
+        GitDto gitDto = new GitDto();
+        gitDto.url = url;
+        gitDto.gitToken = gitToken;
+        return given()
                 .contentType(ContentType.JSON)
-                .body(plan)
-                .when().post("/tasks/{taskId}/plan", taskId)
+                .body(gitDto)
+                .when().post("/gits")
                 .then()
                 .statusCode(201)
-                .body("isRequirementInProgress", is(true));
-
-        // Poll for completion
-        await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                given()
-                        .when().get("/tasks/{taskId}/plan", taskId)
-                        .then()
-                        .body("isRequirementInProgress", is(false))
-                        .body("requirement", is("## Summary\nDefault test requirement")));
+                .extract().path("id");
     }
 
     @Test
-    void testDiscoveryErrorSetsErrorStatus() {
-        when(aiService.summarize(anyString(), anyString(), anyString(), anyString()))
-                .thenThrow(new RuntimeException("LLM unavailable"));
-
-        int projectId = createProjectAndSync(List.of(issue("disc-err-1", "Error task")));
+    void testChangeRequestRequiresExecutionCompletion() {
+        int projectId = createProjectAndSync(List.of(issue("cr-noexec-1", "CR no exec task")));
         int taskId = getTaskId(projectId);
+        int gitId = createGit("https://github.com/test/cr-noexec", "test-token");
 
         PlanDto plan = new PlanDto();
+        plan.plan = "# Test plan";
+        GitDto git = new GitDto();
+        git.id = (long) gitId;
+        plan.git = git;
+
         given()
                 .contentType(ContentType.JSON)
                 .body(plan)
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
-                .statusCode(201)
-                .body("isRequirementInProgress", is(true));
+                .statusCode(201);
 
-        await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
-                given()
-                        .when().get("/tasks/{taskId}/plan", taskId)
-                        .then()
-                        .body("isRequirementInProgress", is(false))
-                        .body("requirementError", notNullValue()));
+        // Change request should fail because execution hasn't completed
+        given()
+                .contentType(ContentType.JSON)
+                .when().post("/tasks/{taskId}/plan/change-request", taskId)
+                .then()
+                .statusCode(400);
     }
 
     @Test
-    void testDiscoveryInProgressOnPlanCreation() {
-        // Make AI service block to keep discovery in progress
-        when(aiService.summarize(anyString(), anyString(), anyString(), anyString()))
-                .thenAnswer(invocation -> {
-                    Thread.sleep(3000);
-                    return "## Summary\nDelayed";
-                });
-
-        int projectId = createProjectAndSync(List.of(issue("disc-conf-1", "Conflict task")));
+    void testChangeRequestRequiresGit() {
+        int projectId = createProjectAndSync(List.of(issue("cr-nogit-1", "CR no git task")));
         int taskId = getTaskId(projectId);
 
-        // Create plan — auto-triggers discovery
         PlanDto plan = new PlanDto();
+        plan.plan = "# Test plan";
+
         given()
                 .contentType(ContentType.JSON)
                 .body(plan)
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
-                .statusCode(201)
-                .body("isRequirementInProgress", is(true));
+                .statusCode(201);
 
-        // Verify plan shows IN_PROGRESS while AI is working
         given()
-                .when().get("/tasks/{taskId}/plan", taskId)
+                .contentType(ContentType.JSON)
+                .when().post("/tasks/{taskId}/plan/change-request", taskId)
                 .then()
-                .body("isRequirementInProgress", is(true));
+                .statusCode(400);
+    }
+
+    @Test
+    void testChangeRequestRequiresGitToken() {
+        int projectId = createProjectAndSync(List.of(issue("cr-notoken-1", "CR no token task")));
+        int taskId = getTaskId(projectId);
+        int gitId = createGit("https://github.com/test/cr-notoken");
+
+        PlanDto plan = new PlanDto();
+        plan.plan = "# Test plan";
+        GitDto git = new GitDto();
+        git.id = (long) gitId;
+        plan.git = git;
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(plan)
+                .when().post("/tasks/{taskId}/plan", taskId)
+                .then()
+                .statusCode(201);
+
+        // Change request should fail because git has no token
+        given()
+                .contentType(ContentType.JSON)
+                .when().post("/tasks/{taskId}/plan/change-request", taskId)
+                .then()
+                .statusCode(400);
+    }
+
+    @Test
+    void testChangeRequestRequiresPlan() {
+        int projectId = createProjectAndSync(List.of(issue("cr-noplan-1", "CR no plan task")));
+        int taskId = getTaskId(projectId);
+
+        given()
+                .contentType(ContentType.JSON)
+                .when().post("/tasks/{taskId}/plan/change-request", taskId)
+                .then()
+                .statusCode(404);
     }
 }

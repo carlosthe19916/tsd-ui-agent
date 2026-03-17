@@ -19,6 +19,7 @@ interface PlanProgressStepperProps {
   plan: PlanDto;
   onEditStep: (step: number) => void;
   onExecute?: () => void;
+  onChangeRequest?: () => void;
 }
 
 const getRequirementStepVariant = (plan: PlanDto) => {
@@ -57,6 +58,23 @@ const getExecutionStepVariant = (plan: PlanDto) => {
   return "pending";
 };
 
+const getChangeRequestStepVariant = (plan: PlanDto) => {
+  if (plan.isChangeRequestInProgress) return "info";
+  if (plan.changeRequestError) return "danger";
+  if (plan.changeRequestUrl) return "success";
+  return "pending";
+};
+
+const getChangeRequestDescription = (plan: PlanDto) => {
+  if (plan.isChangeRequestInProgress) return "Creating PR...";
+  if (plan.changeRequestError) {
+    const err = plan.changeRequestError;
+    return err.length > 40 ? `${err.substring(0, 40)}\u2026` : err;
+  }
+  if (plan.changeRequestUrl) return "PR created";
+  return "Not created";
+};
+
 const getExecutionDescription = (plan: PlanDto) => {
   if (plan.isExecutionPlanInProgress) return "Executing...";
   if (plan.executionPlanError) {
@@ -72,6 +90,7 @@ export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
   plan,
   onEditStep,
   onExecute,
+  onChangeRequest,
 }) => {
   const reqVariant = getRequirementStepVariant(plan);
 
@@ -135,6 +154,12 @@ export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
                       </DescriptionListDescription>
                     </DescriptionListGroup>
                   )}
+                  <DescriptionListGroup>
+                    <DescriptionListTerm>API Token</DescriptionListTerm>
+                    <DescriptionListDescription>
+                      {plan.git.hasGitToken ? "Configured" : "Not configured"}
+                    </DescriptionListDescription>
+                  </DescriptionListGroup>
                 </DescriptionList>
               ) : (
                 <div>No git repository has been configured yet.</div>
@@ -228,6 +253,75 @@ export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
         )}
       >
         Execution
+      </ProgressStep>
+      <ProgressStep
+        variant={getChangeRequestStepVariant(plan)}
+        icon={
+          plan.isChangeRequestInProgress ? <Spinner size="sm" /> : undefined
+        }
+        id={`change-request-${taskId}`}
+        titleId={`change-request-title-${taskId}`}
+        aria-label={`Change request step, ${getChangeRequestStepVariant(plan)}`}
+        description={getChangeRequestDescription(plan)}
+        popoverRender={(stepRef) => (
+          <Popover
+            aria-label="Change request details"
+            headerContent={<div>Change Request</div>}
+            bodyContent={
+              plan.changeRequestError ? (
+                <div>{plan.changeRequestError}</div>
+              ) : plan.isChangeRequestInProgress ? (
+                <div>Creating pull request...</div>
+              ) : plan.changeRequestUrl ? (
+                <div>
+                  <a
+                    href={plan.changeRequestUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    View Pull Request
+                  </a>
+                </div>
+              ) : !plan.git?.hasGitToken ? (
+                <div>
+                  API token is not configured in the git settings. A token is
+                  required to create pull/merge requests.
+                </div>
+              ) : (
+                <div>No pull request has been created yet.</div>
+              )
+            }
+            footerContent={
+              plan.changeRequestUrl ? (
+                <Button
+                  variant="link"
+                  isInline
+                  component="a"
+                  href={plan.changeRequestUrl}
+                  target="_blank"
+                >
+                  Open PR
+                </Button>
+              ) : (
+                <Button
+                  variant="link"
+                  isInline
+                  onClick={() => onChangeRequest?.()}
+                  isDisabled={
+                    !plan.executionPlanCompletedAt ||
+                    plan.isChangeRequestInProgress ||
+                    !plan.git?.hasGitToken
+                  }
+                >
+                  Create PR
+                </Button>
+              )
+            }
+            triggerRef={stepRef}
+          />
+        )}
+      >
+        Change Request
       </ProgressStep>
     </ProgressStepper>
   );
