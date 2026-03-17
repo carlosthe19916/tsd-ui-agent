@@ -63,7 +63,10 @@ public class SyncManager {
             // Extract owner/repo/issue from URL like https://github.com/owner/repo/issues/123
             URI uri = URI.create(task.project.apiUrl);
             String apiBase = uri.getScheme() + "://" + uri.getAuthority();
-            headers.put("apiUrl", apiBase.replace("github.com", "api.github.com"));
+            if (!uri.getAuthority().startsWith("api.")) {
+                apiBase = apiBase.replace("github.com", "api.github.com");
+            }
+            headers.put("apiUrl", apiBase);
             String[] urlParts = task.url.replaceFirst("https?://[^/]+/", "").split("/");
             headers.put("owner", urlParts.length > 0 ? urlParts[0] : "");
             headers.put("repo", urlParts.length > 1 ? urlParts[1] : "");
@@ -91,7 +94,10 @@ public class SyncManager {
         if (task.type == SourceType.GITHUB) {
             URI uri = URI.create(task.project.apiUrl);
             String apiBase = uri.getScheme() + "://" + uri.getAuthority();
-            headers.put("apiUrl", apiBase.replace("github.com", "api.github.com"));
+            if (!uri.getAuthority().startsWith("api.")) {
+                apiBase = apiBase.replace("github.com", "api.github.com");
+            }
+            headers.put("apiUrl", apiBase);
             String[] urlParts = task.url.replaceFirst("https?://[^/]+/", "").split("/");
             headers.put("owner", urlParts.length > 0 ? urlParts[0] : "");
             headers.put("repo", urlParts.length > 1 ? urlParts[1] : "");

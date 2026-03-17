@@ -103,6 +103,11 @@ export const createChangeRequest = (taskId: number) =>
     .post<PlanDto>(`${BASE_URL}/${taskId}/plan/change-request`)
     .then((response) => response.data);
 
+export const enrichRequirement = (taskId: number) =>
+  axios
+    .post<PlanDto>(`${BASE_URL}/${taskId}/plan/enrich-requirement`)
+    .then((response) => response.data);
+
 export const patchTaskPlan = (taskId: number, plan: Partial<PlanDto>) =>
   axios
     .patch<PlanDto>(`${BASE_URL}/${taskId}/plan`, plan)

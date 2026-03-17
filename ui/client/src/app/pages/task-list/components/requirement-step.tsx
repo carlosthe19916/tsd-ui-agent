@@ -32,7 +32,10 @@ import EyeIcon from "@patternfly/react-icons/dist/esm/icons/eye-icon";
 import RobotIcon from "@patternfly/react-icons/dist/esm/icons/robot-icon";
 
 import { ThemeContext } from "@app/components/ThemeContext";
-import { useFetchTaskPlan } from "@app/queries/tasks";
+import {
+  useEnrichRequirementMutation,
+  useFetchTaskPlan,
+} from "@app/queries/tasks";
 import { RequirementChatbot } from "./requirement-chatbot";
 import { useFormChangeHandler } from "@app/hooks/useFormChangeHandler";
 
@@ -76,6 +79,7 @@ export const RequirementStep: React.FC<RequirementStepProps> = ({
   const requirement = form.watch("requirement");
 
   const { data: planData } = useFetchTaskPlan(taskId);
+  const enrichMutation = useEnrichRequirementMutation();
 
   const isDiscovering = planData?.isRequirementInProgress;
 
@@ -138,6 +142,17 @@ export const RequirementStep: React.FC<RequirementStepProps> = ({
                   </ToggleGroup>
                 </ToolbarItem>
                 <ToolbarItem align={{ default: "alignEnd" }}>
+                  <Button
+                    variant="secondary"
+                    icon={<RobotIcon />}
+                    onClick={() => enrichMutation.mutate(taskId)}
+                    isDisabled={isDiscovering}
+                    isLoading={enrichMutation.isPending}
+                  >
+                    Enrich with AI
+                  </Button>
+                </ToolbarItem>
+                <ToolbarItem>
                   <Button
                     variant={isChatbotOpen ? "primary" : "secondary"}
                     icon={<RobotIcon />}
