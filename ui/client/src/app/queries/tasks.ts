@@ -6,6 +6,7 @@ import {
   createTaskPlan,
   enrichRequirement,
   executePlan,
+  generatePlan,
   getTaskPlan,
   getTasks,
   openClaude,
@@ -25,6 +26,7 @@ export const useFetchTasks = (params: HubRequestParams) => {
       const hasInProgress = query.state.data?.data?.some(
         (task) =>
           task.plan?.isRequirementInProgress ||
+          task.plan?.isPlanGenerationInProgress ||
           task.plan?.isExecutionPlanInProgress ||
           task.plan?.isChangeRequestInProgress,
       );
@@ -87,6 +89,16 @@ export const useOpenClaudeMutation = () => {
   });
 };
 
+export const useGeneratePlanMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (taskId: number) => generatePlan(taskId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [TASK_QUERY_KEY] });
+    },
+  });
+};
+
 export const useEnrichRequirementMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
@@ -143,6 +155,7 @@ export const useFetchTaskPlan = (taskId: number, enabled = true) => {
       const data = query.state.data;
       if (
         data?.isRequirementInProgress ||
+        data?.isPlanGenerationInProgress ||
         data?.isExecutionPlanInProgress ||
         data?.isChangeRequestInProgress
       ) {

@@ -315,6 +315,55 @@ public class TaskResource {
     }
 
     @POST
+    @Path("/{taskId}/plan/generate-plan")
+    public Response generatePlan(@PathParam("taskId") Long taskId) {
+        TaskEntity task = (TaskEntity) TaskEntity.findByIdOptional(taskId)
+                .orElseThrow(NotFoundException::new);
+        if (task.plan == null) {
+            throw new NotFoundException("Task has no plan");
+        }
+        if (!aiDiscoveryEnabled) {
+            throw new BadRequestException("AI discovery is not enabled");
+        }
+        if (task.plan.git == null) {
+            throw new BadRequestException("Plan has no git configuration");
+        }
+        if (task.plan.requirement == null || task.plan.requirement.isBlank()) {
+            throw new BadRequestException("Plan has no requirement");
+        }
+
+        // Concurrency guard
+        if (task.plan.isPlanGenerationInProgress) {
+            return Response.status(Response.Status.ACCEPTED)
+                    .entity(planMapper.toDto(task.plan))
+                    .build();
+        }
+
+        task.plan.isPlanGenerationInProgress = true;
+        task.plan.planGenerationError = null;
+
+        try {
+            transactionManager.getTransaction().registerSynchronization(new Synchronization() {
+                @Override
+                public void beforeCompletion() {}
+
+                @Override
+                public void afterCompletion(int status) {
+                    if (status == jakarta.transaction.Status.STATUS_COMMITTED) {
+                        planService.triggerPlanGeneration(taskId);
+                    }
+                }
+            });
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to register plan generation", e);
+        }
+
+        return Response.status(Response.Status.ACCEPTED)
+                .entity(planMapper.toDto(task.plan))
+                .build();
+    }
+
+    @POST
     @Path("/{taskId}/plan/execute")
     public Response executePlan(@PathParam("taskId") Long taskId) {
         TaskEntity task = (TaskEntity) TaskEntity.findByIdOptional(taskId)

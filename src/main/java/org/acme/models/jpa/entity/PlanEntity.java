@@ -58,6 +58,12 @@ public class PlanEntity extends PanacheEntityBase {
     @Column(name = "claude_session_id")
     public String claudeSessionId;
 
+    @Column(name = "is_plan_generation_in_progress")
+    public boolean isPlanGenerationInProgress = false;
+
+    @Column(name = "plan_generation_error", columnDefinition = "TEXT")
+    public String planGenerationError;
+
     @Column(name = "is_change_request_in_progress")
     public boolean isChangeRequestInProgress = false;
 

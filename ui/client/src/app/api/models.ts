@@ -67,6 +67,8 @@ export interface PlanDto {
   updatedAt?: string;
   worktreePath?: string;
   claudeSessionId?: string;
+  isPlanGenerationInProgress?: boolean;
+  planGenerationError?: string;
   isChangeRequestInProgress?: boolean;
   changeRequestError?: string;
   changeRequestUrl?: string;

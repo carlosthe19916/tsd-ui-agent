@@ -28,6 +28,8 @@ public class PlanMapper {
         dto.updatedAt = entity.updatedAt;
         dto.worktreePath = entity.worktreePath;
         dto.claudeSessionId = entity.claudeSessionId;
+        dto.isPlanGenerationInProgress = entity.isPlanGenerationInProgress;
+        dto.planGenerationError = entity.planGenerationError;
         dto.isChangeRequestInProgress = entity.isChangeRequestInProgress;
         dto.changeRequestError = entity.changeRequestError;
         dto.changeRequestUrl = entity.changeRequestUrl;

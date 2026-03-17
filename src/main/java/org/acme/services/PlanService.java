@@ -6,6 +6,7 @@ import io.quarkus.narayana.jta.QuarkusTransaction;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.acme.models.jpa.entity.TaskEntity;
+import org.acme.services.agent.CodingAgentService;
 import org.acme.services.ai.RequirementSummarizerService;
 import org.acme.services.sync.ExternalIssueContext;
 import org.acme.services.sync.SyncManager;
@@ -33,6 +34,9 @@ public class PlanService {
     RequirementSummarizerService requirementSummarizerService;
 
     @Inject
+    CodingAgentService codingAgentService;
+
+    @Inject
     WorktreeService worktreeService;
 
     @ConfigProperty(name = "tsd-agent.claude.command")
@@ -42,8 +46,68 @@ public class PlanService {
         Thread.startVirtualThread(() -> doRequirementEnrichment(taskId));
     }
 
+    public void triggerPlanGeneration(Long taskId) {
+        Thread.startVirtualThread(() -> doPlanGeneration(taskId));
+    }
+
     public void triggerPlanExecution(Long taskId) {
         Thread.startVirtualThread(() -> doPlanExecution(taskId));
+    }
+
+    void doPlanGeneration(Long taskId) {
+        ManagedContext requestContext = Arc.container().requestContext();
+        requestContext.activate();
+        try {
+            // Phase 1: Collect requirement and worktree path in a short transaction
+            record PlanGenerationContext(String worktreePath, String requirement) {}
+
+            PlanGenerationContext context = QuarkusTransaction.requiringNew().call(() -> {
+                TaskEntity task = TaskEntity.findById(taskId);
+                if (task == null || task.plan == null) {
+                    LOG.warnf("Task %d or plan not found during plan generation", taskId);
+                    return null;
+                }
+
+                String path = worktreeService.ensureWorktree(task.plan);
+                return new PlanGenerationContext(path, task.plan.requirement);
+            });
+
+            if (context == null) {
+                return;
+            }
+
+            // Phase 2: Call coding agent outside of any transaction
+            String result = codingAgentService.generatePlan(context.worktreePath(), context.requirement());
+
+            // Phase 3: Store result in a short transaction
+            QuarkusTransaction.requiringNew().run(() -> {
+                TaskEntity task = TaskEntity.findById(taskId);
+                if (task != null && task.plan != null) {
+                    task.plan.plan = result;
+                    task.plan.isPlanGenerationInProgress = false;
+                    task.plan.planGenerationError = null;
+                    task.plan.updatedAt = Instant.now();
+                    task.plan.persist();
+                }
+            });
+        } catch (Exception e) {
+            LOG.errorf(e, "Plan generation failed for task %d", taskId);
+            try {
+                QuarkusTransaction.requiringNew().run(() -> {
+                    TaskEntity task = TaskEntity.findById(taskId);
+                    if (task != null && task.plan != null) {
+                        task.plan.isPlanGenerationInProgress = false;
+                        task.plan.planGenerationError = e.getMessage();
+                        task.plan.updatedAt = Instant.now();
+                        task.plan.persist();
+                    }
+                });
+            } catch (Exception inner) {
+                LOG.errorf(inner, "Failed to set error status for task %d plan generation", taskId);
+            }
+        } finally {
+            requestContext.terminate();
+        }
     }
 
     void doPlanExecution(Long taskId) {

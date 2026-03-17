@@ -206,6 +206,7 @@ const PlanWizardModalContent: React.FC<{
         <WizardStep name="Plan" id="execution-plan-step">
           <PlanStep
             taskId={task.id}
+            hasGit={!!gitConfigState.gitId}
             initialState={planState}
             onStateChanged={setPlanState}
           />
