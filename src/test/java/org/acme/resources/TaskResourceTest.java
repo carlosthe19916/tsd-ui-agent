@@ -669,6 +669,13 @@ class TaskResourceTest {
                 .then()
                 .statusCode(201)
                 .body("requirement", is("Detailed task description"))
+                .body("isRequirementInProgress", is(false));
+
+        // Trigger enrichment via separate endpoint
+        given()
+                .when().post("/tasks/{taskId}/plan/enrich-requirement", taskId)
+                .then()
+                .statusCode(202)
                 .body("isRequirementInProgress", is(true));
 
         // Wait for AI discovery to complete
@@ -709,7 +716,7 @@ class TaskResourceTest {
                 .then()
                 .statusCode(201)
                 .body("requirement", is("My explicit requirement"))
-                .body("isRequirementInProgress", is(true));
+                .body("isRequirementInProgress", is(false));
     }
 
     // Worktree / Open VSCode / Open Terminal tests
