@@ -103,6 +103,11 @@ export const createChangeRequest = (taskId: number) =>
     .post<PlanDto>(`${BASE_URL}/${taskId}/plan/change-request`)
     .then((response) => response.data);
 
+export const generatePlan = (taskId: number) =>
+  axios
+    .post<PlanDto>(`${BASE_URL}/${taskId}/plan/generate-plan`)
+    .then((response) => response.data);
+
 export const enrichRequirement = (taskId: number) =>
   axios
     .post<PlanDto>(`${BASE_URL}/${taskId}/plan/enrich-requirement`)
@@ -112,6 +117,34 @@ export const patchTaskPlan = (taskId: number, plan: Partial<PlanDto>) =>
   axios
     .patch<PlanDto>(`${BASE_URL}/${taskId}/plan`, plan)
     .then((response) => response.data);
+
+export const streamPlanOutput = async function* (
+  taskId: number,
+  signal?: AbortSignal,
+): AsyncGenerator<string> {
+  const response = await fetch(`/api/tasks/${taskId}/plan/output`, { signal });
+  if (!response.ok) throw new Error(`Stream failed: ${response.status}`);
+  const reader = response.body?.getReader();
+  if (!reader) return;
+  const decoder = new TextDecoder();
+  let buffer = "";
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+      for (const line of lines) {
+        if (line.startsWith("data:")) {
+          yield line.slice(5);
+        }
+      }
+    }
+  } finally {
+    reader.cancel();
+  }
+};
 
 export const sendChatMessage = async function* (
   taskId: number,

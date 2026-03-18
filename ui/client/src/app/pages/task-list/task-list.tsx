@@ -65,6 +65,7 @@ import {
 import { formatDateTime } from "@app/utils/utils";
 import { ButtonVariant } from "@patternfly/react-core";
 
+import { ExecutionOutputModal } from "./components/execution-output-modal";
 import { PlanProgressStepper } from "./components/plan-progress-stepper";
 import { PlanWizardModal } from "./components/plan-wizard-modal";
 import { TaskSearchContext, TaskSearchProvider } from "./task-context";
@@ -110,6 +111,7 @@ const TaskListContent: React.FC = () => {
   const [clearClaudeTask, setClearClaudeTask] = React.useState<TaskDto | null>(
     null,
   );
+  const [outputTaskId, setOutputTaskId] = React.useState<number | null>(null);
 
   const createPlanMutation = useCreateTaskPlanMutation(() =>
     setCreatePlanTask(null),
@@ -269,6 +271,19 @@ const TaskListContent: React.FC = () => {
                               }
                             />
                           </FlexItem>
+                          {(task.plan.isPlanGenerationInProgress ||
+                            task.plan.isExecutionPlanInProgress) && (
+                            <FlexItem>
+                              <Button
+                                variant="link"
+                                size="sm"
+                                icon={<TerminalIcon />}
+                                onClick={() => setOutputTaskId(task.id)}
+                              >
+                                View Output
+                              </Button>
+                            </FlexItem>
+                          )}
                         </Flex>
                       ) : (
                         "No plan"
@@ -455,6 +470,12 @@ const TaskListContent: React.FC = () => {
         idPrefix="tasks-table"
         isTop={false}
         paginationProps={paginationProps}
+      />
+
+      <ExecutionOutputModal
+        taskId={outputTaskId}
+        isOpen={outputTaskId !== null}
+        onClose={() => setOutputTaskId(null)}
       />
 
       <PlanWizardModal

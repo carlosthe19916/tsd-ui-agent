@@ -99,6 +99,16 @@ export default defineConfig({
         target: TSD_ENV.TSD_API_URL || "http://localhost:8080",
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ""),
+        configure: (proxy) => {
+          proxy.on("proxyRes", (proxyRes, _req, res) => {
+            if (
+              proxyRes.headers["content-type"]?.includes("text/event-stream")
+            ) {
+              res.setHeader("X-Accel-Buffering", "no");
+              res.setHeader("Cache-Control", "no-cache, no-transform");
+            }
+          });
+        },
       },
     },
   },

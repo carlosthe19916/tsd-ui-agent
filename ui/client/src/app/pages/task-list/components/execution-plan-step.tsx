@@ -7,6 +7,7 @@ import * as yup from "yup";
 
 import { CodeEditor, Language } from "@patternfly/react-code-editor";
 import {
+  Alert,
   Button,
   Content,
   Drawer,
@@ -18,6 +19,7 @@ import {
   Panel,
   PanelMain,
   PanelMainBody,
+  Spinner,
   ToggleGroup,
   ToggleGroupItem,
   Toolbar,
@@ -31,6 +33,7 @@ import RobotIcon from "@patternfly/react-icons/dist/esm/icons/robot-icon";
 
 import { ThemeContext } from "@app/components/ThemeContext";
 import { useFormChangeHandler } from "@app/hooks/useFormChangeHandler";
+import { useFetchTaskPlan, useGeneratePlanMutation } from "@app/queries/tasks";
 import { RequirementChatbot } from "./requirement-chatbot";
 
 interface PlanValues {
@@ -49,12 +52,14 @@ type ViewMode = "editor" | "preview" | "split";
 
 interface PlanStepProps {
   taskId: number;
+  hasGit: boolean;
   initialState: PlanState;
   onStateChanged: (state: PlanState) => void;
 }
 
 export const PlanStep: React.FC<PlanStepProps> = ({
   taskId,
+  hasGit,
   initialState,
   onStateChanged,
 }) => {
@@ -72,8 +77,39 @@ export const PlanStep: React.FC<PlanStepProps> = ({
 
   const plan = form.watch("plan");
 
+  const { data: planData } = useFetchTaskPlan(taskId);
+  const generateMutation = useGeneratePlanMutation();
+
+  const isGenerating = planData?.isPlanGenerationInProgress;
+
+  React.useEffect(() => {
+    if (
+      !planData?.isPlanGenerationInProgress &&
+      !planData?.planGenerationError &&
+      planData?.plan
+    ) {
+      form.setValue("plan", planData.plan, {
+        shouldValidate: true,
+        shouldDirty: true,
+      });
+    }
+  }, [
+    planData?.plan,
+    form,
+    planData?.planGenerationError,
+    planData?.isPlanGenerationInProgress,
+  ]);
+
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+      {!hasGit && (
+        <Alert
+          variant="info"
+          isInline
+          isPlain
+          title="Git configuration is required to generate a plan with AI."
+        />
+      )}
       <Drawer isExpanded={isChatbotOpen} isInline>
         <DrawerContent
           panelContent={
@@ -114,6 +150,17 @@ export const PlanStep: React.FC<PlanStepProps> = ({
                 </ToolbarItem>
                 <ToolbarItem align={{ default: "alignEnd" }}>
                   <Button
+                    variant="secondary"
+                    icon={<RobotIcon />}
+                    onClick={() => generateMutation.mutate(taskId)}
+                    isDisabled={!hasGit || isGenerating}
+                    isLoading={generateMutation.isPending}
+                  >
+                    Generate with AI
+                  </Button>
+                </ToolbarItem>
+                <ToolbarItem>
+                  <Button
                     variant={isChatbotOpen ? "primary" : "secondary"}
                     icon={<RobotIcon />}
                     onClick={() => setIsChatbotOpen(!isChatbotOpen)}
@@ -123,6 +170,26 @@ export const PlanStep: React.FC<PlanStepProps> = ({
                 </ToolbarItem>
               </ToolbarContent>
             </Toolbar>
+            {isGenerating && (
+              <Alert
+                variant="info"
+                isInline
+                isPlain
+                title={
+                  <>
+                    <Spinner size="sm" /> AI is generating the plan...
+                  </>
+                }
+              />
+            )}
+            {planData?.planGenerationError && (
+              <Alert
+                variant="danger"
+                isInline
+                isPlain
+                title={planData.planGenerationError}
+              />
+            )}
             <Grid hasGutter>
               {viewMode !== "preview" && (
                 <GridItem span={viewMode === "split" ? 6 : 12}>

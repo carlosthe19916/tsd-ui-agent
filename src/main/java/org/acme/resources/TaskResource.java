@@ -1,5 +1,8 @@
 package org.acme.resources;
 
+import io.smallrye.mutiny.Multi;
+import io.smallrye.mutiny.Uni;
+import io.smallrye.mutiny.infrastructure.Infrastructure;
 import io.quarkus.panache.common.Sort;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -33,9 +36,11 @@ import org.acme.models.jpa.entity.PlanEntity;
 import org.acme.models.jpa.entity.TaskEntity;
 import org.acme.models.jpa.entity.TaskStatus;
 import org.acme.services.ChangeRequestService;
+import org.acme.services.ExecutionOutputBroadcaster;
 import org.acme.services.PlanService;
 import org.acme.services.WorktreeService;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.jboss.resteasy.reactive.RestStreamElementType;
 
 import java.util.HashMap;
 import java.util.List;
@@ -67,6 +72,9 @@ public class TaskResource {
 
     @Inject
     WorktreeService worktreeService;
+
+    @Inject
+    ExecutionOutputBroadcaster broadcaster;
 
     @Inject
     TransactionManager transactionManager;
@@ -315,6 +323,55 @@ public class TaskResource {
     }
 
     @POST
+    @Path("/{taskId}/plan/generate-plan")
+    public Response generatePlan(@PathParam("taskId") Long taskId) {
+        TaskEntity task = (TaskEntity) TaskEntity.findByIdOptional(taskId)
+                .orElseThrow(NotFoundException::new);
+        if (task.plan == null) {
+            throw new NotFoundException("Task has no plan");
+        }
+        if (!aiDiscoveryEnabled) {
+            throw new BadRequestException("AI discovery is not enabled");
+        }
+        if (task.plan.git == null) {
+            throw new BadRequestException("Plan has no git configuration");
+        }
+        if (task.plan.requirement == null || task.plan.requirement.isBlank()) {
+            throw new BadRequestException("Plan has no requirement");
+        }
+
+        // Concurrency guard
+        if (task.plan.isPlanGenerationInProgress) {
+            return Response.status(Response.Status.ACCEPTED)
+                    .entity(planMapper.toDto(task.plan))
+                    .build();
+        }
+
+        task.plan.isPlanGenerationInProgress = true;
+        task.plan.planGenerationError = null;
+
+        try {
+            transactionManager.getTransaction().registerSynchronization(new Synchronization() {
+                @Override
+                public void beforeCompletion() {}
+
+                @Override
+                public void afterCompletion(int status) {
+                    if (status == jakarta.transaction.Status.STATUS_COMMITTED) {
+                        planService.triggerPlanGeneration(taskId);
+                    }
+                }
+            });
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to register plan generation", e);
+        }
+
+        return Response.status(Response.Status.ACCEPTED)
+                .entity(planMapper.toDto(task.plan))
+                .build();
+    }
+
+    @POST
     @Path("/{taskId}/plan/execute")
     public Response executePlan(@PathParam("taskId") Long taskId) {
         TaskEntity task = (TaskEntity) TaskEntity.findByIdOptional(taskId)
@@ -434,5 +491,22 @@ public class TaskResource {
         }
 
         return Response.noContent().build();
+    }
+
+    @GET
+    @Path("/{taskId}/plan/output")
+    @Produces(MediaType.SERVER_SENT_EVENTS)
+    @RestStreamElementType(MediaType.TEXT_PLAIN)
+    public Multi<String> streamOutput(@PathParam("taskId") Long taskId) {
+        return Uni.createFrom().item(() -> {
+                    TaskEntity task = (TaskEntity) TaskEntity.findByIdOptional(taskId)
+                            .orElseThrow(NotFoundException::new);
+                    if (task.plan == null) {
+                        throw new NotFoundException("Task has no plan");
+                    }
+                    return taskId;
+                })
+                .runSubscriptionOn(Infrastructure.getDefaultWorkerPool())
+                .onItem().transformToMulti(id -> broadcaster.subscribe(id));
     }
 }

@@ -13,7 +13,10 @@ import {
 } from "@patternfly/react-core";
 
 import type { PlanDto } from "@app/api/models";
-import { useEnrichRequirementMutation } from "@app/queries/tasks";
+import {
+  useEnrichRequirementMutation,
+  useGeneratePlanMutation,
+} from "@app/queries/tasks";
 
 interface PlanProgressStepperProps {
   taskId: number;
@@ -50,6 +53,22 @@ const getRequirementPopupContent = (plan: PlanDto) => {
   return plan.requirement && plan.requirement.trim().length > 0
     ? "Too long to render here"
     : "Not defined";
+};
+
+const getPlanStepVariant = (plan: PlanDto) => {
+  if (plan.isPlanGenerationInProgress) return "info";
+  if (plan.planGenerationError) return "danger";
+  if (plan.plan && plan.plan.trim().length > 0) return "success";
+  return "pending";
+};
+
+const getPlanDescription = (plan: PlanDto) => {
+  if (plan.isPlanGenerationInProgress) return "Generating...";
+  if (plan.planGenerationError) {
+    const err = plan.planGenerationError;
+    return err.length > 40 ? `${err.substring(0, 40)}\u2026` : err;
+  }
+  return plan.plan && plan.plan.trim().length > 0 ? "" : "Not defined";
 };
 
 const getExecutionStepVariant = (plan: PlanDto) => {
@@ -94,7 +113,9 @@ export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
   onChangeRequest,
 }) => {
   const enrichMutation = useEnrichRequirementMutation();
+  const generatePlanMutation = useGeneratePlanMutation();
   const reqVariant = getRequirementStepVariant(plan);
+  const planVariant = getPlanStepVariant(plan);
 
   return (
     <ProgressStepper>
@@ -192,32 +213,50 @@ export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
         Git Configuration
       </ProgressStep>
       <ProgressStep
-        variant={
-          plan.plan && plan.plan.trim().length > 0 ? "success" : "pending"
+        variant={planVariant}
+        icon={
+          plan.isPlanGenerationInProgress ? <Spinner size="sm" /> : undefined
         }
         id={`exec-plan-${taskId}`}
         titleId={`exec-plan-title-${taskId}`}
-        aria-label={`Plan step, ${plan.plan && plan.plan.trim().length > 0 ? "completed" : "pending"}`}
-        description={
-          plan.plan && plan.plan.trim().length > 0 ? "" : "Not defined"
-        }
+        aria-label={`Plan step, ${planVariant}`}
+        description={getPlanDescription(plan)}
         popoverRender={(stepRef) => (
           <Popover
             aria-label="Plan details"
             headerContent={<div>Plan</div>}
             bodyContent={
-              plan.plan && plan.plan.trim().length > 0 ? (
+              plan.planGenerationError ? (
+                <div>{plan.planGenerationError}</div>
+              ) : plan.isPlanGenerationInProgress ? (
+                <div>AI is generating the plan...</div>
+              ) : plan.plan && plan.plan.trim().length > 0 ? (
                 <div>Too long to render here</div>
               ) : (
                 <div>No plan has been defined yet.</div>
               )
             }
             footerContent={
-              <Button variant="link" isInline onClick={() => onEditStep(3)}>
-                {plan.plan && plan.plan.trim().length > 0
-                  ? "Edit plan"
-                  : "Add plan"}
-              </Button>
+              <div style={{ display: "flex", gap: 16 }}>
+                <Button variant="link" isInline onClick={() => onEditStep(3)}>
+                  {plan.plan && plan.plan.trim().length > 0
+                    ? "Edit plan"
+                    : "Add plan"}
+                </Button>
+                <Button
+                  variant="link"
+                  isInline
+                  onClick={() => generatePlanMutation.mutate(taskId)}
+                  isDisabled={
+                    !plan.git ||
+                    !plan.requirement?.trim() ||
+                    plan.isPlanGenerationInProgress
+                  }
+                  isLoading={generatePlanMutation.isPending}
+                >
+                  Generate with AI
+                </Button>
+              </div>
             }
             triggerRef={stepRef}
           />

@@ -43,16 +43,6 @@ export const SearchFilterControl = <TItem, TFilterCategoryKey extends string>({
     setFilterValue(trimmedValue ? [trimmedValue.replace(/\s+/g, " ")] : []);
   };
 
-  // Debounce filter updates with 400ms delay
-  React.useEffect(() => {
-    const timer = setTimeout(() => {
-      const trimmedValue = inputValue.trim();
-      setFilterValue(trimmedValue ? [trimmedValue.replace(/\s+/g, " ")] : []);
-    }, 400);
-
-    return () => clearTimeout(timer);
-  }, [inputValue, setFilterValue]);
-
   const id = `${category.categoryKey}-input`;
 
   const inputProps = {

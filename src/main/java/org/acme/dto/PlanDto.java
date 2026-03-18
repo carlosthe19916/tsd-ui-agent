@@ -30,6 +30,10 @@ public class PlanDto {
 
     public String claudeSessionId;
 
+    public boolean isPlanGenerationInProgress;
+
+    public String planGenerationError;
+
     public boolean isChangeRequestInProgress;
 
     public String changeRequestError;

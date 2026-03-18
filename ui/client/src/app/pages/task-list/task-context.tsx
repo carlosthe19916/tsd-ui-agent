@@ -111,12 +111,17 @@ export const TaskSearchProvider: React.FunctionComponent<ITaskProvider> = ({
     error: fetchError,
   } = useFetchTasks(hubRequestParams);
 
-  const totalItemCount = tasksResponse?.meta.count ?? 0;
+  const { currentPageItems, totalItemCount } = React.useMemo(() => {
+    return {
+      currentPageItems: tasksResponse?.data ?? [],
+      totalItemCount: tasksResponse?.meta.count ?? 0,
+    };
+  }, [tasksResponse]);
 
   const tableControls = useTableControlProps({
     ...tableControlState,
     idProperty: "id",
-    currentPageItems: tasksResponse?.data ?? [],
+    currentPageItems,
     totalItemCount,
     isLoading: isLoading,
   });
