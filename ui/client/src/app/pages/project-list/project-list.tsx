@@ -65,7 +65,7 @@ export const ProjectList: React.FC = () => {
   const [syncTarget, setSyncTarget] = React.useState<ProjectDto[] | null>(null);
   const [isPolling, setIsPolling] = React.useState(false);
 
-  const { data: projects, isFetching } = useFetchProjects(
+  const { data: projects, isLoading: isFetching } = useFetchProjects(
     isPolling ? DEFAULT_REFETCH_INTERVAL : false,
   );
 

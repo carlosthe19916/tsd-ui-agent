@@ -27,15 +27,14 @@ public class JiraPaginationProcessor implements Processor {
         exchange.setProperty("hasMorePages", hasMore);
 
         if (hasMore) {
-            int startAt = exchange.getProperty("startAt", Integer.class) + MAX_RESULTS;
-            exchange.setProperty("startAt", startAt);
+            String nextPageToken = response.nextPageToken();
             String baseUrl = exchange.getProperty("baseUrl", String.class);
             String jql = exchange.getProperty("jql", String.class);
             exchange.getIn().setHeader("CamelHttpUrl", baseUrl + "/rest/api/3/search/jql");
             exchange.getIn().setHeader(Exchange.HTTP_QUERY, "jql="
                     + URLEncoder.encode(jql, StandardCharsets.UTF_8)
                     + "&maxResults=" + MAX_RESULTS
-                    + "&startAt=" + startAt
+                    + "&nextPageToken=" + nextPageToken
                     + "&fields=" + JiraUrlProcessor.FIELDS);
         }
     }

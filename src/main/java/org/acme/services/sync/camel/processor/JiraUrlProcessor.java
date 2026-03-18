@@ -25,8 +25,6 @@ public class JiraUrlProcessor implements Processor {
         exchange.getIn().setHeader("Accept", "application/json");
         exchange.setProperty("baseUrl", url);
         exchange.setProperty("jql", jql);
-        exchange.setProperty("startAt", 0);
-
         exchange.getIn().setHeader("CamelHttpUrl", url + "/rest/api/3/search/jql");
         exchange.getIn().setHeader(Exchange.HTTP_QUERY, "jql="
                 + URLEncoder.encode(jql, StandardCharsets.UTF_8)
