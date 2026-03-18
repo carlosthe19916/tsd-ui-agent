@@ -210,7 +210,8 @@ public class GitManager {
         } catch (GitException e) {
             throw e;
         } catch (Exception e) {
-            throw new GitException("Failed to git push to URL: " + e.getMessage(), e);
+            String safeMessage = e.getMessage().replaceAll("://[^@]+@", "://***@");
+            throw new GitException("Failed to git push to URL: " + safeMessage, e);
         }
     }
 
