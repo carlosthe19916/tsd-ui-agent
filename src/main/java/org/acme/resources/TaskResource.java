@@ -32,7 +32,9 @@ import org.acme.dto.SearchResultDto;
 import org.acme.dto.TaskDto;
 import org.acme.mapper.PlanMapper;
 import org.acme.mapper.TaskMapper;
+import org.acme.models.jpa.entity.GitEntity;
 import org.acme.models.jpa.entity.PlanEntity;
+import org.acme.models.jpa.entity.SourceType;
 import org.acme.models.jpa.entity.TaskEntity;
 import org.acme.models.jpa.entity.TaskStatus;
 import org.acme.services.ChangeRequestService;
@@ -195,6 +197,19 @@ public class TaskResource {
         // Auto-populate requirement from task description if not provided
         if (plan.requirement == null || plan.requirement.isBlank()) {
             plan.requirement = (task.description != null && !task.description.isBlank()) ? task.description : task.title;
+        }
+
+        // Auto-populate git from GitHub project's apiUrl if not provided
+        if (plan.git == null && task.project.type == SourceType.GITHUB) {
+            String apiUrl = task.project.apiUrl;
+            String prefix = "https://api.github.com/repos/";
+            if (apiUrl != null && apiUrl.startsWith(prefix)) {
+                String ownerRepo = apiUrl.substring(prefix.length());
+                GitEntity git = GitEntity.find("url like ?1", "%" + ownerRepo + "%").firstResult();
+                if (git != null) {
+                    plan.git = git;
+                }
+            }
         }
 
         plan.persist();
