@@ -296,7 +296,11 @@ export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
                   variant="link"
                   isInline
                   onClick={() => openClaudeMutation.mutate(taskId)}
-                  isDisabled={!plan.git || openClaudeMutation.isPending}
+                  isDisabled={
+                    !plan.git ||
+                    !plan.plan?.trim() ||
+                    openClaudeMutation.isPending
+                  }
                   isLoading={openClaudeMutation.isPending}
                 >
                   Execute manually
