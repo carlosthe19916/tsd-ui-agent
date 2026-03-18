@@ -43,7 +43,6 @@ import CodeIcon from "@patternfly/react-icons/dist/esm/icons/code-icon";
 import EllipsisVIcon from "@patternfly/react-icons/dist/esm/icons/ellipsis-v-icon";
 import InProgressIcon from "@patternfly/react-icons/dist/esm/icons/in-progress-icon";
 import PendingIcon from "@patternfly/react-icons/dist/esm/icons/pending-icon";
-import RobotIcon from "@patternfly/react-icons/dist/esm/icons/robot-icon";
 import SortAmountDownIcon from "@patternfly/react-icons/dist/esm/icons/sort-amount-down-icon";
 import SortAmountUpIcon from "@patternfly/react-icons/dist/esm/icons/sort-amount-up-icon";
 import TerminalIcon from "@patternfly/react-icons/dist/esm/icons/terminal-icon";
@@ -56,8 +55,6 @@ import { SimplePagination } from "@app/components/SimplePagination";
 import {
   useCreateChangeRequestMutation,
   useCreateTaskPlanMutation,
-  useExecutePlanMutation,
-  useOpenClaudeMutation,
   useOpenTerminalMutation,
   useOpenVSCodeMutation,
   usePatchTaskPlanMutation,
@@ -118,8 +115,6 @@ const TaskListContent: React.FC = () => {
   );
   const openVSCodeMutation = useOpenVSCodeMutation();
   const openTerminalMutation = useOpenTerminalMutation();
-  const openClaudeMutation = useOpenClaudeMutation();
-  const executePlanMutation = useExecutePlanMutation();
   const changeRequestMutation = useCreateChangeRequestMutation();
   const patchPlanMutation = usePatchTaskPlanMutation(() =>
     setClearClaudeTask(null),
@@ -263,9 +258,6 @@ const TaskListContent: React.FC = () => {
                                 setWizardTask(task);
                                 setWizardInitialStep(step);
                               }}
-                              onExecute={() =>
-                                executePlanMutation.mutate(task.id)
-                              }
                               onChangeRequest={() =>
                                 changeRequestMutation.mutate(task.id)
                               }
@@ -325,37 +317,19 @@ const TaskListContent: React.FC = () => {
                                 </Button>
                               </Tooltip>
                             </FlexItem>
-                            <FlexItem>
-                              <Tooltip content="Open Claude">
-                                <Button
-                                  variant="control"
-                                  size="sm"
-                                  onClick={() =>
-                                    openClaudeMutation.mutate(task.id)
-                                  }
-                                  isLoading={openClaudeMutation.isPending}
-                                  isDisabled={openClaudeMutation.isPending}
-                                  icon={<RobotIcon />}
-                                  aria-label="Open Claude"
-                                >
-                                  Claude
-                                </Button>
-                              </Tooltip>
-                              {task.plan.claudeSessionId && (
-                                <>
-                                  {" "}
-                                  <Tooltip content="Clear Claude session">
-                                    <Button
-                                      variant="control"
-                                      size="sm"
-                                      onClick={() => setClearClaudeTask(task)}
-                                      icon={<CloseIcon />}
-                                      aria-label="Clear Claude session"
-                                    ></Button>
-                                  </Tooltip>
-                                </>
-                              )}
-                            </FlexItem>
+                            {task.plan.claudeSessionId && (
+                              <FlexItem>
+                                <Tooltip content="Clear Claude session">
+                                  <Button
+                                    variant="control"
+                                    size="sm"
+                                    onClick={() => setClearClaudeTask(task)}
+                                    icon={<CloseIcon />}
+                                    aria-label="Clear Claude session"
+                                  ></Button>
+                                </Tooltip>
+                              </FlexItem>
+                            )}
                           </Flex>
                         </FlexItem>
                       )}

@@ -108,4 +108,63 @@ public class ClaudeCodeService implements CodingAgentService {
             broadcaster.complete(taskId);
         }
     }
+
+    @Override
+    public void executePlan(String workdir, String planText, Long taskId) {
+        List<String> command = List.of(
+                claudeCommand, "-p",
+                "--permission-mode", "bypassPermissions",
+                "--verbose",
+                "--output-format", "stream-json"
+        );
+
+        LOG.infof("Task %d: Starting Claude CLI for plan execution in %s", taskId, workdir);
+        LOG.infof("Task %d: Command: %s", taskId, String.join(" ", command));
+        LOG.infof("Task %d: Plan text length: %d chars", taskId, planText.length());
+
+        broadcaster.start(taskId);
+        try {
+            ProcessBuilder pb = new ProcessBuilder(command)
+                    .directory(new java.io.File(workdir))
+                    .redirectErrorStream(true);
+            Process process = pb.start();
+
+            try (OutputStream stdin = process.getOutputStream()) {
+                stdin.write(planText.getBytes(StandardCharsets.UTF_8));
+                LOG.infof("Task %d: Plan text written to stdin, closing stdin", taskId);
+            }
+
+            StringBuilder output = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    LOG.infof("Task %d: claude> %s", taskId, line);
+                    broadcaster.publish(taskId, line);
+                    output.append(line).append("\n");
+                }
+            }
+
+            boolean finished = process.waitFor(30, TimeUnit.MINUTES);
+            if (!finished) {
+                process.destroyForcibly();
+                throw new RuntimeException("Claude CLI timed out after 30 minutes");
+            }
+
+            int exitCode = process.exitValue();
+            LOG.infof("Task %d: Claude CLI plan execution exited with code %d", taskId, exitCode);
+            if (exitCode != 0) {
+                throw new RuntimeException("Claude CLI exited with code " + exitCode + ": " + output);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Claude CLI plan execution was interrupted", e);
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to run Claude CLI for plan execution", e);
+        } finally {
+            broadcaster.complete(taskId);
+        }
+    }
 }
