@@ -27,3 +27,6 @@ The current ui, task list page, has a series of step, one of the being "Plan", w
 - If AI is asked to generate a plan, the backend should be able to use claude sdk for java in order to generate the plan in markdown and then eventually save the plan in PlanEntity
 - The plan needs to be executed against the git repository configured together with the "requirement" definition defined in PlanEntity. Manually it is similar to my terminal command "claude {requirement} planMode"
 - Design the solution in a way that it can be replaced by OpenCode in case Claude Code is not available for the user
+
+
+claude --resume 467bab9d-40f6-4e3b-84c9-337825b66921

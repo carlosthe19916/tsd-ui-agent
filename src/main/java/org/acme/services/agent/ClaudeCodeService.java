@@ -1,8 +1,13 @@
 package org.acme.services.agent;
 
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import org.acme.services.ExecutionOutputBroadcaster;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -16,11 +21,14 @@ public class ClaudeCodeService implements CodingAgentService {
 
     private static final Logger LOG = Logger.getLogger(ClaudeCodeService.class);
 
+    @Inject
+    ExecutionOutputBroadcaster broadcaster;
+
     @ConfigProperty(name = "tsd-agent.claude.command")
     String claudeCommand;
 
     @Override
-    public String generatePlan(String workdir, String requirement) {
+    public String generatePlan(String workdir, String requirement, Long taskId) {
         String prompt = """
                 Analyze this codebase and generate a detailed implementation plan in Markdown format \
                 for the following requirement:
@@ -33,14 +41,16 @@ public class ClaudeCodeService implements CodingAgentService {
 
         List<String> command = List.of(
                 claudeCommand, "-p",
-                "--dangerously-skip-permissions",
-                "--output-format", "text",
+                "--permission-mode", "bypassPermissions",
+                "--verbose",
+                "--output-format", "stream-json",
                 "--tools", "Read,Glob,Grep"
         );
 
         LOG.infof("Starting Claude CLI for plan generation in %s", workdir);
         LOG.infof("Command: %s", String.join(" ", command));
 
+        broadcaster.start(taskId);
         try {
             ProcessBuilder pb = new ProcessBuilder(command)
                     .directory(new java.io.File(workdir))
@@ -51,13 +61,22 @@ public class ClaudeCodeService implements CodingAgentService {
                 stdin.write(prompt.getBytes(StandardCharsets.UTF_8));
             }
 
-            StringBuilder output = new StringBuilder();
+            ObjectMapper mapper = new ObjectMapper();
+            String resultText = null;
+            StringBuilder rawOutput = new StringBuilder();
             try (BufferedReader reader = new BufferedReader(
                     new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
                 String line;
                 while ((line = reader.readLine()) != null) {
                     LOG.infof("claude-plan> %s", line);
-                    output.append(line).append("\n");
+                    rawOutput.append(line).append("\n");
+                    broadcaster.publish(taskId, line);
+                    try {
+                        JsonNode node = mapper.readTree(line);
+                        if ("result".equals(node.path("type").asText())) {
+                            resultText = node.path("result").asText();
+                        }
+                    } catch (Exception ignored) {}
                 }
             }
 
@@ -70,10 +89,14 @@ public class ClaudeCodeService implements CodingAgentService {
             int exitCode = process.exitValue();
             LOG.infof("Claude CLI plan generation exited with code %d", exitCode);
             if (exitCode != 0) {
-                throw new RuntimeException("Claude CLI exited with code " + exitCode + ": " + output);
+                throw new RuntimeException("Claude CLI exited with code " + exitCode + ": " + rawOutput);
             }
 
-            return output.toString().trim();
+            if (resultText == null || resultText.isBlank()) {
+                throw new RuntimeException("Claude CLI produced no result");
+            }
+
+            return resultText.trim();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new RuntimeException("Claude CLI plan generation was interrupted", e);
@@ -81,6 +104,8 @@ public class ClaudeCodeService implements CodingAgentService {
             throw e;
         } catch (Exception e) {
             throw new RuntimeException("Failed to run Claude CLI for plan generation", e);
+        } finally {
+            broadcaster.complete(taskId);
         }
     }
 }

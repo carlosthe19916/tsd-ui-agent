@@ -1,5 +1,8 @@
 package org.acme.resources;
 
+import io.smallrye.mutiny.Multi;
+import io.smallrye.mutiny.Uni;
+import io.smallrye.mutiny.infrastructure.Infrastructure;
 import io.quarkus.panache.common.Sort;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -33,9 +36,11 @@ import org.acme.models.jpa.entity.PlanEntity;
 import org.acme.models.jpa.entity.TaskEntity;
 import org.acme.models.jpa.entity.TaskStatus;
 import org.acme.services.ChangeRequestService;
+import org.acme.services.ExecutionOutputBroadcaster;
 import org.acme.services.PlanService;
 import org.acme.services.WorktreeService;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
+import org.jboss.resteasy.reactive.RestStreamElementType;
 
 import java.util.HashMap;
 import java.util.List;
@@ -67,6 +72,9 @@ public class TaskResource {
 
     @Inject
     WorktreeService worktreeService;
+
+    @Inject
+    ExecutionOutputBroadcaster broadcaster;
 
     @Inject
     TransactionManager transactionManager;
@@ -483,5 +491,22 @@ public class TaskResource {
         }
 
         return Response.noContent().build();
+    }
+
+    @GET
+    @Path("/{taskId}/plan/output")
+    @Produces(MediaType.SERVER_SENT_EVENTS)
+    @RestStreamElementType(MediaType.TEXT_PLAIN)
+    public Multi<String> streamOutput(@PathParam("taskId") Long taskId) {
+        return Uni.createFrom().item(() -> {
+                    TaskEntity task = (TaskEntity) TaskEntity.findByIdOptional(taskId)
+                            .orElseThrow(NotFoundException::new);
+                    if (task.plan == null) {
+                        throw new NotFoundException("Task has no plan");
+                    }
+                    return taskId;
+                })
+                .runSubscriptionOn(Infrastructure.getDefaultWorkerPool())
+                .onItem().transformToMulti(id -> broadcaster.subscribe(id));
     }
 }

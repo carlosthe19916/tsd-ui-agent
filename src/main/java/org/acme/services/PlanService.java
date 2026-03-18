@@ -37,6 +37,9 @@ public class PlanService {
     CodingAgentService codingAgentService;
 
     @Inject
+    ExecutionOutputBroadcaster broadcaster;
+
+    @Inject
     WorktreeService worktreeService;
 
     @ConfigProperty(name = "tsd-agent.claude.command")
@@ -77,7 +80,7 @@ public class PlanService {
             }
 
             // Phase 2: Call coding agent outside of any transaction
-            String result = codingAgentService.generatePlan(context.worktreePath(), context.requirement());
+            String result = codingAgentService.generatePlan(context.worktreePath(), context.requirement(), taskId);
 
             // Phase 3: Store result in a short transaction
             QuarkusTransaction.requiringNew().run(() -> {
@@ -138,6 +141,8 @@ public class PlanService {
             LOG.infof("Task %d: Command: %s", taskId, String.join(" ", command));
             LOG.infof("Task %d: Plan text length: %d chars", taskId, context.planText().length());
 
+            broadcaster.start(taskId);
+
             ProcessBuilder pb = new ProcessBuilder(command)
                     .directory(new java.io.File(context.worktreePath()))
                     .redirectErrorStream(true);
@@ -155,6 +160,7 @@ public class PlanService {
                 String line;
                 while ((line = reader.readLine()) != null) {
                     LOG.infof("Task %d: claude> %s", taskId, line);
+                    broadcaster.publish(taskId, line);
                     output.append(line).append("\n");
                 }
             }
@@ -171,6 +177,8 @@ public class PlanService {
                 throw new RuntimeException("Claude CLI exited with code " + exitCode + ": " + output);
             }
 
+            broadcaster.complete(taskId);
+
             // Phase 3: Store success in a short transaction
             QuarkusTransaction.requiringNew().run(() -> {
                 TaskEntity task = TaskEntity.findById(taskId);
@@ -184,6 +192,7 @@ public class PlanService {
             });
         } catch (Exception e) {
             LOG.errorf(e, "Plan execution failed for task %d", taskId);
+            broadcaster.complete(taskId);
             try {
                 QuarkusTransaction.requiringNew().run(() -> {
                     TaskEntity task = TaskEntity.findById(taskId);

@@ -33,10 +33,7 @@ import RobotIcon from "@patternfly/react-icons/dist/esm/icons/robot-icon";
 
 import { ThemeContext } from "@app/components/ThemeContext";
 import { useFormChangeHandler } from "@app/hooks/useFormChangeHandler";
-import {
-  useFetchTaskPlan,
-  useGeneratePlanMutation,
-} from "@app/queries/tasks";
+import { useFetchTaskPlan, useGeneratePlanMutation } from "@app/queries/tasks";
 import { RequirementChatbot } from "./requirement-chatbot";
 
 interface PlanValues {
