@@ -13,6 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.Set;
+import java.util.UUID;
 
 @ApplicationScoped
 public class WorktreeService {
@@ -44,7 +45,7 @@ public class WorktreeService {
             plan.worktreePath = null;
         }
 
-        String alias = "plan-" + plan.id;
+        String alias = GitManager.planBranchName(plan.id);
 
         String worktreePath = gitManager.addWorktree(plan.git.localPath, alias);
         plan.worktreePath = worktreePath;

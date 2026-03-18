@@ -88,7 +88,7 @@ public class ChangeRequestService {
             }
 
             String baseBranch = gitManager.getCurrentBranch(context.mainClonePath());
-            String branchName = "plan-" + context.planId();
+            String branchName = GitManager.planBranchName(context.planId());
             boolean isGitLab = context.gitUrl().contains("gitlab");
 
             String pushTargetUrl = context.forkUrl() != null ? context.forkUrl() : context.gitUrl();

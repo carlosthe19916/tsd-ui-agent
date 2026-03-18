@@ -215,6 +215,10 @@ public class GitManager {
         }
     }
 
+    public static String planBranchName(Long planId) {
+        return "plan-" + planId + "-" + UUID.randomUUID().toString().substring(0, 8);
+    }
+
     public static String extractHost(String gitUrl) {
         // HTTPS: https://github.com/owner/repo.git → github.com
         var protocolMatcher = PROTOCOL_PREFIX.matcher(gitUrl);
