@@ -4,7 +4,9 @@ import jakarta.enterprise.context.ApplicationScoped;
 import org.acme.services.git.GitException;
 import org.apache.camel.Exchange;
 import org.apache.camel.builder.RouteBuilder;
+import org.apache.camel.component.exec.ExecException;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 @ApplicationScoped
@@ -16,7 +18,16 @@ public class GitRoutes extends RouteBuilder {
                 .handled(true)
                 .process(exchange -> {
                     Exception cause = exchange.getProperty(Exchange.EXCEPTION_CAUGHT, Exception.class);
-                    throw new GitException("Git operation failed: " + cause.getMessage(), cause);
+                    String message = cause.getMessage();
+                    if (cause instanceof ExecException execException && execException.getStderr() != null) {
+                        String stderr = new String(execException.getStderr().readAllBytes(), StandardCharsets.UTF_8).trim();
+                        if (!stderr.isEmpty()) {
+                            message = stderr;
+                        }
+                    }
+                    message = message.replaceAll("://[^@]+@", "://***@");
+                    String causeMessage = cause.getMessage().replaceAll("://[^@]+@", "://***@");
+                    throw new GitException("Git operation failed: " + message, new RuntimeException(causeMessage));
                 });
 
         from("direct:git-clone")
@@ -112,7 +123,7 @@ public class GitRoutes extends RouteBuilder {
                 .process(exchange -> {
                     String url = exchange.getIn().getHeader("pushUrl", String.class);
                     String refspec = exchange.getIn().getHeader("refspec", String.class);
-                    exchange.getIn().setHeader("CamelExecCommandArgs", List.of("push", url, refspec));
+                    exchange.getIn().setHeader("CamelExecCommandArgs", List.of("push", "--force", url, refspec));
                     exchange.getIn().setHeader("CamelExecCommandWorkingDir", exchange.getIn().getHeader("workingDir", String.class));
                 })
                 .to("exec:git?exitValues=0");
