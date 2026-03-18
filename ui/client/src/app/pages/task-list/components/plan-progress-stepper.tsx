@@ -15,14 +15,15 @@ import {
 import type { PlanDto } from "@app/api/models";
 import {
   useEnrichRequirementMutation,
+  useExecutePlanMutation,
   useGeneratePlanMutation,
+  useOpenClaudeMutation,
 } from "@app/queries/tasks";
 
 interface PlanProgressStepperProps {
   taskId: number;
   plan: PlanDto;
   onEditStep: (step: number) => void;
-  onExecute?: () => void;
   onChangeRequest?: () => void;
 }
 
@@ -109,11 +110,12 @@ export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
   taskId,
   plan,
   onEditStep,
-  onExecute,
   onChangeRequest,
 }) => {
   const enrichMutation = useEnrichRequirementMutation();
   const generatePlanMutation = useGeneratePlanMutation();
+  const executePlanMutation = useExecutePlanMutation();
+  const openClaudeMutation = useOpenClaudeMutation();
   const reqVariant = getRequirementStepVariant(plan);
   const planVariant = getPlanStepVariant(plan);
 
@@ -289,18 +291,34 @@ export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
               )
             }
             footerContent={
-              <Button
-                variant="link"
-                isInline
-                onClick={() => onExecute?.()}
-                isDisabled={
-                  !plan.git ||
-                  !plan.plan?.trim() ||
-                  plan.isExecutionPlanInProgress
-                }
-              >
-                Execute plan
-              </Button>
+              <div style={{ display: "flex", gap: 16 }}>
+                <Button
+                  variant="link"
+                  isInline
+                  onClick={() => openClaudeMutation.mutate(taskId)}
+                  isDisabled={
+                    !plan.git ||
+                    !plan.plan?.trim() ||
+                    openClaudeMutation.isPending
+                  }
+                  isLoading={openClaudeMutation.isPending}
+                >
+                  Execute manually
+                </Button>
+                <Button
+                  variant="link"
+                  isInline
+                  onClick={() => executePlanMutation.mutate(taskId)}
+                  isDisabled={
+                    !plan.git ||
+                    !plan.plan?.trim() ||
+                    plan.isExecutionPlanInProgress
+                  }
+                  isLoading={executePlanMutation.isPending}
+                >
+                  Execute with AI
+                </Button>
+              </div>
             }
             triggerRef={stepRef}
           />
