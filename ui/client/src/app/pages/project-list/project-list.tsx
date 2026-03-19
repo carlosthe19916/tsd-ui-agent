@@ -48,13 +48,15 @@ import {
 } from "@app/queries/projects";
 import { formatDateTime } from "@app/utils/utils";
 
+import { GitMappingModal } from "./components/git-mapping-modal";
 import { ProjectFormModal } from "./components/project-form-modal";
 import { SyncStatus } from "./components/sync-status";
 
 type ModalState =
   | { type: "closed" }
   | { type: "create" }
-  | { type: "edit"; project: ProjectDto };
+  | { type: "edit"; project: ProjectDto }
+  | { type: "git-mappings"; project: ProjectDto };
 
 export const ProjectList: React.FC = () => {
   const [modalState, setModalState] = React.useState<ModalState>({
@@ -253,6 +255,18 @@ export const ProjectList: React.FC = () => {
                             title: "Synchronize",
                             onClick: () => setSyncTarget([project]),
                           },
+                          ...(project.type === "JIRA"
+                            ? [
+                                {
+                                  title: "Git repository mappings",
+                                  onClick: () =>
+                                    setModalState({
+                                      type: "git-mappings",
+                                      project,
+                                    }),
+                                },
+                              ]
+                            : []),
                           {
                             title: "Edit",
                             onClick: () =>
@@ -301,9 +315,17 @@ export const ProjectList: React.FC = () => {
 
       <ProjectFormModal
         project={modalState.type === "edit" ? modalState.project : null}
-        isOpen={modalState.type !== "closed"}
+        isOpen={modalState.type === "create" || modalState.type === "edit"}
         onClose={closeModal}
       />
+
+      {modalState.type === "git-mappings" && (
+        <GitMappingModal
+          project={modalState.project}
+          isOpen
+          onClose={closeModal}
+        />
+      )}
 
       {projectToDelete && (
         <ConfirmDialog

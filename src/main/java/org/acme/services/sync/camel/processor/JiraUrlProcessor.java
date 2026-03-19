@@ -12,7 +12,7 @@ import java.util.Base64;
 public class JiraUrlProcessor implements Processor {
 
     static final int MAX_RESULTS = 50;
-    static final String FIELDS = "summary,description,status,created,updated";
+    static final String FIELDS = "summary,description,status,labels,created,updated";
 
     @Override
     public void process(Exchange exchange) {

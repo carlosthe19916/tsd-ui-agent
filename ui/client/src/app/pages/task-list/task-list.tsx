@@ -25,6 +25,7 @@ import {
   GridItem,
   Icon,
   Label,
+  LabelGroup,
   MenuToggle,
   PageSection,
   Select,
@@ -240,7 +241,7 @@ const TaskListContent: React.FC = () => {
                           </small>
                         </FlexItem>
                         <FlexItem>
-                          <Label isCompact>{task.externalStatus}</Label>
+                          Status: {task.externalStatus}
                         </FlexItem>
                       </Flex>
                     </DataListCell>,
@@ -265,17 +266,17 @@ const TaskListContent: React.FC = () => {
                           </FlexItem>
                           {(task.plan.isPlanGenerationInProgress ||
                             task.plan.isExecutionPlanInProgress) && (
-                            <FlexItem>
-                              <Button
-                                variant="link"
-                                size="sm"
-                                icon={<TerminalIcon />}
-                                onClick={() => setOutputTaskId(task.id)}
-                              >
-                                View Output
-                              </Button>
-                            </FlexItem>
-                          )}
+                              <FlexItem>
+                                <Button
+                                  variant="link"
+                                  size="sm"
+                                  icon={<TerminalIcon />}
+                                  onClick={() => setOutputTaskId(task.id)}
+                                >
+                                  View Output
+                                </Button>
+                              </FlexItem>
+                            )}
                         </Flex>
                       ) : (
                         "No plan"
@@ -407,6 +408,14 @@ const TaskListContent: React.FC = () => {
                         <DescriptionListTerm>Project</DescriptionListTerm>
                         <DescriptionListDescription>
                           {task.project.name}
+                        </DescriptionListDescription>
+                      </DescriptionListGroup>
+                      <DescriptionListGroup>
+                        <DescriptionListTerm>Labels</DescriptionListTerm>
+                        <DescriptionListDescription>
+                          <LabelGroup>
+                            {task.labels?.map(label => <Label key={label}>{label}</Label>)}
+                          </LabelGroup>
                         </DescriptionListDescription>
                       </DescriptionListGroup>
                       <DescriptionListGroup>

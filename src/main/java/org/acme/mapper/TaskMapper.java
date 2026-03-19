@@ -5,6 +5,9 @@ import jakarta.inject.Inject;
 import org.acme.dto.TaskDto;
 import org.acme.models.jpa.entity.TaskEntity;
 
+import java.util.Arrays;
+import java.util.List;
+
 @ApplicationScoped
 public class TaskMapper {
 
@@ -24,6 +27,7 @@ public class TaskMapper {
         dto.status = entity.status;
         dto.externalStatus = entity.externalStatus;
 
+        dto.labels = entity.labels != null ? Arrays.asList(entity.labels.split(",")) : List.of();
         dto.type = entity.type;
         dto.createdAt = entity.createdAt;
         dto.updatedAt = entity.updatedAt;

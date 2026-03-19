@@ -5,7 +5,8 @@ BASE_URL="${BASE_URL:-http://localhost:8080}"
 
 # Validate required environment variables
 : "${GITHUB_PAT:?Environment variable GITHUB_PAT is not set}"
-: "${JIRA_TOKEN:?Environment variable JIRA_TOKEN is not set}"
+: "${CARLOS_JIRA_TOKEN:?Environment variable CARLOS_JIRA_TOKEN is not set}"
+: "${REDHAT_JIRA_TOKEN:?Environment variable REDHAT_JIRA_TOKEN is not set}"
 
 # Helper functions
 

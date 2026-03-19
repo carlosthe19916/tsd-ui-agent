@@ -32,15 +32,14 @@ import org.acme.dto.SearchResultDto;
 import org.acme.dto.TaskDto;
 import org.acme.mapper.PlanMapper;
 import org.acme.mapper.TaskMapper;
-import org.acme.models.jpa.entity.GitEntity;
 import org.acme.models.jpa.entity.PlanEntity;
-import org.acme.models.jpa.entity.SourceType;
 import org.acme.models.jpa.entity.TaskEntity;
 import org.acme.models.jpa.entity.TaskStatus;
 import org.acme.services.ChangeRequestService;
 import org.acme.services.ExecutionOutputBroadcaster;
 import org.acme.services.PlanService;
 import org.acme.services.WorktreeService;
+import org.acme.services.ProjectGitMappingService;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.resteasy.reactive.RestStreamElementType;
 
@@ -77,6 +76,9 @@ public class TaskResource {
 
     @Inject
     ExecutionOutputBroadcaster broadcaster;
+
+    @Inject
+    ProjectGitMappingService projectGitMappingService;
 
     @Inject
     TransactionManager transactionManager;
@@ -199,16 +201,11 @@ public class TaskResource {
             plan.requirement = (task.description != null && !task.description.isBlank()) ? task.description : task.title;
         }
 
-        // Auto-populate git from GitHub project's apiUrl if not provided
-        if (plan.git == null && task.project.type == SourceType.GITHUB) {
-            String apiUrl = task.project.apiUrl;
-            String prefix = "https://api.github.com/repos/";
-            if (apiUrl != null && apiUrl.startsWith(prefix)) {
-                String ownerRepo = apiUrl.substring(prefix.length());
-                GitEntity git = GitEntity.find("url like ?1", "%" + ownerRepo + "%").firstResult();
-                if (git != null) {
-                    plan.git = git;
-                }
+        // Auto-populate git repo if not provided
+        if (plan.git == null) {
+            switch (task.project.type) {
+                case GITHUB -> projectGitMappingService.resolveFromGitHub(task.project).ifPresent(git -> plan.git = git);
+                case JIRA -> projectGitMappingService.resolveFromMapping(task).ifPresent(git -> plan.git = git);
             }
         }
 
