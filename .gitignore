@@ -46,5 +46,9 @@ nb-configuration.xml
 
 *.db
 
+META-INF/
 **/managed_context/*
 **/test_suite_analysis/*
+test_suite_analysis/
+managed_context/
+.playwright-mcp
