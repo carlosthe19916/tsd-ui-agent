@@ -6,9 +6,7 @@ const mappingsUrl = (projectId: number) =>
   `/api/projects/${projectId}/git-mappings`;
 
 export const getMappings = (projectId: number) =>
-  axios
-    .get<ProjectGitMappingDto[]>(mappingsUrl(projectId))
-    .then((r) => r.data);
+  axios.get<ProjectGitMappingDto[]>(mappingsUrl(projectId)).then((r) => r.data);
 
 export const createMapping = (
   projectId: number,

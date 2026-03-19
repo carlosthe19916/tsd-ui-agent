@@ -114,9 +114,7 @@ const GitMappingModalContent: React.FC<
       onClose={onClose}
       aria-label="Git repository mappings"
     >
-      <ModalHeader
-        title={`Git Repository Mappings \u2014 "${project.name}"`}
-      />
+      <ModalHeader title={`Git Repository Mappings \u2014 "${project.name}"`} />
       <ModalBody>
         {isLoading ? (
           <Bullseye>
@@ -231,9 +229,7 @@ const GitMappingModalContent: React.FC<
               <Button
                 variant={ButtonVariant.primary}
                 isDisabled={
-                  !selectedGitId ||
-                  !selectedSpace ||
-                  createMutation.isPending
+                  !selectedGitId || !selectedSpace || createMutation.isPending
                 }
                 onClick={handleAdd}
                 style={{ marginTop: "0.5rem" }}

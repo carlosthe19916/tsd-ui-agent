@@ -240,9 +240,7 @@ const TaskListContent: React.FC = () => {
                             {task.project.name} ({task.type.toLowerCase()})
                           </small>
                         </FlexItem>
-                        <FlexItem>
-                          Status: {task.externalStatus}
-                        </FlexItem>
+                        <FlexItem>Status: {task.externalStatus}</FlexItem>
                       </Flex>
                     </DataListCell>,
                     <DataListCell key="plan" width={3} isFilled>
@@ -266,17 +264,17 @@ const TaskListContent: React.FC = () => {
                           </FlexItem>
                           {(task.plan.isPlanGenerationInProgress ||
                             task.plan.isExecutionPlanInProgress) && (
-                              <FlexItem>
-                                <Button
-                                  variant="link"
-                                  size="sm"
-                                  icon={<TerminalIcon />}
-                                  onClick={() => setOutputTaskId(task.id)}
-                                >
-                                  View Output
-                                </Button>
-                              </FlexItem>
-                            )}
+                            <FlexItem>
+                              <Button
+                                variant="link"
+                                size="sm"
+                                icon={<TerminalIcon />}
+                                onClick={() => setOutputTaskId(task.id)}
+                              >
+                                View Output
+                              </Button>
+                            </FlexItem>
+                          )}
                         </Flex>
                       ) : (
                         "No plan"
@@ -414,7 +412,9 @@ const TaskListContent: React.FC = () => {
                         <DescriptionListTerm>Labels</DescriptionListTerm>
                         <DescriptionListDescription>
                           <LabelGroup>
-                            {task.labels?.map(label => <Label key={label}>{label}</Label>)}
+                            {task.labels?.map((label) => (
+                              <Label key={label}>{label}</Label>
+                            ))}
                           </LabelGroup>
                         </DescriptionListDescription>
                       </DescriptionListGroup>
