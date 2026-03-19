@@ -25,6 +25,7 @@ import {
   GridItem,
   Icon,
   Label,
+  LabelGroup,
   MenuToggle,
   PageSection,
   Select,
@@ -239,9 +240,7 @@ const TaskListContent: React.FC = () => {
                             {task.project.name} ({task.type.toLowerCase()})
                           </small>
                         </FlexItem>
-                        <FlexItem>
-                          <Label isCompact>{task.externalStatus}</Label>
-                        </FlexItem>
+                        <FlexItem>Status: {task.externalStatus}</FlexItem>
                       </Flex>
                     </DataListCell>,
                     <DataListCell key="plan" width={3} isFilled>
@@ -407,6 +406,16 @@ const TaskListContent: React.FC = () => {
                         <DescriptionListTerm>Project</DescriptionListTerm>
                         <DescriptionListDescription>
                           {task.project.name}
+                        </DescriptionListDescription>
+                      </DescriptionListGroup>
+                      <DescriptionListGroup>
+                        <DescriptionListTerm>Labels</DescriptionListTerm>
+                        <DescriptionListDescription>
+                          <LabelGroup>
+                            {task.labels?.map((label) => (
+                              <Label key={label}>{label}</Label>
+                            ))}
+                          </LabelGroup>
                         </DescriptionListDescription>
                       </DescriptionListGroup>
                       <DescriptionListGroup>

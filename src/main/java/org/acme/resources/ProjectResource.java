@@ -17,10 +17,13 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.acme.dto.ProjectDto;
+import org.acme.dto.ProjectGitMappingDto;
 import org.acme.dto.TestConnectionDto;
+import org.acme.mapper.ProjectGitMappingMapper;
 import org.acme.mapper.ProjectMapper;
 import org.acme.models.jpa.entity.CredentialEntity;
 import org.acme.models.jpa.entity.ProjectEntity;
+import org.acme.models.jpa.entity.ProjectGitMappingEntity;
 import org.acme.models.jpa.entity.SyncStatus;
 import org.acme.services.ProjectService;
 import org.acme.services.TaskSyncService;
@@ -49,6 +52,9 @@ public class ProjectResource {
 
     @Inject
     SyncManager syncManager;
+
+    @Inject
+    ProjectGitMappingMapper mappingMapper;
 
     @GET
     public List<ProjectDto> list() {
@@ -139,6 +145,42 @@ public class ProjectResource {
                     .entity(Map.of("status", "error", "message", e.getMessage()))
                     .build();
         }
+    }
+
+    // Git Mapping sub-resource endpoints
+
+    @GET
+    @Path("/{id}/git-mappings")
+    public List<ProjectGitMappingDto> listMappings(@PathParam("id") Long id) {
+        ProjectEntity project = (ProjectEntity) ProjectEntity.findByIdOptional(id)
+                .orElseThrow(NotFoundException::new);
+        return ProjectGitMappingEntity.<ProjectGitMappingEntity>list("project", project)
+                .stream()
+                .map(mappingMapper::toDto)
+                .collect(Collectors.toList());
+    }
+
+    @POST
+    @Path("/{id}/git-mappings")
+    public Response createMapping(@PathParam("id") Long id, @Valid ProjectGitMappingDto dto) {
+        ProjectEntity project = (ProjectEntity) ProjectEntity.findByIdOptional(id)
+                .orElseThrow(NotFoundException::new);
+        ProjectGitMappingEntity entity = mappingMapper.toEntity(dto, project);
+        entity.persist();
+        return Response.status(Response.Status.CREATED)
+                .entity(mappingMapper.toDto(entity))
+                .build();
+    }
+
+    @DELETE
+    @Path("/{id}/git-mappings/{mappingId}")
+    public Response deleteMapping(@PathParam("id") Long id, @PathParam("mappingId") Long mappingId) {
+        ProjectGitMappingEntity mapping = ProjectGitMappingEntity.findById(mappingId);
+        if (mapping == null || !mapping.project.id.equals(id)) {
+            throw new NotFoundException();
+        }
+        mapping.delete();
+        return Response.noContent().build();
     }
 
     @DELETE

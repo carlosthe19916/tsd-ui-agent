@@ -63,6 +63,7 @@ public class TaskSyncService {
                     task.description = issue.description;
                     task.externalStatus = issue.externalStatus;
 
+                    task.labels = issue.labels != null && !issue.labels.isEmpty() ? String.join(",", issue.labels) : null;
                     task.createdAt = issue.createdAt;
                     task.updatedAt = issue.updatedAt;
                     task.persist();

@@ -83,6 +83,7 @@ export interface TaskDto {
   status: TaskStatus;
   externalStatus: string;
 
+  labels?: string[];
   type: SourceType;
   createdAt: string;
   updatedAt: string;
@@ -93,6 +94,14 @@ export interface TaskDto {
 export interface SearchResultDto<T> {
   meta: { offset: number; limit: number; count: number };
   data: T[];
+}
+
+export interface ProjectGitMappingDto {
+  id: number;
+  projectId: number;
+  gitId: number;
+  space: string;
+  labels: string[];
 }
 
 export interface ProjectDto {
