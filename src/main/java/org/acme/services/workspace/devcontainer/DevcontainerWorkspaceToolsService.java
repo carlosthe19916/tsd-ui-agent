@@ -1,6 +1,7 @@
-package org.acme.services.workspace.filesystem;
+package org.acme.services.workspace.devcontainer;
 
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import org.acme.services.workspace.ExecutionMode;
 import org.acme.services.workspace.Workspace;
 import org.acme.services.workspace.WorkspaceToolsService;
@@ -14,17 +15,14 @@ import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.Set;
 
-@WorkspaceToolsServiceType(type = ExecutionMode.FILESYSTEM)
+@WorkspaceToolsServiceType(type = ExecutionMode.DOCKER)
 @ApplicationScoped
-public class FilesystemWorkspaceToolsService implements WorkspaceToolsService {
+public class DevcontainerWorkspaceToolsService implements WorkspaceToolsService {
 
-    private static final Logger LOG = Logger.getLogger(FilesystemWorkspaceToolsService.class);
+    private static final Logger LOG = Logger.getLogger(DevcontainerWorkspaceToolsService.class);
 
-    @ConfigProperty(name = "tsd-agent.vscode.command")
-    String vscodeCommand;
-
-    @ConfigProperty(name = "tsd-agent.terminal.command")
-    String terminalCommand;
+    @Inject
+    DevcontainerConfig config;
 
     @ConfigProperty(name = "tsd-agent.terminal.exec-command")
     String terminalExecCommand;
@@ -35,19 +33,33 @@ public class FilesystemWorkspaceToolsService implements WorkspaceToolsService {
     @Override
     public void openIDE(Workspace workspace) {
         try {
-            new ProcessBuilder(vscodeCommand, workspace.workingDirectory())
+            new ProcessBuilder(config.command, "open", "--workspace-folder", workspace.id())
                     .inheritIO()
                     .start();
         } catch (IOException e) {
-            throw new RuntimeException("Failed to open VSCode: " + e.getMessage(), e);
+            LOG.warnf("Failed to open IDE via devcontainer open: %s. Try opening VS Code manually and attaching to the container.", e.getMessage());
         }
     }
 
     @Override
     public void openTerminal(Workspace workspace) {
-        String resolved = terminalCommand.formatted(workspace.workingDirectory());
-        String[] parts = resolved.split("\\s+");
         try {
+            Path scriptPath = Files.createTempFile("tsd-devcontainer-term-", ".sh");
+            String script = """
+                    #!/bin/bash
+                    %s exec --workspace-folder %s /bin/bash
+                    """.formatted(config.command, workspace.id());
+            Files.writeString(scriptPath, script);
+            Files.setPosixFilePermissions(scriptPath, Set.of(
+                    PosixFilePermission.OWNER_READ,
+                    PosixFilePermission.OWNER_WRITE,
+                    PosixFilePermission.OWNER_EXECUTE
+            ));
+
+            String resolved = terminalExecCommand
+                    .replace("%s", workspace.id())
+                    .replace("%c", scriptPath.toString());
+            String[] parts = resolved.split("\\s+");
             new ProcessBuilder(parts)
                     .inheritIO()
                     .start();
@@ -58,14 +70,13 @@ public class FilesystemWorkspaceToolsService implements WorkspaceToolsService {
 
     @Override
     public String openClaude(Workspace workspace, Long taskId, String requirement, String planApiUrl, String existingSessionId) {
-        String worktreePath = workspace.workingDirectory();
         try {
             if (existingSessionId != null) {
                 Path resumeScriptPath = Files.createTempFile("tsd-claude-resume-", ".sh");
                 String resumeScript = """
                         #!/bin/bash
-                        %s --resume %s
-                        """.formatted(claudeCommand, existingSessionId);
+                        %s exec --workspace-folder %s %s --resume %s
+                        """.formatted(config.command, workspace.id(), claudeCommand, existingSessionId);
                 Files.writeString(resumeScriptPath, resumeScript);
                 Files.setPosixFilePermissions(resumeScriptPath, Set.of(
                         PosixFilePermission.OWNER_READ,
@@ -74,7 +85,7 @@ public class FilesystemWorkspaceToolsService implements WorkspaceToolsService {
                 ));
 
                 String resolved = terminalExecCommand
-                        .replace("%s", worktreePath)
+                        .replace("%s", workspace.id())
                         .replace("%c", resumeScriptPath.toString());
                 String[] parts = resolved.split("\\s+");
                 new ProcessBuilder(parts)
@@ -99,14 +110,14 @@ public class FilesystemWorkspaceToolsService implements WorkspaceToolsService {
                     echo ""
                     read -p "Should Claude create a plan for this? (yes/no): " confirm
                     if [ "$confirm" = "yes" ]; then
-                      %s --session-id %s --permission-mode plan \\
+                      %s exec --workspace-folder %s %s --session-id %s --permission-mode plan \\
                         --append-system-prompt "Once the plan is ready, ask the user: 'Would you like me to save this plan to the app?' If they confirm, do an HTTP PATCH to $TASK_URL with a JSON body containing the field 'plan' as a plain markdown string." \\
                         "$(cat <<'PROMPT_EOF'
                     %s
                     PROMPT_EOF
                     )"
                     fi
-                    """.formatted(planApiUrl, requirement, claudeCommand, sessionId, requirement);
+                    """.formatted(planApiUrl, requirement, config.command, workspace.id(), claudeCommand, sessionId, requirement);
 
             Files.writeString(scriptPath, script);
             Files.setPosixFilePermissions(scriptPath, Set.of(
@@ -116,7 +127,7 @@ public class FilesystemWorkspaceToolsService implements WorkspaceToolsService {
             ));
 
             String resolved = terminalExecCommand
-                    .replace("%s", worktreePath)
+                    .replace("%s", workspace.id())
                     .replace("%c", scriptPath.toString());
             String[] parts = resolved.split("\\s+");
             new ProcessBuilder(parts)

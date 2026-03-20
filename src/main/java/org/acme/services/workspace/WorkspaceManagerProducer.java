@@ -1,43 +1,43 @@
 package org.acme.services.workspace;
 
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Any;
+import jakarta.enterprise.inject.Instance;
 import jakarta.enterprise.inject.Produces;
 import jakarta.inject.Inject;
-import org.acme.services.workspace.filesystem.FilesystemWorkspaceManager;
-import org.acme.services.workspace.filesystem.FilesystemWorkspaceToolsService;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 @ApplicationScoped
 public class WorkspaceManagerProducer {
 
     @Inject
-    FilesystemWorkspaceManager filesystemWorkspaceManager;
+    @Any
+    Instance<WorkspaceManager> workspaceManagers;
 
     @Inject
-    FilesystemWorkspaceToolsService filesystemWorkspaceToolsService;
+    @Any
+    Instance<WorkspaceToolsService> workspaceToolsServices;
 
-    @ConfigProperty(name = "tsd-agent.execution-mode", defaultValue = "FILESYSTEM")
+    @ConfigProperty(name = "tsd-agent.execution-mode")
     ExecutionMode executionMode;
 
     @Produces
     @ApplicationScoped
     public WorkspaceManager workspaceManager() {
-        return switch (executionMode) {
-            case FILESYSTEM -> filesystemWorkspaceManager;
-            case DOCKER -> throw new UnsupportedOperationException("Docker execution mode not yet implemented");
-            case KUBERNETES ->
-                    throw new UnsupportedOperationException("Kubernetes execution mode not yet implemented");
-        };
+        Instance<WorkspaceManager> selected = workspaceManagers.select(new WorkspaceManagerTypeLiteral(executionMode));
+        if (selected.isUnsatisfied()) {
+            throw new UnsupportedOperationException(executionMode + " execution mode has no WorkspaceManager implementation");
+        }
+        return selected.get();
     }
 
     @Produces
     @ApplicationScoped
     public WorkspaceToolsService workspaceToolsService() {
-        return switch (executionMode) {
-            case FILESYSTEM -> filesystemWorkspaceToolsService;
-            case DOCKER -> throw new UnsupportedOperationException("Docker execution mode not yet implemented");
-            case KUBERNETES ->
-                    throw new UnsupportedOperationException("Kubernetes execution mode not yet implemented");
-        };
+        Instance<WorkspaceToolsService> selected = workspaceToolsServices.select(new WorkspaceToolsServiceTypeLiteral(executionMode));
+        if (selected.isUnsatisfied()) {
+            throw new UnsupportedOperationException(executionMode + " execution mode has no WorkspaceToolsService implementation");
+        }
+        return selected.get();
     }
 }

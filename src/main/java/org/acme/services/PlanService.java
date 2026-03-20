@@ -69,8 +69,7 @@ public class PlanService {
                 }
 
                 String alias = GitManager.planBranchName(task.plan.id);
-                Workspace ws = workspaceManager.provision(
-                        new WorkspaceRequest(task.plan.git.localPath, alias));
+                Workspace ws = workspaceManager.provision(new WorkspaceRequest(task.plan.git.localPath, alias));
                 task.plan.workspaceId = ws.id();
                 task.plan.persist();
                 return new PlanGenerationContext(ws.id(), task.plan.requirement);

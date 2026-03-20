@@ -1,19 +1,15 @@
 package org.acme.services.workspace.filesystem;
 
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.enterprise.inject.Typed;
 import jakarta.inject.Inject;
 import org.acme.services.git.GitManager;
-import org.acme.services.workspace.Workspace;
-import org.acme.services.workspace.WorkspaceException;
-import org.acme.services.workspace.WorkspaceManager;
-import org.acme.services.workspace.WorkspaceRequest;
+import org.acme.services.workspace.*;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+@WorkspaceManagerType(type = ExecutionMode.FILESYSTEM)
 @ApplicationScoped
-@Typed(FilesystemWorkspaceManager.class)
 public class FilesystemWorkspaceManager implements WorkspaceManager {
 
     @Inject
