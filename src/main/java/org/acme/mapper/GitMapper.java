@@ -15,6 +15,7 @@ public class GitMapper {
         dto.url = entity.url;
         dto.branch = entity.branch;
         dto.forkUrl = entity.forkUrl;
+        dto.vendorType = entity.vendorType;
         dto.credential = toCredentialDto(entity.credential);
         dto.localPath = entity.localPath;
         dto.isCloneInProgress = entity.isCloneInProgress;
@@ -27,6 +28,7 @@ public class GitMapper {
         entity.url = dto.url;
         entity.branch = dto.branch;
         entity.forkUrl = dto.forkUrl;
+        entity.vendorType = dto.vendorType;
         return entity;
     }
 
@@ -34,6 +36,7 @@ public class GitMapper {
         entity.url = dto.url;
         entity.branch = dto.branch;
         entity.forkUrl = dto.forkUrl;
+        entity.vendorType = dto.vendorType;
     }
 
     private CredentialDto toCredentialDto(CredentialEntity entity) {

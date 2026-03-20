@@ -43,6 +43,26 @@ export const GitForm: React.FC<GitFormProps> = ({ control }) => {
       />
       <HookFormPFGroupController
         control={control}
+        name="vendorType"
+        label="Vendor type"
+        fieldId="vendorType"
+        renderInput={({ field: { onChange, onBlur, value, name, ref } }) => (
+          <FormSelect
+            ref={ref}
+            name={name}
+            id="vendorType"
+            onChange={onChange}
+            onBlur={onBlur}
+            value={value}
+          >
+            <FormSelectOption value="" label="Auto-detect" isPlaceholder />
+            <FormSelectOption value="GITHUB" label="GitHub" />
+            <FormSelectOption value="GITLAB" label="GitLab" />
+          </FormSelect>
+        )}
+      />
+      <HookFormPFGroupController
+        control={control}
         name="credentialId"
         label="Credential"
         fieldId="credentialId"
