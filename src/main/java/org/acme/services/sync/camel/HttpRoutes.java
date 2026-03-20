@@ -5,9 +5,13 @@ import org.acme.services.sync.SyncException;
 import org.apache.camel.Exchange;
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.http.base.HttpOperationFailedException;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 @ApplicationScoped
 public class HttpRoutes extends RouteBuilder {
+
+    @ConfigProperty(name = "tsd-agent.http.trust-all-ssl", defaultValue = "false")
+    boolean trustAllSsl;
 
     @Override
     public void configure() {
@@ -25,12 +29,16 @@ public class HttpRoutes extends RouteBuilder {
                     throw new SyncException(message, cause);
                 });
 
+        String sslParam = trustAllSsl ? "&sslContextParameters=#trustAllSsl" : "";
+
         from("direct:http-get")
                 .setHeader(Exchange.HTTP_METHOD, constant("GET"))
-                .toD("${header.CamelHttpUrl}?throwExceptionOnFailure=true");
+                .setHeader(Exchange.HTTP_URI, header(Exchange.HTTP_URL))
+                .toD("${header.CamelHttpUrl}?throwExceptionOnFailure=true" + sslParam);
 
         from("direct:http-post")
                 .setHeader(Exchange.HTTP_METHOD, constant("POST"))
-                .toD("${header.CamelHttpUrl}?throwExceptionOnFailure=true");
+                .setHeader(Exchange.HTTP_URI, header(Exchange.HTTP_URL))
+                .toD("${header.CamelHttpUrl}?throwExceptionOnFailure=true" + sslParam);
     }
 }

@@ -47,7 +47,7 @@ public class ChangeRequestService {
             record ChangeRequestContext(
                     String worktreePath, String mainClonePath, String gitUrl,
                     String forkUrl, String taskTitle, String requirement,
-                    String apiUrl, Long planId, String gitToken
+                    Long planId, String gitToken, String gitBranch
             ) {}
 
 
@@ -64,14 +64,14 @@ public class ChangeRequestService {
                 String forkUrl = task.plan.git.forkUrl;
                 String taskTitle = task.title;
                 String requirement = task.plan.requirement;
-                String apiUrlVal = task.project.apiUrl;
                 Long planId = task.plan.id;
                 String gitToken = task.plan.git.credential != null ? task.plan.git.credential.token : null;
+                String gitBranch = task.plan.git.branch;
 
                 return new ChangeRequestContext(
                         worktreePath, mainClonePath, gitUrl,
                         forkUrl, taskTitle, requirement,
-                        apiUrlVal, planId, gitToken
+                        planId, gitToken, gitBranch
                 );
             });
 
@@ -87,7 +87,9 @@ public class ChangeRequestService {
                 LOG.infof("Task %d: No changes to commit, proceeding with push: %s", taskId, e.getMessage());
             }
 
-            String baseBranch = gitManager.getCurrentBranch(context.mainClonePath());
+            String baseBranch = (context.gitBranch() != null && !context.gitBranch().isBlank())
+                    ? context.gitBranch()
+                    : gitManager.getCurrentBranch(context.mainClonePath());
             String branchName = GitManager.planBranchName(context.planId());
             boolean isGitLab = context.gitUrl().contains("gitlab");
 
@@ -110,19 +112,44 @@ public class ChangeRequestService {
 
             if (isGitLab) {
                 // GitLab Merge Request API
-                String gitlabApiBase = context.apiUrl() != null
-                        ? context.apiUrl()
-                        : "https://gitlab.com/api/v4";
+                String gitlabHost = GitManager.extractHost(context.gitUrl());
+                String gitlabApiBase = "https://" + gitlabHost + "/api/v4";
                 String encodedProject = URLEncoder.encode(ownerRepo, StandardCharsets.UTF_8);
                 apiUrl = gitlabApiBase + "/projects/" + encodedProject + "/merge_requests";
 
-                body = Json.createObjectBuilder()
-                        .add("title", context.taskTitle())
-                        .add("description", context.requirement() != null ? context.requirement() : "")
-                        .add("source_branch", branchName)
-                        .add("target_branch", baseBranch)
-                        .build()
-                        .toString();
+                if (context.forkUrl() != null) {
+                    String forkOwnerRepo = GitManager.extractOwnerRepo(context.forkUrl());
+                    String encodedFork = URLEncoder.encode(forkOwnerRepo, StandardCharsets.UTF_8);
+                    String forkLookupUrl = gitlabApiBase + "/projects/" + encodedFork;
+
+                    Map<String, Object> lookupHeaders = new HashMap<>();
+                    lookupHeaders.put("CamelHttpUrl", forkLookupUrl);
+                    if (context.gitToken() != null) {
+                        lookupHeaders.put("PRIVATE-TOKEN", context.gitToken());
+                    }
+                    String forkResponse = template.requestBodyAndHeaders("direct:http-get", null, lookupHeaders, String.class);
+                    int forkProjectId;
+                    try (JsonReader fr = Json.createReader(new StringReader(forkResponse))) {
+                        forkProjectId = fr.readObject().getInt("id");
+                    }
+
+                    body = Json.createObjectBuilder()
+                            .add("title", context.taskTitle())
+                            .add("description", context.requirement() != null ? context.requirement() : "")
+                            .add("source_branch", branchName)
+                            .add("target_branch", baseBranch)
+                            .add("source_project_id", forkProjectId)
+                            .build()
+                            .toString();
+                } else {
+                    body = Json.createObjectBuilder()
+                            .add("title", context.taskTitle())
+                            .add("description", context.requirement() != null ? context.requirement() : "")
+                            .add("source_branch", branchName)
+                            .add("target_branch", baseBranch)
+                            .build()
+                            .toString();
+                }
 
                 headers.put("CamelHttpUrl", apiUrl);
                 headers.put(Exchange.CONTENT_TYPE, "application/json");
@@ -132,9 +159,10 @@ public class ChangeRequestService {
                 responseUrlField = "web_url";
             } else {
                 // GitHub Pull Request API
-                String githubApiBase = context.gitUrl().contains("github.com")
+                String githubHost = GitManager.extractHost(context.gitUrl());
+                String githubApiBase = "github.com".equals(githubHost)
                         ? "https://api.github.com"
-                        : context.apiUrl();
+                        : "https://" + githubHost + "/api/v3";
                 apiUrl = githubApiBase + "/repos/" + ownerRepo + "/pulls";
 
                 if (context.forkUrl() != null) {
@@ -161,6 +189,16 @@ public class ChangeRequestService {
                 }
                 responseUrlField = "html_url";
             }
+
+            LOG.infof("Task %d: Creating %s — API URL: %s, source repo: %s, target repo: %s, " +
+                            "source branch: %s, target branch: %s, fork flow: %b, auth: %s, body: %s",
+                    taskId, isGitLab ? "MR" : "PR", headers.get("CamelHttpUrl"),
+                    context.forkUrl() != null ? context.forkUrl() : context.gitUrl(),
+                    context.gitUrl(), branchName, baseBranch,
+                    context.forkUrl() != null,
+                    headers.containsKey("PRIVATE-TOKEN") ? "PRIVATE-TOKEN" :
+                            headers.containsKey("Authorization") ? "Bearer token" : "none",
+                    body);
 
             String responseBody;
             try {

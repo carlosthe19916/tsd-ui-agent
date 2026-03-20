@@ -7,6 +7,7 @@ BASE_URL="${BASE_URL:-http://localhost:8080}"
 : "${GITHUB_PAT:?Environment variable GITHUB_PAT is not set}"
 : "${CARLOS_JIRA_TOKEN:?Environment variable CARLOS_JIRA_TOKEN is not set}"
 : "${REDHAT_JIRA_TOKEN:?Environment variable REDHAT_JIRA_TOKEN is not set}"
+: "${REDHAT_GITLAB_PAT:?Environment variable REDHAT_GITLAB_PAT is not set}"
 
 # Helper functions
 
@@ -77,6 +78,7 @@ sync_project() {
 GITHUB_CREDENTIAL_ID=$(create_credential github "$GITHUB_PAT")
 CARLOS_JIRA_CREDENTIAL_ID=$(create_credential jira-carlos "$CARLOS_JIRA_TOKEN")
 REDHAT_JIRA_CREDENTIAL_ID=$(create_credential jira-redhat "$REDHAT_JIRA_TOKEN")
+REDHAT_GITLAB_CREDENTIAL_ID=$(create_credential gitlab-redhat "$REDHAT_GITLAB_PAT")
 
 # Git repositories
 TSD_UI_AGENT_GIT_ID=$(create_git git@github.com:carlosthe19916/tsd-ui-agent.git "$GITHUB_CREDENTIAL_ID")
@@ -85,6 +87,9 @@ TRUSTIFY_GIT_ID=$(create_git git@github.com:trustificationdemo/trustify.git "$GI
   git@github.com:carlosthe19916/trustify.git)
 TRUSTIFY_UI_GIT_ID=$(create_git git@github.com:trustificationdemo/trustify-ui.git "$GITHUB_CREDENTIAL_ID" \
   git@github.com:carlosthe19916/trustify-ui.git)
+
+PACKAGES_REDHAT_GIT_ID=$(create_git git@gitlab.cee.redhat.com:hosted-pulp/ui-packages.redhat.com.git "$REDHAT_GITLAB_CREDENTIAL_ID" \
+  git@gitlab.cee.redhat.com:cferiavi/ui-packages.redhat.com.git)
 
 # Projects
 TSD_UI_AGENT_PROJECT_ID=$(create_project tsd-ui-agent GITHUB \
@@ -106,6 +111,7 @@ REDHAT_JIRA_PROJECT_ID=$(create_project atlasian-redhat JIRA \
 
 # Git mappings
 create_git_mapping "$REDHAT_JIRA_PROJECT_ID" "$TRUSTIFY_UI_GIT_ID" "TC" '["TSD-UI"]'
+create_git_mapping "$REDHAT_JIRA_PROJECT_ID" "$PACKAGES_REDHAT_GIT_ID" "PULP" '["TSD-UI"]'
 
 # Sync projects
 sync_project tsd-ui-agent "$TSD_UI_AGENT_PROJECT_ID"
