@@ -123,7 +123,11 @@ export const useGitForm = (
   const watchedUrl = form.watch("url");
   useEffect(() => {
     const currentVendorType = form.getValues("vendorType");
-    if (!currentVendorType || currentVendorType === inferVendorType(watchedUrl) || currentVendorType === "") {
+    if (
+      !currentVendorType ||
+      currentVendorType === inferVendorType(watchedUrl) ||
+      currentVendorType === ""
+    ) {
       const inferred = inferVendorType(watchedUrl);
       if (inferred) {
         form.setValue("vendorType", inferred, { shouldDirty: true });
