@@ -17,7 +17,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import org.acme.services.ChangeRequestService;
-import org.acme.services.WorktreeService;
+import org.acme.services.workspace.WorkspaceManager;
+import org.acme.services.workspace.WorkspaceToolsService;
+import org.acme.services.workspace.filesystem.FilesystemWorkspace;
 
 import java.time.Instant;
 import java.util.List;
@@ -48,7 +50,10 @@ class TaskResourceTest {
     RequirementSummarizerService aiService;
 
     @InjectMock
-    WorktreeService worktreeService;
+    WorkspaceToolsService workspaceToolsService;
+
+    @InjectMock
+    WorkspaceManager workspaceManager;
 
     @InjectMock
     ChangeRequestService changeRequestService;
@@ -66,11 +71,14 @@ class TaskResourceTest {
         doNothing().when(gitManager).addForkRemote(anyString(), anyString());
         when(gitManager.addWorktree(anyString(), anyString()))
                 .thenAnswer(invocation -> "/tmp/tsd-agent-ui-test/repo/trees/" + invocation.getArgument(1));
-        when(worktreeService.ensureWorktree(any()))
-                .thenReturn("/tmp/tsd-agent-ui-test/repo/trees/plan-worktree");
-        doNothing().when(worktreeService).openVSCode(anyString());
-        doNothing().when(worktreeService).openTerminal(anyString());
-        when(worktreeService.openClaude(anyString(), any(), anyString(), anyString(), any()))
+        when(workspaceManager.provision(any()))
+                .thenAnswer(invocation -> new FilesystemWorkspace("/tmp/tsd-agent-ui-test/repo/trees/plan-worktree"));
+        when(workspaceManager.reconnect(anyString()))
+                .thenAnswer(invocation -> new FilesystemWorkspace(invocation.getArgument(0)));
+        when(workspaceManager.exists(anyString())).thenReturn(true);
+        doNothing().when(workspaceToolsService).openIDE(any());
+        doNothing().when(workspaceToolsService).openTerminal(any());
+        when(workspaceToolsService.openClaude(any(), any(), anyString(), anyString(), any()))
                 .thenReturn("test-session-id");
         doNothing().when(gitManager).addAll(anyString());
         doNothing().when(gitManager).commit(anyString(), anyString());
@@ -904,7 +912,7 @@ class TaskResourceTest {
                 .then()
                 .statusCode(200)
                 .body("git.id", is(gitId2))
-                .body("worktreePath", nullValue());
+                .body("workspaceId", nullValue());
     }
 
     // PATCH plan tests

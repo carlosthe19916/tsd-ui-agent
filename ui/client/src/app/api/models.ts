@@ -67,7 +67,7 @@ export interface PlanDto {
   executionPlanCompletedAt?: string;
   createdAt?: string;
   updatedAt?: string;
-  worktreePath?: string;
+  workspaceId?: string;
   claudeSessionId?: string;
   isPlanGenerationInProgress?: boolean;
   planGenerationError?: string;

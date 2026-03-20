@@ -38,8 +38,12 @@ import org.acme.models.jpa.entity.TaskStatus;
 import org.acme.services.ChangeRequestService;
 import org.acme.services.ExecutionOutputBroadcaster;
 import org.acme.services.PlanService;
-import org.acme.services.WorktreeService;
 import org.acme.services.ProjectGitMappingService;
+import org.acme.services.git.GitManager;
+import org.acme.services.workspace.Workspace;
+import org.acme.services.workspace.WorkspaceManager;
+import org.acme.services.workspace.WorkspaceRequest;
+import org.acme.services.workspace.WorkspaceToolsService;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.resteasy.reactive.RestStreamElementType;
 
@@ -72,7 +76,10 @@ public class TaskResource {
     ChangeRequestService changeRequestService;
 
     @Inject
-    WorktreeService worktreeService;
+    WorkspaceManager workspaceManager;
+
+    @Inject
+    WorkspaceToolsService workspaceToolsService;
 
     @Inject
     ExecutionOutputBroadcaster broadcaster;
@@ -310,8 +317,8 @@ public class TaskResource {
             throw new BadRequestException("Plan has no git configuration");
         }
 
-        String path = worktreeService.ensureWorktree(task.plan);
-        worktreeService.openVSCode(path);
+        Workspace workspace = ensureWorkspace(task.plan);
+        workspaceToolsService.openIDE(workspace);
 
         return Response.noContent().build();
     }
@@ -328,8 +335,8 @@ public class TaskResource {
             throw new BadRequestException("Plan has no git configuration");
         }
 
-        String path = worktreeService.ensureWorktree(task.plan);
-        worktreeService.openTerminal(path);
+        Workspace workspace = ensureWorkspace(task.plan);
+        workspaceToolsService.openTerminal(workspace);
 
         return Response.noContent().build();
     }
@@ -495,9 +502,9 @@ public class TaskResource {
             throw new BadRequestException("Plan has no git configuration");
         }
 
-        String path = worktreeService.ensureWorktree(task.plan);
+        Workspace workspace = ensureWorkspace(task.plan);
         String planApiUrl = uriInfo.getBaseUri() + "tasks/" + taskId + "/plan";
-        String sessionId = worktreeService.openClaude(path, taskId, task.plan.requirement, planApiUrl, task.plan.claudeSessionId);
+        String sessionId = workspaceToolsService.openClaude(workspace, taskId, task.plan.requirement, planApiUrl, task.plan.claudeSessionId);
         if (task.plan.claudeSessionId == null) {
             task.plan.claudeSessionId = sessionId;
         }
@@ -520,5 +527,17 @@ public class TaskResource {
                 })
                 .runSubscriptionOn(Infrastructure.getDefaultWorkerPool())
                 .onItem().transformToMulti(id -> broadcaster.subscribe(id));
+    }
+
+    private Workspace ensureWorkspace(PlanEntity plan) {
+        if (plan.workspaceId != null && workspaceManager.exists(plan.workspaceId)) {
+            return workspaceManager.reconnect(plan.workspaceId);
+        }
+
+        String alias = GitManager.planBranchName(plan.id);
+        Workspace ws = workspaceManager.provision(new WorkspaceRequest(plan.git.localPath, alias));
+        plan.workspaceId = ws.id();
+        plan.persist();
+        return ws;
     }
 }

@@ -13,6 +13,8 @@ import org.acme.services.ai.RequirementSummarizerService;
 import org.acme.services.git.GitManager;
 import org.acme.services.sync.ExternalIssue;
 import org.acme.services.sync.SyncManager;
+import org.acme.services.workspace.WorkspaceManager;
+import org.acme.services.workspace.filesystem.FilesystemWorkspace;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -41,7 +43,7 @@ class ChangeRequestServiceTest {
     GitManager gitManager;
 
     @InjectMock
-    WorktreeService worktreeService;
+    WorkspaceManager workspaceManager;
 
     @InjectMock
     ChangeRequestService changeRequestService;
@@ -61,8 +63,11 @@ class ChangeRequestServiceTest {
         doNothing().when(gitManager).addForkRemote(anyString(), anyString());
         when(gitManager.addWorktree(anyString(), anyString()))
                 .thenAnswer(invocation -> "/tmp/tsd-agent-ui-test/repo/trees/" + invocation.getArgument(1));
-        when(worktreeService.ensureWorktree(any()))
-                .thenReturn("/tmp/tsd-agent-ui-test/repo/trees/plan-worktree");
+        when(workspaceManager.provision(any()))
+                .thenAnswer(invocation -> new FilesystemWorkspace("/tmp/tsd-agent-ui-test/repo/trees/plan-worktree"));
+        when(workspaceManager.reconnect(anyString()))
+                .thenAnswer(invocation -> new FilesystemWorkspace(invocation.getArgument(0)));
+        when(workspaceManager.exists(anyString())).thenReturn(true);
         doNothing().when(changeRequestService).triggerChangeRequest(any());
     }
 

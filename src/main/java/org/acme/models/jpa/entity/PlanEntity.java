@@ -52,8 +52,8 @@ public class PlanEntity extends PanacheEntityBase {
     @JoinColumn(name = "git_id")
     public GitEntity git;
 
-    @Column(name = "worktree_path")
-    public String worktreePath;
+    @Column(name = "workspace_id")
+    public String workspaceId;
 
     @Column(name = "claude_session_id")
     public String claudeSessionId;

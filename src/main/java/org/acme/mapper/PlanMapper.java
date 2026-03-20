@@ -26,7 +26,7 @@ public class PlanMapper {
         dto.executionPlanCompletedAt = entity.executionPlanCompletedAt;
         dto.createdAt = entity.createdAt;
         dto.updatedAt = entity.updatedAt;
-        dto.worktreePath = entity.worktreePath;
+        dto.workspaceId = entity.workspaceId;
         dto.claudeSessionId = entity.claudeSessionId;
         dto.isPlanGenerationInProgress = entity.isPlanGenerationInProgress;
         dto.planGenerationError = entity.planGenerationError;
@@ -66,7 +66,7 @@ public class PlanMapper {
         }
 
         if (!java.util.Objects.equals(oldGitId, newGitId)) {
-            entity.worktreePath = null;
+            entity.workspaceId = null;
             entity.claudeSessionId = null;
         }
     }
@@ -89,7 +89,7 @@ public class PlanMapper {
                 entity.git = null;
             }
             if (!java.util.Objects.equals(oldGitId, dto.git.id)) {
-                entity.worktreePath = null;
+                entity.workspaceId = null;
                 entity.claudeSessionId = null;
             }
         }
