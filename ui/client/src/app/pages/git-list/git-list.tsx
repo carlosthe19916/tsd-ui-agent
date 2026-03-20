@@ -215,6 +215,9 @@ export const GitList: React.FC = () => {
                           <FlexItem>{git.url}</FlexItem>
                           <FlexItem>{git.branch || "Default"}</FlexItem>
                           <FlexItem>
+                            <small>{git.vendorType || "Unknown"}</small>
+                          </FlexItem>
+                          <FlexItem>
                             <Icon>
                               <CodeBranchIcon />
                             </Icon>

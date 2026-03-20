@@ -1,18 +1,25 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 
 import { yupResolver } from "@hookform/resolvers/yup";
 import type { AxiosError } from "axios";
 import * as yup from "yup";
 
-import type { GitDto, New } from "@app/api/models";
+import type { GitDto, GitVendorType, New } from "@app/api/models";
 import { useCreateGitMutation, useUpdateGitMutation } from "@app/queries/gits";
 
 export interface GitFormValues {
   url: string;
   branch: string;
   forkUrl: string;
+  vendorType: GitVendorType | "";
   credentialId: string;
+}
+
+export function inferVendorType(url: string): GitVendorType | "" {
+  if (url.includes("gitlab")) return "GITLAB";
+  if (url.includes("github")) return "GITHUB";
+  return "";
 }
 
 const buildSchema = (existingGits: GitDto[], editId: number | undefined) =>
@@ -53,6 +60,11 @@ const buildSchema = (existingGits: GitDto[], editId: number | undefined) =>
           );
         },
       ),
+    vendorType: yup
+      .string()
+      .defined()
+      .default("")
+      .oneOf(["", "GITHUB", "GITLAB"], "Must be GITHUB or GITLAB"),
     credentialId: yup.string().defined().default(""),
     forkUrl: yup
       .string()
@@ -74,6 +86,7 @@ const mapGitToFormValues = (git: GitDto | null): GitFormValues => {
       url: "",
       branch: "",
       forkUrl: "",
+      vendorType: "",
       credentialId: "",
     };
   }
@@ -81,6 +94,7 @@ const mapGitToFormValues = (git: GitDto | null): GitFormValues => {
     url: git.url,
     branch: git.branch ?? "",
     forkUrl: git.forkUrl ?? "",
+    vendorType: git.vendorType ?? "",
     credentialId: git.credential?.id?.toString() ?? "",
   };
 };
@@ -106,6 +120,21 @@ export const useGitForm = (
     mode: "onChange",
   });
 
+  const watchedUrl = form.watch("url");
+  useEffect(() => {
+    const currentVendorType = form.getValues("vendorType");
+    if (
+      !currentVendorType ||
+      currentVendorType === inferVendorType(watchedUrl) ||
+      currentVendorType === ""
+    ) {
+      const inferred = inferVendorType(watchedUrl);
+      if (inferred) {
+        form.setValue("vendorType", inferred, { shouldDirty: true });
+      }
+    }
+  }, [watchedUrl, form]);
+
   const handleConflictError = (error: unknown) => {
     const axiosError = error as AxiosError<{ error: string }>;
     if (axiosError.response?.status === 409) {
@@ -123,12 +152,15 @@ export const useGitForm = (
       ? { id: Number(values.credentialId), name: "" }
       : undefined;
 
+    const vendorType = values.vendorType || undefined;
+
     if (isEditing) {
       const dto: GitDto = {
         id: git.id,
         url: values.url,
         branch: values.branch || undefined,
         forkUrl: values.forkUrl || undefined,
+        vendorType,
         credential,
       };
       return updateGit(dto).catch(handleConflictError);
@@ -137,6 +169,7 @@ export const useGitForm = (
         url: values.url,
         branch: values.branch || undefined,
         forkUrl: values.forkUrl || undefined,
+        vendorType,
         credential,
       };
       return createGit(dto).catch(handleConflictError);

@@ -1,6 +1,7 @@
 /** Mark an object as "New" therefore does not have an `id` field. */
 export type New<T extends { id: number }> = Omit<T, "id">;
 
+export type GitVendorType = "GITHUB" | "GITLAB";
 export type SourceType = "JIRA" | "GITHUB";
 export type SyncStatus =
   | "NOT_SYNCHRONIZED"
@@ -13,6 +14,7 @@ export interface GitDto {
   url: string;
   branch?: string;
   forkUrl?: string;
+  vendorType?: GitVendorType;
   credential?: CredentialDto;
 }
 

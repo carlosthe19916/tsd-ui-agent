@@ -102,7 +102,7 @@ public class TaskResource {
         Map<String, Object> params = new HashMap<>();
 
         if (filterText != null && !filterText.isBlank()) {
-            query.append(" lower(title) like :filterText");
+            query.append(" (lower(title) like :filterText or lower(externalId) like :filterText)");
             params.put("filterText", "%" + filterText.toLowerCase() + "%");
         }
 
