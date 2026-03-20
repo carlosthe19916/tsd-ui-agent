@@ -1,6 +1,7 @@
 package org.acme.services.changerequest.gitlab;
 
 import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.Encoded;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
@@ -14,6 +15,7 @@ import java.util.List;
 @Path("/api/v4")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
+@Encoded
 public interface GitLabApi {
 
     @GET

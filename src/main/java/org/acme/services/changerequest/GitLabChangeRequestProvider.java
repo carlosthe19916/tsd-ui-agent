@@ -31,15 +31,18 @@ public class GitLabChangeRequestProvider implements ChangeRequestProvider {
     @Override
     public ChangeRequestResult createChangeRequest(ChangeRequestParams params) throws Exception {
         GitLabApi api = buildClient(params);
-        String encodedPath = encodePath(params.ownerRepo());
+        String upstreamEncodedPath = encodePath(params.ownerRepo());
 
+        String sourceEncodedPath = upstreamEncodedPath;
         Long targetProjectId = null;
+
         if (params.forkUrl() != null) {
             String forkOwnerRepo = GitManager.extractOwnerRepo(params.forkUrl());
-            targetProjectId = api.getProject(encodePath(forkOwnerRepo)).id();
+            sourceEncodedPath = encodePath(forkOwnerRepo);
+            targetProjectId = api.getProject(upstreamEncodedPath).id();
         }
 
-        MergeRequestResponse mr = api.createMergeRequest(encodedPath,
+        MergeRequestResponse mr = api.createMergeRequest(sourceEncodedPath,
                 new CreateMergeRequest(
                         params.branchName(),
                         params.baseBranch(),
@@ -52,10 +55,15 @@ public class GitLabChangeRequestProvider implements ChangeRequestProvider {
     @Override
     public ChangeRequestResult findExistingChangeRequest(ChangeRequestParams params) throws Exception {
         GitLabApi api = buildClient(params);
-        String encodedPath = encodePath(params.ownerRepo());
+        String sourceEncodedPath = encodePath(params.ownerRepo());
+
+        if (params.forkUrl() != null) {
+            String forkOwnerRepo = GitManager.extractOwnerRepo(params.forkUrl());
+            sourceEncodedPath = encodePath(forkOwnerRepo);
+        }
 
         List<MergeRequestResponse> mrs = api.listMergeRequests(
-                encodedPath, params.branchName(), params.baseBranch(), "opened");
+                sourceEncodedPath, params.branchName(), params.baseBranch(), "opened");
 
         if (mrs.isEmpty()) {
             throw new IllegalStateException("MR already exists but could not be found via API");
