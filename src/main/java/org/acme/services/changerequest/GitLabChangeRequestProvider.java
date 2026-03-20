@@ -1,15 +1,16 @@
 package org.acme.services.changerequest;
 
+import io.quarkus.rest.client.reactive.QuarkusRestClientBuilder;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.acme.models.jpa.entity.GitVendorType;
+import org.acme.services.changerequest.gitlab.CreateMergeRequest;
+import org.acme.services.changerequest.gitlab.GitLabApi;
+import org.acme.services.changerequest.gitlab.MergeRequestResponse;
 import org.acme.services.git.GitManager;
-import org.gitlab4j.api.GitLabApi;
-import org.gitlab4j.api.models.MergeRequest;
-import org.gitlab4j.api.models.MergeRequestFilter;
-import org.gitlab4j.api.models.MergeRequestParams;
-import org.gitlab4j.api.models.Project;
-import org.gitlab4j.models.Constants;
 
+import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 @ApplicationScoped
@@ -29,47 +30,55 @@ public class GitLabChangeRequestProvider implements ChangeRequestProvider {
 
     @Override
     public ChangeRequestResult createChangeRequest(ChangeRequestParams params) throws Exception {
-        try (GitLabApi api = buildClient(params)) {
-            MergeRequestParams mrParams = new MergeRequestParams()
-                    .withSourceBranch(params.branchName())
-                    .withTargetBranch(params.baseBranch())
-                    .withTitle(params.title())
-                    .withDescription(params.description());
+        GitLabApi api = buildClient(params);
+        String encodedPath = encodePath(params.ownerRepo());
 
-            if (params.forkUrl() != null) {
-                String forkOwnerRepo = GitManager.extractOwnerRepo(params.forkUrl());
-                Project fork = api.getProjectApi().getProject(forkOwnerRepo);
-                mrParams.withTargetProjectId(fork.getId());
-            }
-
-            MergeRequest mr = api.getMergeRequestApi()
-                    .createMergeRequest(params.ownerRepo(), mrParams);
-            return new ChangeRequestResult(mr.getWebUrl());
+        Long targetProjectId = null;
+        if (params.forkUrl() != null) {
+            String forkOwnerRepo = GitManager.extractOwnerRepo(params.forkUrl());
+            targetProjectId = api.getProject(encodePath(forkOwnerRepo)).id();
         }
+
+        MergeRequestResponse mr = api.createMergeRequest(encodedPath,
+                new CreateMergeRequest(
+                        params.branchName(),
+                        params.baseBranch(),
+                        params.title(),
+                        params.description(),
+                        targetProjectId));
+        return new ChangeRequestResult(mr.webUrl());
     }
 
     @Override
     public ChangeRequestResult findExistingChangeRequest(ChangeRequestParams params) throws Exception {
-        try (GitLabApi api = buildClient(params)) {
-            Project project = api.getProjectApi().getProject(params.ownerRepo());
-            MergeRequestFilter filter = new MergeRequestFilter()
-                    .withProjectId(project.getId())
-                    .withSourceBranch(params.branchName())
-                    .withTargetBranch(params.baseBranch())
-                    .withState(Constants.MergeRequestState.OPENED);
+        GitLabApi api = buildClient(params);
+        String encodedPath = encodePath(params.ownerRepo());
 
-            List<MergeRequest> mrs = api.getMergeRequestApi().getMergeRequests(filter);
+        List<MergeRequestResponse> mrs = api.listMergeRequests(
+                encodedPath, params.branchName(), params.baseBranch(), "opened");
 
-            if (mrs.isEmpty()) {
-                throw new IllegalStateException("MR already exists but could not be found via API");
-            }
-            return new ChangeRequestResult(mrs.getFirst().getWebUrl());
+        if (mrs.isEmpty()) {
+            throw new IllegalStateException("MR already exists but could not be found via API");
         }
+        return new ChangeRequestResult(mrs.getFirst().webUrl());
+    }
+
+    private static String encodePath(String ownerRepo) {
+        return URLEncoder.encode(ownerRepo, StandardCharsets.UTF_8);
     }
 
     private GitLabApi buildClient(ChangeRequestParams params) {
         String host = GitManager.extractHost(params.gitUrl());
         String hostBase = "https://" + host;
-        return new GitLabApi(hostBase, params.token());
+
+        QuarkusRestClientBuilder builder = QuarkusRestClientBuilder.newBuilder()
+                .baseUri(URI.create(hostBase));
+        if (params.token() != null) {
+            builder.clientHeadersFactory((inbound, outbound) -> {
+                outbound.add("PRIVATE-TOKEN", params.token());
+                return outbound;
+            });
+        }
+        return builder.build(GitLabApi.class);
     }
 }

@@ -111,11 +111,6 @@
             <artifactId>quarkus-rest-client-jackson</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.gitlab4j</groupId>
-            <artifactId>gitlab4j-api</artifactId>
-            <version>6.0.0-rc.8</version>
-        </dependency>
-        <dependency>
             <groupId>io.rest-assured</groupId>
             <artifactId>rest-assured</artifactId>
             <scope>test</scope>
