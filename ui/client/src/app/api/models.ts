@@ -55,26 +55,20 @@ export interface Label {
 
 export type TaskStatus = "OPEN" | "IN_PROGRESS" | "CLOSED";
 
-export type ExecutionMode = "FILESYSTEM" | "DOCKER" | "KUBERNETES";
-
 export interface WorkspaceDto {
   id?: number;
   git?: GitDto;
-  localPath?: string;
-  isCloneInProgress?: boolean;
-  cloneError?: string;
+  isProvisioningInProgress?: boolean;
+  provisioningError?: string;
   workspaceId?: string;
-  executionMode?: ExecutionMode;
   claudeSessionId?: string;
-  createdAt?: string;
-  updatedAt?: string;
+  task?: { id: number };
 }
 
 export interface PlanDto {
   id: number;
   plan: string;
   requirement?: string;
-  workspace?: WorkspaceDto;
   isRequirementInProgress?: boolean;
   requirementError?: string;
   isExecutionPlanInProgress?: boolean;
@@ -104,6 +98,7 @@ export interface TaskDto {
   updatedAt: string;
   project: ProjectDto;
   plan?: PlanDto;
+  workspace?: WorkspaceDto;
 }
 
 export interface SearchResultDto<T> {

@@ -65,7 +65,11 @@ import { ButtonVariant } from "@patternfly/react-core";
 
 import { ExecutionOutputModal } from "./components/execution-output-modal";
 import { PlanProgressStepper } from "./components/plan-progress-stepper";
-import { PlanWizardModal } from "./components/plan-wizard-modal";
+import { WorkspaceCell } from "./components/workspace-cell";
+import {
+  RequirementModal,
+  PlanModal,
+} from "./components/plan-wizard-modal";
 import { TaskSearchContext, TaskSearchProvider } from "./task-context";
 
 const statusIcon = (status: TaskStatus) => {
@@ -101,8 +105,9 @@ const TaskListContent: React.FC = () => {
 
   const [isSortByOpen, setIsSortByOpen] = React.useState(false);
   const [openKebabId, setOpenKebabId] = React.useState<number | null>(null);
-  const [wizardTask, setWizardTask] = React.useState<TaskDto | null>(null);
-  const [wizardInitialStep, setWizardInitialStep] = React.useState(1);
+  const [requirementTask, setRequirementTask] =
+    React.useState<TaskDto | null>(null);
+  const [planTask, setPlanTask] = React.useState<TaskDto | null>(null);
   const [createPlanTask, setCreatePlanTask] = React.useState<TaskDto | null>(
     null,
   );
@@ -243,6 +248,9 @@ const TaskListContent: React.FC = () => {
                         <FlexItem>Status: {task.externalStatus}</FlexItem>
                       </Flex>
                     </DataListCell>,
+                    <DataListCell key="workspace" width={2}>
+                      <WorkspaceCell task={task} />
+                    </DataListCell>,
                     <DataListCell key="plan" width={3} isFilled>
                       {task.plan ? (
                         <Flex
@@ -253,10 +261,11 @@ const TaskListContent: React.FC = () => {
                             <PlanProgressStepper
                               taskId={task.id}
                               plan={task.plan}
-                              onEditStep={(step) => {
-                                setWizardTask(task);
-                                setWizardInitialStep(step);
-                              }}
+                              workspace={task.workspace}
+                              onEditRequirement={() =>
+                                setRequirementTask(task)
+                              }
+                              onEditPlan={() => setPlanTask(task)}
                               onChangeRequest={() =>
                                 changeRequestMutation.mutate(task.id)
                               }
@@ -281,7 +290,7 @@ const TaskListContent: React.FC = () => {
                       )}
                     </DataListCell>,
                     <DataListCell key="outcomes" alignRight>
-                      {task?.plan?.workspace && (
+                      {task?.workspace && (
                         <FlexItem>
                           <Flex gap={{ default: "gapMd" }}>
                             <FlexItem>
@@ -316,7 +325,7 @@ const TaskListContent: React.FC = () => {
                                 </Button>
                               </Tooltip>
                             </FlexItem>
-                            {task.plan.workspace?.claudeSessionId && (
+                            {task.workspace?.claudeSessionId && (
                               <FlexItem>
                                 <Tooltip content="Clear Claude session">
                                   <Button
@@ -382,11 +391,16 @@ const TaskListContent: React.FC = () => {
                       )}
                       {task.plan && (
                         <DropdownItem
+                          key="edit-requirement"
+                          onClick={() => setRequirementTask(task)}
+                        >
+                          Edit requirement
+                        </DropdownItem>
+                      )}
+                      {task.plan && (
+                        <DropdownItem
                           key="edit-plan"
-                          onClick={() => {
-                            setWizardTask(task);
-                            setWizardInitialStep(1);
-                          }}
+                          onClick={() => setPlanTask(task)}
                         >
                           Edit plan
                         </DropdownItem>
@@ -461,11 +475,16 @@ const TaskListContent: React.FC = () => {
         onClose={() => setOutputTaskId(null)}
       />
 
-      <PlanWizardModal
-        task={wizardTask}
-        isOpen={wizardTask !== null}
-        onClose={() => setWizardTask(null)}
-        initialStep={wizardInitialStep}
+      <RequirementModal
+        task={requirementTask}
+        isOpen={requirementTask !== null}
+        onClose={() => setRequirementTask(null)}
+      />
+
+      <PlanModal
+        task={planTask}
+        isOpen={planTask !== null}
+        onClose={() => setPlanTask(null)}
       />
 
       <ConfirmDialog
@@ -502,12 +521,12 @@ const TaskListContent: React.FC = () => {
         inProgress={patchWorkspaceMutation.isPending}
         onConfirm={() => {
           if (
-            clearClaudeTask?.plan?.workspace?.id &&
-            clearClaudeTask?.plan?.workspace?.git?.id
+            clearClaudeTask?.workspace?.id &&
+            clearClaudeTask?.workspace?.git?.id
           ) {
             patchWorkspaceMutation.mutate({
-              gitId: clearClaudeTask.plan.workspace.git.id,
-              id: clearClaudeTask.plan.workspace.id,
+              gitId: clearClaudeTask.workspace.git.id,
+              id: clearClaudeTask.workspace.id,
               workspace: { claudeSessionId: "" },
             });
           }

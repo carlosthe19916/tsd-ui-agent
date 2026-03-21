@@ -3,8 +3,6 @@ package org.acme.models.jpa.entity;
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
@@ -13,7 +11,6 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 
-import java.time.Instant;
 import java.util.Objects;
 
 @Entity
@@ -24,23 +21,15 @@ public class WorkspaceEntity extends PanacheEntityBase {
     @GeneratedValue(generator = "workspace_sequence")
     public Long id;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "execution_mode")
-    public ExecutionMode executionMode;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "git_id")
     public GitEntity git;
 
-    // Only filesystem field. Where the "default" folder is cloned
-    @Column(name = "local_path")
-    public String localPath;
+    @Column(name = "is_provisioning_in_progress")
+    public boolean isProvisioningInProgress;
 
-    @Column(name = "is_clone_in_progress")
-    public boolean isCloneInProgress;
-
-    @Column(name = "clone_error")
-    public String cloneError;
+    @Column(name = "provisioning_error")
+    public String provisioningError;
 
     // if filesystem then the path to the git worktree, if container then container id
     @Column(name = "workspace_id")
@@ -48,12 +37,6 @@ public class WorkspaceEntity extends PanacheEntityBase {
 
     @Column(name = "claude_session_id")
     public String claudeSessionId;
-
-    @Column(name = "created_at")
-    public Instant createdAt;
-
-    @Column(name = "updated_at")
-    public Instant updatedAt;
 
     @Version
     public int version;

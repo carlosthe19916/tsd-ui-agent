@@ -114,6 +114,11 @@ export const enrichRequirement = (taskId: number) =>
     .post<PlanDto>(`${BASE_URL}/${taskId}/plan/enrich-requirement`)
     .then((response) => response.data);
 
+export const patchTask = (taskId: number, task: Partial<TaskDto>) =>
+  axios
+    .patch<TaskDto>(`${BASE_URL}/${taskId}`, task)
+    .then((response) => response.data);
+
 export const patchTaskPlan = (taskId: number, plan: Partial<PlanDto>) =>
   axios
     .patch<PlanDto>(`${BASE_URL}/${taskId}/plan`, plan)

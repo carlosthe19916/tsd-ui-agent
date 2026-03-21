@@ -32,7 +32,7 @@ public class KubernetesWorkspaceManager implements WorkspaceManager {
 
     @Override
     public Workspace provision(WorkspaceRequest request) throws WorkspaceException {
-        String workspaceName = sanitizePodName(request.branchAlias());
+        String workspaceName = "tsd-ws-" + java.util.UUID.randomUUID().toString().substring(0, 8);
 
         ensureNamespace();
 

@@ -28,7 +28,7 @@ public class GitManager {
     @ConfigProperty(name = "tsd-agent.git.base-dir")
     String baseDir;
 
-    static String sanitizeUrl(String url) {
+    public static String sanitizeUrl(String url) {
         String result = url;
 
         // Strip protocol prefix
@@ -59,9 +59,12 @@ public class GitManager {
 
     public String cloneRepository(String url, String branch) {
         String localPath = Path.of(baseDir, UUID.randomUUID().toString(), "default").toString();
+        return cloneRepository(url, branch, localPath);
+    }
 
+    public String cloneRepository(String url, String branch, String targetPath) {
         var headers = new java.util.HashMap<String, Object>();
-        headers.put("localPath", localPath);
+        headers.put("localPath", targetPath);
         headers.put("remotePath", url);
         if (branch != null && !branch.isBlank()) {
             headers.put("branch", branch);
@@ -75,7 +78,7 @@ public class GitManager {
             throw new GitException("Failed to clone repository: " + e.getMessage(), e);
         }
 
-        return localPath;
+        return targetPath;
     }
 
     public void setRemoteUrl(String localPath, String newUrl) {
@@ -88,6 +91,19 @@ public class GitManager {
             throw e;
         } catch (Exception e) {
             throw new GitException("Failed to set remote URL: " + e.getMessage(), e);
+        }
+    }
+
+    public void pullRepository(String workingDir, String branchName) {
+        try {
+            template.requestBodyAndHeaders("direct:git-pull", null, Map.of(
+                    "workingDir", workingDir,
+                    "branchName", branchName
+            ));
+        } catch (GitException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new GitException("Failed to pull repository: " + e.getMessage(), e);
         }
     }
 
@@ -110,20 +126,7 @@ public class GitManager {
         return worktreeDir;
     }
 
-    public void removeWorktree(String mainClonePath, String worktreeDir) {
-        try {
-            template.requestBodyAndHeaders("direct:git-worktree-remove", null, Map.of(
-                    "workingDir", mainClonePath,
-                    "worktreeDir", worktreeDir
-            ));
-        } catch (GitException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new GitException("Failed to remove worktree: " + e.getMessage(), e);
-        }
-    }
-
-    public void addForkRemote(String localPath, String forkUrl) {
+public void addForkRemote(String localPath, String forkUrl) {
         try {
             template.requestBodyAndHeaders("direct:git-remote-add-fork", null, Map.of(
                     "workingDir", localPath,
@@ -161,61 +164,7 @@ public class GitManager {
         }
     }
 
-    public void addAll(String workingDir) {
-        try {
-            template.requestBodyAndHeaders("direct:git-add", null, Map.of(
-                    "workingDir", workingDir
-            ));
-        } catch (GitException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new GitException("Failed to git add: " + e.getMessage(), e);
-        }
-    }
-
-    public void commit(String workingDir, String message) {
-        try {
-            template.requestBodyAndHeaders("direct:git-commit", null, Map.of(
-                    "workingDir", workingDir,
-                    "commitMessage", message
-            ));
-        } catch (GitException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new GitException("Failed to git commit: " + e.getMessage(), e);
-        }
-    }
-
-    public void push(String workingDir, String remoteName, String branchName) {
-        try {
-            template.requestBodyAndHeaders("direct:git-push", null, Map.of(
-                    "workingDir", workingDir,
-                    "remoteName", remoteName,
-                    "branchName", branchName
-            ));
-        } catch (GitException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new GitException("Failed to git push: " + e.getMessage(), e);
-        }
-    }
-
-    public void pushToUrl(String workingDir, String url, String refspec) {
-        try {
-            template.requestBodyAndHeaders("direct:git-push-url", null, Map.of(
-                    "workingDir", workingDir,
-                    "pushUrl", url,
-                    "refspec", refspec
-            ));
-        } catch (GitException e) {
-            throw e;
-        } catch (Exception e) {
-            String safeMessage = e.getMessage().replaceAll("://[^@]+@", "://***@");
-            throw new GitException("Failed to git push to URL: " + safeMessage, e);
-        }
-    }
-
-    public static String planBranchName(Long planId) {
+public static String planBranchName(Long planId) {
         return "plan-" + planId + "-" + UUID.randomUUID().toString().substring(0, 8);
     }
 

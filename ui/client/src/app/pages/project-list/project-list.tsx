@@ -48,9 +48,59 @@ import {
 } from "@app/queries/projects";
 import { formatDateTime } from "@app/utils/utils";
 
+import type { ProjectGitMappingDto } from "@app/api/models";
+import { useFetchGits } from "@app/queries/gits";
+import { useFetchMappings } from "@app/queries/project-git-mappings";
+
 import { GitMappingModal } from "./components/git-mapping-modal";
 import { ProjectFormModal } from "./components/project-form-modal";
 import { SyncStatus } from "./components/sync-status";
+
+const ProjectExpandedContent: React.FC<{ project: ProjectDto }> = ({
+  project,
+}) => {
+  const { data: mappings } = useFetchMappings(project.id);
+  const { data: gits } = useFetchGits();
+
+  const gitById = React.useMemo(() => {
+    const map = new Map<number, string>();
+    gits?.forEach((g) => map.set(g.id, g.url));
+    return map;
+  }, [gits]);
+
+  return (
+    <DescriptionList isHorizontal isCompact>
+      <DescriptionListGroup>
+        <DescriptionListTerm>Credential</DescriptionListTerm>
+        <DescriptionListDescription>
+          {project.credential?.name ?? "None"}
+        </DescriptionListDescription>
+      </DescriptionListGroup>
+      <DescriptionListGroup>
+        <DescriptionListTerm>Git Mappings</DescriptionListTerm>
+        <DescriptionListDescription>
+          {mappings && mappings.length > 0 ? (
+            <DescriptionList isCompact isFluid>
+              {mappings.map((m: ProjectGitMappingDto) => (
+                <DescriptionListGroup key={m.id}>
+                  <DescriptionListTerm>{m.space}</DescriptionListTerm>
+                  <DescriptionListDescription>
+                    {gitById.get(m.gitId) ?? `Git #${m.gitId}`}
+                    {m.labels && m.labels.length > 0 && (
+                      <small> (labels: {m.labels.join(", ")})</small>
+                    )}
+                  </DescriptionListDescription>
+                </DescriptionListGroup>
+              ))}
+            </DescriptionList>
+          ) : (
+            "No mappings configured"
+          )}
+        </DescriptionListDescription>
+      </DescriptionListGroup>
+    </DescriptionList>
+  );
+};
 
 type ModalState =
   | { type: "closed" }
@@ -286,16 +336,7 @@ export const ProjectList: React.FC = () => {
                     <Td colSpan={numRenderedColumns}>
                       <ExpandableRowContent>
                         <div className={spacing.ptLg}>
-                          <DescriptionList>
-                            <DescriptionListGroup>
-                              <DescriptionListTerm>
-                                Credential
-                              </DescriptionListTerm>
-                              <DescriptionListDescription>
-                                {project.credential?.name}
-                              </DescriptionListDescription>
-                            </DescriptionListGroup>
-                          </DescriptionList>
+                          <ProjectExpandedContent project={project} />
                         </div>
                       </ExpandableRowContent>
                     </Td>

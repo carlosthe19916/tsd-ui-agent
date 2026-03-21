@@ -1,161 +1,61 @@
 import React from "react";
 
 import {
-  ActionList,
-  ActionListGroup,
-  ActionListItem,
   Button,
   Modal,
-  Wizard,
-  WizardFooterWrapper,
-  WizardHeader,
-  WizardStep,
-  useWizardContext,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
 } from "@patternfly/react-core";
 
-import type { TaskDto, WorkspaceDto } from "@app/api/models";
+import type { TaskDto } from "@app/api/models";
 import {
   useCreateTaskPlanMutation,
-  useUpdateTaskPlanMutation,
+  usePatchTaskPlanMutation,
 } from "@app/queries/tasks";
 
 import { RequirementStep, type RequirementState } from "./requirement-step";
-import {
-  GitConfigurationStep,
-  type GitConfigurationState,
-} from "./git-configuration-step";
 import { PlanStep, type PlanState } from "./execution-plan-step";
 
-interface PlanWizardModalProps {
+interface RequirementModalProps {
   task: TaskDto | null;
   isOpen: boolean;
   onClose: () => void;
-  initialStep?: number;
 }
 
-export const PlanWizardModal: React.FC<PlanWizardModalProps> = ({
+export const RequirementModal: React.FC<RequirementModalProps> = ({
   task,
   isOpen,
   onClose,
-  initialStep,
 }) => {
   if (!isOpen || !task) return null;
-
-  return (
-    <PlanWizardModalContent
-      task={task}
-      onClose={onClose}
-      initialStep={initialStep}
-    />
-  );
+  return <RequirementModalContent task={task} onClose={onClose} />;
 };
 
-const PlanWizardFooter: React.FC<{
-  isValid: boolean;
-  isSaving: boolean;
-  onSave: () => void;
-}> = ({ isValid, isSaving, onSave }) => {
-  const { activeStep, goToNextStep, goToPrevStep, close, steps } =
-    useWizardContext();
-
-  const isFirstStep = activeStep.index === 1;
-  const isLastStep = activeStep.index === steps.length;
-
-  return (
-    <WizardFooterWrapper>
-      <ActionList>
-        <ActionListGroup>
-          {!isFirstStep && (
-            <ActionListItem>
-              <Button variant="secondary" onClick={goToPrevStep}>
-                Back
-              </Button>
-            </ActionListItem>
-          )}
-          {!isLastStep && (
-            <ActionListItem>
-              <Button variant="secondary" onClick={goToNextStep}>
-                Next
-              </Button>
-            </ActionListItem>
-          )}
-          <ActionListItem>
-            <Button
-              variant="primary"
-              onClick={onSave}
-              isDisabled={!isValid || isSaving}
-              isLoading={isSaving}
-            >
-              Save
-            </Button>
-          </ActionListItem>
-        </ActionListGroup>
-        <ActionListGroup>
-          <ActionListItem>
-            <Button variant="link" onClick={close}>
-              Cancel
-            </Button>
-          </ActionListItem>
-        </ActionListGroup>
-      </ActionList>
-    </WizardFooterWrapper>
-  );
-};
-
-const PlanWizardModalContent: React.FC<{
+const RequirementModalContent: React.FC<{
   task: TaskDto;
   onClose: () => void;
-  initialStep?: number;
-}> = ({ task, onClose, initialStep = 1 }) => {
-  const [requirementState, setRequirementState] =
-    React.useState<RequirementState>({
-      requirement: task.plan?.requirement ?? task.description ?? "",
-      isValid: true,
-    });
-
-  const [gitConfigState, setGitConfigState] =
-    React.useState<GitConfigurationState>({
-      gitId: task.plan?.workspace?.git?.id
-        ? String(task.plan.workspace.git.id)
-        : "",
-      isValid: true,
-    });
-
-  const [planState, setPlanState] = React.useState<PlanState>({
-    plan: task.plan?.plan ?? "",
+}> = ({ task, onClose }) => {
+  const [state, setState] = React.useState<RequirementState>({
+    requirement: task.plan?.requirement ?? task.description ?? "",
     isValid: true,
   });
 
-  const isValid =
-    requirementState.isValid && gitConfigState.isValid && planState.isValid;
-
   const createMutation = useCreateTaskPlanMutation(onClose);
-  const updateMutation = useUpdateTaskPlanMutation(onClose);
+  const patchMutation = usePatchTaskPlanMutation(onClose);
 
   const handleSave = () => {
-    const workspacePayload: WorkspaceDto | undefined = gitConfigState.gitId
-      ? {
-          ...(task.plan?.workspace ?? {}),
-          git: { id: Number(gitConfigState.gitId) } as WorkspaceDto["git"],
-        }
-      : undefined;
-
     if (task.plan) {
-      updateMutation.mutate({
+      patchMutation.mutate({
         taskId: task.id,
-        plan: {
-          ...task.plan,
-          requirement: requirementState.requirement,
-          plan: planState.plan,
-          workspace: workspacePayload,
-        },
+        plan: { requirement: state.requirement },
       });
     } else {
       createMutation.mutate({
         taskId: task.id,
         plan: {
-          plan: planState.plan,
-          workspace: workspacePayload,
+          plan: "",
+          requirement: state.requirement,
           status: "IN_PROGRESS",
           type: "MANUAL",
         },
@@ -163,62 +63,118 @@ const PlanWizardModalContent: React.FC<{
     }
   };
 
-  const isSaving = createMutation.isPending || updateMutation.isPending;
+  const isSaving = createMutation.isPending || patchMutation.isPending;
 
   return (
     <Modal
       isOpen
       onEscapePress={onClose}
-      // variant={ModalVariant.large}
       width="90%"
       style={{ height: "93vh" }}
-      aria-label="Plan wizard"
+      aria-label="Edit requirement"
     >
-      <Wizard
-        onClose={onClose}
-        header={
-          <WizardHeader
-            onClose={onClose}
-            title={task.plan ? "Edit plan" : "Create plan"}
-          />
-        }
-        startIndex={initialStep}
-        footer={
-          <PlanWizardFooter
-            isValid={isValid}
-            isSaving={isSaving}
-            onSave={handleSave}
-          />
-        }
-      >
-        <WizardStep name="Git Configuration" id="git-config-step">
-          <GitConfigurationStep
-            initialState={gitConfigState}
-            onStateChanged={setGitConfigState}
-            worktreePath={task.plan?.workspace?.workspaceId}
-            originalGitId={
-              task.plan?.workspace?.git?.id
-                ? String(task.plan.workspace.git.id)
-                : undefined
-            }
-          />
-        </WizardStep>
-        <WizardStep name="Requirement" id="requirement-step">
-          <RequirementStep
-            taskId={task.id}
-            initialState={requirementState}
-            onStateChanged={setRequirementState}
-          />
-        </WizardStep>
-        <WizardStep name="Plan" id="execution-plan-step">
-          <PlanStep
-            taskId={task.id}
-            hasGit={!!gitConfigState.gitId}
-            initialState={planState}
-            onStateChanged={setPlanState}
-          />
-        </WizardStep>
-      </Wizard>
+      <ModalHeader title="Requirement" onClose={onClose} />
+      <ModalBody style={{ height: "100%", overflow: "hidden" }}>
+        <RequirementStep
+          taskId={task.id}
+          initialState={state}
+          onStateChanged={setState}
+        />
+      </ModalBody>
+      <ModalFooter>
+        <Button
+          variant="primary"
+          onClick={handleSave}
+          isDisabled={!state.isValid || isSaving}
+          isLoading={isSaving}
+        >
+          Save
+        </Button>
+        <Button variant="link" onClick={onClose}>
+          Cancel
+        </Button>
+      </ModalFooter>
+    </Modal>
+  );
+};
+
+interface PlanModalProps {
+  task: TaskDto | null;
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export const PlanModal: React.FC<PlanModalProps> = ({
+  task,
+  isOpen,
+  onClose,
+}) => {
+  if (!isOpen || !task) return null;
+  return <PlanModalContent task={task} onClose={onClose} />;
+};
+
+const PlanModalContent: React.FC<{
+  task: TaskDto;
+  onClose: () => void;
+}> = ({ task, onClose }) => {
+  const [state, setState] = React.useState<PlanState>({
+    plan: task.plan?.plan ?? "",
+    isValid: true,
+  });
+
+  const createMutation = useCreateTaskPlanMutation(onClose);
+  const patchMutation = usePatchTaskPlanMutation(onClose);
+
+  const handleSave = () => {
+    if (task.plan) {
+      patchMutation.mutate({
+        taskId: task.id,
+        plan: { plan: state.plan },
+      });
+    } else {
+      createMutation.mutate({
+        taskId: task.id,
+        plan: {
+          plan: state.plan,
+          status: "IN_PROGRESS",
+          type: "MANUAL",
+        },
+      });
+    }
+  };
+
+  const isSaving = createMutation.isPending || patchMutation.isPending;
+
+  return (
+    <Modal
+      isOpen
+      onEscapePress={onClose}
+      width="90%"
+      style={{ height: "93vh" }}
+      aria-label="Edit plan"
+    >
+      <ModalHeader title="Plan" onClose={onClose} />
+      <ModalBody style={{ height: "100%", overflow: "hidden" }}>
+        <PlanStep
+          taskId={task.id}
+          hasGit={!!task.workspace?.git}
+          initialState={state}
+          onStateChanged={setState}
+        />
+      </ModalBody>
+      <ModalFooter>
+        <Button
+          variant="primary"
+          onClick={handleSave}
+          isDisabled={!state.isValid || isSaving}
+          isLoading={isSaving}
+        >
+          Save
+        </Button>
+        <Button variant="link" onClick={onClose}>
+          Cancel
+        </Button>
+      </ModalFooter>
     </Modal>
   );
 };

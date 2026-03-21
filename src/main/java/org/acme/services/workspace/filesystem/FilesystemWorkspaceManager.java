@@ -4,9 +4,11 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.acme.services.git.GitManager;
 import org.acme.services.workspace.*;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.UUID;
 
 @WorkspaceManagerType(type = ExecutionMode.FILESYSTEM)
 @ApplicationScoped
@@ -15,16 +17,27 @@ public class FilesystemWorkspaceManager implements WorkspaceManager {
     @Inject
     GitManager gitManager;
 
+    @ConfigProperty(name = "tsd-agent.git.base-dir")
+    String baseDir;
+
     @Override
     public Workspace provision(WorkspaceRequest request) throws WorkspaceException {
-        String clonePath = request.mainClonePath();
-        if (clonePath == null) {
-            clonePath = gitManager.cloneRepository(request.gitUrl(), request.gitBranch());
+        String sanitized = GitManager.sanitizeUrl(request.gitUrl());
+        String cloneDir = Path.of(baseDir, sanitized, "default").toString();
+
+        if (!Files.isDirectory(Path.of(cloneDir))) {
+            gitManager.cloneRepository(request.gitUrl(), request.gitBranch(), cloneDir);
             if (request.forkUrl() != null && !request.forkUrl().isBlank()) {
-                gitManager.addForkRemote(clonePath, request.forkUrl());
+                gitManager.addForkRemote(cloneDir, request.forkUrl());
             }
+        } else {
+            String branch = request.gitBranch() != null && !request.gitBranch().isBlank()
+                    ? request.gitBranch() : "HEAD";
+            gitManager.pullRepository(cloneDir, branch);
         }
-        String worktreePath = gitManager.addWorktree(clonePath, request.branchAlias());
+
+        String alias = UUID.randomUUID().toString().substring(0, 8);
+        String worktreePath = gitManager.addWorktree(cloneDir, alias);
         return new FilesystemWorkspace(worktreePath);
     }
 
@@ -40,10 +53,8 @@ public class FilesystemWorkspaceManager implements WorkspaceManager {
     public void destroy(String workspaceId) throws WorkspaceException {
         try {
             Path worktreePath = Path.of(workspaceId);
-            // Worktree is at {UUID}/trees/{branch}, clone dir is the {UUID} parent
-            Path cloneRoot = worktreePath.getParent().getParent();
-            if (Files.isDirectory(cloneRoot)) {
-                gitManager.deleteClonedDirectory(cloneRoot.toString());
+            if (Files.isDirectory(worktreePath)) {
+                gitManager.deleteClonedDirectory(worktreePath.toString());
             }
         } catch (Exception e) {
             throw new WorkspaceException("Failed to clean up workspace: " + workspaceId, e);

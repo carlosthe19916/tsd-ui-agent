@@ -7,6 +7,7 @@ import org.acme.dto.CredentialDto;
 import org.acme.dto.GitDto;
 import org.acme.dto.PlanDto;
 import org.acme.dto.ProjectDto;
+import org.acme.dto.TaskDto;
 import org.acme.dto.WorkspaceDto;
 import org.acme.models.jpa.entity.SourceType;
 import org.acme.models.jpa.entity.TaskStatus;
@@ -179,15 +180,23 @@ class ChangeRequestServiceTest {
                 .extract().path("id");
     }
 
-    private static PlanDto planDto(String plan, Long workspaceId) {
+    private static PlanDto planDto(String plan) {
         PlanDto dto = new PlanDto();
         dto.plan = plan;
-        if (workspaceId != null) {
-            WorkspaceDto ws = new WorkspaceDto();
-            ws.id = workspaceId;
-            dto.workspace = ws;
-        }
         return dto;
+    }
+
+    private void setTaskWorkspace(int taskId, int workspaceId) {
+        TaskDto taskDto = new TaskDto();
+        WorkspaceDto ws = new WorkspaceDto();
+        ws.id = (long) workspaceId;
+        taskDto.workspace = ws;
+        given()
+                .contentType(ContentType.JSON)
+                .body(taskDto)
+                .when().patch("/tasks/{taskId}", taskId)
+                .then()
+                .statusCode(200);
     }
 
     @Test
@@ -198,9 +207,11 @@ class ChangeRequestServiceTest {
         int gitId = createGit("https://github.com/test/cr-noexec", (long) credId);
         int wsId = createWorkspace(gitId);
 
+        setTaskWorkspace(taskId, wsId);
+
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto("# Test plan", (long) wsId))
+                .body(planDto("# Test plan"))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201);
@@ -242,9 +253,11 @@ class ChangeRequestServiceTest {
         int gitId = createGit("https://github.com/test/cr-notoken");
         int wsId = createWorkspace(gitId);
 
+        setTaskWorkspace(taskId, wsId);
+
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto("# Test plan", (long) wsId))
+                .body(planDto("# Test plan"))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201);

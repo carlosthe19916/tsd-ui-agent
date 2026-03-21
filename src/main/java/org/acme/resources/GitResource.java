@@ -21,6 +21,7 @@ import org.acme.dto.WorkspaceDto;
 import org.acme.mapper.GitMapper;
 import org.acme.mapper.WorkspaceMapper;
 import org.acme.models.jpa.entity.GitEntity;
+import org.acme.models.jpa.entity.TaskEntity;
 import org.acme.models.jpa.entity.WorkspaceEntity;
 import org.acme.services.GitService;
 import org.acme.services.WorkspaceService;
@@ -113,6 +114,15 @@ public class GitResource {
         git.id = gitId;
         dto.git = git;
         WorkspaceEntity entity = workspaceService.create(dto);
+
+        if (dto.task != null && dto.task.id != null) {
+            TaskEntity task = (TaskEntity) TaskEntity.findByIdOptional(dto.task.id)
+                    .orElse(null);
+            if (task != null) {
+                task.workspace = entity;
+            }
+        }
+
         return Response.status(Response.Status.CREATED)
                 .entity(workspaceMapper.toDto(entity))
                 .build();

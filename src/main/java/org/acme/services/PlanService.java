@@ -8,7 +8,6 @@ import jakarta.inject.Inject;
 import org.acme.models.jpa.entity.TaskEntity;
 import org.acme.services.agent.CodingAgentService;
 import org.acme.services.ai.RequirementSummarizerService;
-import org.acme.services.git.GitManager;
 import org.acme.services.sync.ExternalIssueContext;
 import org.acme.services.sync.SyncManager;
 import org.acme.services.workspace.Workspace;
@@ -54,30 +53,29 @@ public class PlanService {
         requestContext.activate();
         try {
             // Phase 1a: Collect data in a short transaction
-            record ProvisionContext(String existingWorkspaceId, String alias,
+            record ProvisionContext(String existingWorkspaceId,
                     String gitUrl, String gitBranch, String gitToken, String forkUrl,
                     String requirement) {}
 
             ProvisionContext pctx = QuarkusTransaction.requiringNew().call(() -> {
                 TaskEntity task = TaskEntity.findById(taskId);
-                if (task == null || task.plan == null || task.plan.workspace == null) {
+                if (task == null || task.plan == null || task.workspace == null) {
                     LOG.warnf("Task %d, plan, or workspace not found during plan generation", taskId);
                     return null;
                 }
 
-                String wsId = task.plan.workspace.workspaceId;
+                String wsId = task.workspace.workspaceId;
                 if (wsId != null && workspaceManager.exists(wsId)) {
-                    return new ProvisionContext(wsId, null, null, null, null, null, task.plan.requirement);
+                    return new ProvisionContext(wsId, null, null, null, null, task.plan.requirement);
                 }
 
-                String alias = GitManager.planBranchName(task.plan.id);
-                String gitUrl = task.plan.workspace.git != null ? task.plan.workspace.git.url : null;
-                String gitBranch = task.plan.workspace.git != null ? task.plan.workspace.git.branch : null;
-                String gitToken = (task.plan.workspace.git != null && task.plan.workspace.git.credential != null)
-                        ? task.plan.workspace.git.credential.token : null;
-                String forkUrl = task.plan.workspace.git != null ? task.plan.workspace.git.forkUrl : null;
+                String gitUrl = task.workspace.git != null ? task.workspace.git.url : null;
+                String gitBranch = task.workspace.git != null ? task.workspace.git.branch : null;
+                String gitToken = (task.workspace.git != null && task.workspace.git.credential != null)
+                        ? task.workspace.git.credential.token : null;
+                String forkUrl = task.workspace.git != null ? task.workspace.git.forkUrl : null;
 
-                return new ProvisionContext(null, alias, gitUrl, gitBranch, gitToken, forkUrl, task.plan.requirement);
+                return new ProvisionContext(null, gitUrl, gitBranch, gitToken, forkUrl, task.plan.requirement);
             });
 
             if (pctx == null) {
@@ -87,8 +85,8 @@ public class PlanService {
             // Phase 1b: Provision workspace outside transaction (may involve clone)
             String workspaceId = pctx.existingWorkspaceId();
             if (workspaceId == null) {
-                WorkspaceRequest request = WorkspaceRequest.forRemoteClone(
-                        pctx.alias(), pctx.gitUrl(), pctx.gitBranch(), pctx.gitToken(), pctx.forkUrl());
+                WorkspaceRequest request = new WorkspaceRequest(
+                        pctx.gitUrl(), pctx.gitBranch(), pctx.gitToken(), pctx.forkUrl());
                 Workspace ws = workspaceManager.provision(request);
                 workspaceId = ws.id();
 
@@ -96,9 +94,9 @@ public class PlanService {
                 String wsId = workspaceId;
                 QuarkusTransaction.requiringNew().run(() -> {
                     TaskEntity task = TaskEntity.findById(taskId);
-                    if (task != null && task.plan != null && task.plan.workspace != null) {
-                        task.plan.workspace.workspaceId = wsId;
-                        task.plan.workspace.persist();
+                    if (task != null && task.plan != null && task.workspace != null) {
+                        task.workspace.workspaceId = wsId;
+                        task.workspace.persist();
                     }
                 });
             }
@@ -143,30 +141,29 @@ public class PlanService {
         requestContext.activate();
         try {
             // Phase 1a: Collect data in a short transaction
-            record ProvisionContext(String existingWorkspaceId, String alias,
+            record ProvisionContext(String existingWorkspaceId,
                     String gitUrl, String gitBranch, String gitToken, String forkUrl,
                     String planText) {}
 
             ProvisionContext pctx = QuarkusTransaction.requiringNew().call(() -> {
                 TaskEntity task = TaskEntity.findById(taskId);
-                if (task == null || task.plan == null || task.plan.workspace == null) {
+                if (task == null || task.plan == null || task.workspace == null) {
                     LOG.warnf("Task %d, plan, or workspace not found during plan execution", taskId);
                     return null;
                 }
 
-                String wsId = task.plan.workspace.workspaceId;
+                String wsId = task.workspace.workspaceId;
                 if (wsId != null && workspaceManager.exists(wsId)) {
-                    return new ProvisionContext(wsId, null, null, null, null, null, task.plan.plan);
+                    return new ProvisionContext(wsId, null, null, null, null, task.plan.plan);
                 }
 
-                String alias = GitManager.planBranchName(task.plan.id);
-                String gitUrl = task.plan.workspace.git != null ? task.plan.workspace.git.url : null;
-                String gitBranch = task.plan.workspace.git != null ? task.plan.workspace.git.branch : null;
-                String gitToken = (task.plan.workspace.git != null && task.plan.workspace.git.credential != null)
-                        ? task.plan.workspace.git.credential.token : null;
-                String forkUrl = task.plan.workspace.git != null ? task.plan.workspace.git.forkUrl : null;
+                String gitUrl = task.workspace.git != null ? task.workspace.git.url : null;
+                String gitBranch = task.workspace.git != null ? task.workspace.git.branch : null;
+                String gitToken = (task.workspace.git != null && task.workspace.git.credential != null)
+                        ? task.workspace.git.credential.token : null;
+                String forkUrl = task.workspace.git != null ? task.workspace.git.forkUrl : null;
 
-                return new ProvisionContext(null, alias, gitUrl, gitBranch, gitToken, forkUrl, task.plan.plan);
+                return new ProvisionContext(null, gitUrl, gitBranch, gitToken, forkUrl, task.plan.plan);
             });
 
             if (pctx == null) {
@@ -176,8 +173,8 @@ public class PlanService {
             // Phase 1b: Provision workspace outside transaction (may involve clone)
             String workspaceId = pctx.existingWorkspaceId();
             if (workspaceId == null) {
-                WorkspaceRequest request = WorkspaceRequest.forRemoteClone(
-                        pctx.alias(), pctx.gitUrl(), pctx.gitBranch(), pctx.gitToken(), pctx.forkUrl());
+                WorkspaceRequest request = new WorkspaceRequest(
+                        pctx.gitUrl(), pctx.gitBranch(), pctx.gitToken(), pctx.forkUrl());
                 Workspace ws = workspaceManager.provision(request);
                 workspaceId = ws.id();
 
@@ -185,9 +182,9 @@ public class PlanService {
                 String wsId = workspaceId;
                 QuarkusTransaction.requiringNew().run(() -> {
                     TaskEntity task = TaskEntity.findById(taskId);
-                    if (task != null && task.plan != null && task.plan.workspace != null) {
-                        task.plan.workspace.workspaceId = wsId;
-                        task.plan.workspace.persist();
+                    if (task != null && task.plan != null && task.workspace != null) {
+                        task.workspace.workspaceId = wsId;
+                        task.workspace.persist();
                     }
                 });
             }

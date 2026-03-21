@@ -6,6 +6,7 @@ import type {
   PlanDto,
   WorkspaceDto,
 } from "@app/api/models";
+import { createWorkspace } from "@app/api/git-api";
 import {
   createChangeRequest,
   createTaskPlan,
@@ -187,6 +188,18 @@ export const useFetchTaskPlan = (taskId: number, enabled = true) => {
         return 2000;
       }
       return false;
+    },
+  });
+};
+
+export const useCreateWorkspaceAndLinkMutation = (onSuccess?: () => void) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ gitId, taskId }: { gitId: number; taskId: number }) =>
+      createWorkspace(gitId, taskId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [TASK_QUERY_KEY] });
+      onSuccess?.();
     },
   });
 };

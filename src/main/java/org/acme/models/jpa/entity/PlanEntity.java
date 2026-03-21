@@ -48,11 +48,7 @@ public class PlanEntity extends PanacheEntityBase {
     @Column(name = "updated_at")
     public Instant updatedAt;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "workspace_id")
-    public WorkspaceEntity workspace;
-
-    @Column(name = "is_plan_generation_in_progress")
+@Column(name = "is_plan_generation_in_progress")
     public boolean isPlanGenerationInProgress = false;
 
     @Column(name = "plan_generation_error", columnDefinition = "TEXT")
