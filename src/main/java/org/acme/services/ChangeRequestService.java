@@ -11,8 +11,11 @@ import org.acme.models.jpa.entity.TaskEntity;
 import org.acme.services.changerequest.ChangeRequestParams;
 import org.acme.services.changerequest.ChangeRequestProvider;
 import org.acme.services.changerequest.ChangeRequestResult;
-import org.acme.services.git.GitException;
 import org.acme.services.git.GitManager;
+import org.acme.services.workspace.Workspace;
+import org.acme.services.workspace.WorkspaceException;
+import org.acme.services.workspace.WorkspaceGitOperations;
+import org.acme.services.workspace.WorkspaceManager;
 import org.jboss.logging.Logger;
 
 import java.time.Instant;
@@ -26,6 +29,12 @@ public class ChangeRequestService {
     GitManager gitManager;
 
     @Inject
+    WorkspaceManager workspaceManager;
+
+    @Inject
+    WorkspaceGitOperations workspaceGit;
+
+    @Inject
     Instance<ChangeRequestProvider> providers;
 
     public void triggerChangeRequest(Long taskId) {
@@ -37,7 +46,7 @@ public class ChangeRequestService {
         requestContext.activate();
         try {
             record ChangeRequestContext(
-                    String worktreePath, String mainClonePath, String gitUrl,
+                    String workspaceId, String mainClonePath, String gitUrl,
                     String forkUrl, String taskTitle, String requirement,
                     Long planId, String gitToken, String gitBranch,
                     GitVendorType vendorType
@@ -45,16 +54,16 @@ public class ChangeRequestService {
 
             ChangeRequestContext context = QuarkusTransaction.requiringNew().call(() -> {
                 TaskEntity task = TaskEntity.findById(taskId);
-                if (task == null || task.plan == null || task.plan.git == null) {
-                    LOG.warnf("Task %d, plan, or git not found during change request", taskId);
+                if (task == null || task.plan == null || task.plan.workspace == null || task.plan.workspace.git == null) {
+                    LOG.warnf("Task %d, plan, workspace, or git not found during change request", taskId);
                     return null;
                 }
 
                 return new ChangeRequestContext(
-                        task.plan.worktreePath, task.plan.git.localPath, task.plan.git.url,
-                        task.plan.git.forkUrl, task.title, task.plan.requirement,
-                        task.plan.id, task.plan.git.credential != null ? task.plan.git.credential.token : null,
-                        task.plan.git.branch, task.plan.git.vendorType
+                        task.plan.workspace.workspaceId, task.plan.workspace.localPath, task.plan.workspace.git.url,
+                        task.plan.workspace.git.forkUrl, task.title, task.plan.requirement,
+                        task.plan.id, task.plan.workspace.git.credential != null ? task.plan.workspace.git.credential.token : null,
+                        task.plan.workspace.git.branch, task.plan.workspace.git.vendorType
                 );
             });
 
@@ -62,10 +71,12 @@ public class ChangeRequestService {
                 return;
             }
 
+            Workspace workspace = workspaceManager.reconnect(context.workspaceId());
+
             try {
-                gitManager.addAll(context.worktreePath());
-                gitManager.commit(context.worktreePath(), context.taskTitle());
-            } catch (GitException e) {
+                workspaceGit.addAll(workspace);
+                workspaceGit.commit(workspace, context.taskTitle());
+            } catch (WorkspaceException e) {
                 LOG.infof("Task %d: No changes to commit, proceeding with push: %s", taskId, e.getMessage());
             }
 
@@ -88,11 +99,11 @@ public class ChangeRequestService {
             String pushTargetUrl = context.forkUrl() != null ? context.forkUrl() : context.gitUrl();
             if (context.gitToken() != null) {
                 String authenticatedUrl = provider.buildAuthenticatedPushUrl(pushTargetUrl, context.gitToken());
-                gitManager.pushToUrl(context.worktreePath(), authenticatedUrl, "HEAD:" + branchName);
+                workspaceGit.pushToUrl(workspace, authenticatedUrl, "HEAD:" + branchName);
             } else if (context.forkUrl() == null) {
-                gitManager.push(context.worktreePath(), "origin", branchName);
+                workspaceGit.push(workspace, "origin", branchName);
             } else {
-                gitManager.push(context.worktreePath(), "fork", branchName);
+                workspaceGit.push(workspace, "fork", branchName);
             }
 
             String ownerRepo = GitManager.extractOwnerRepo(context.gitUrl());

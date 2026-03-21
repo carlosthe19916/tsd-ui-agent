@@ -1,12 +1,7 @@
 package org.acme.services;
 
-import io.quarkus.arc.Arc;
-import io.quarkus.arc.ManagedContext;
-import io.quarkus.narayana.jta.QuarkusTransaction;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import jakarta.transaction.Synchronization;
-import jakarta.transaction.TransactionManager;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.NotFoundException;
 import jakarta.ws.rs.WebApplicationException;
@@ -15,9 +10,11 @@ import org.acme.dto.GitDto;
 import org.acme.mapper.GitMapper;
 import org.acme.models.jpa.entity.CredentialEntity;
 import org.acme.models.jpa.entity.GitEntity;
+import org.acme.models.jpa.entity.WorkspaceEntity;
 import org.acme.services.git.GitManager;
 import org.jboss.logging.Logger;
 
+import java.util.List;
 import java.util.Map;
 
 @ApplicationScoped
@@ -33,7 +30,7 @@ public class GitService {
     GitMapper gitMapper;
 
     @Inject
-    TransactionManager transactionManager;
+    WorkspaceService workspaceService;
 
     public GitEntity create(GitDto dto) {
         GitEntity entity = gitMapper.toEntity(dto);
@@ -41,89 +38,9 @@ public class GitService {
         normalizeBranch(entity);
         checkDuplicate(entity.url, entity.branch, null);
 
-        entity.isCloneInProgress = true;
         entity.persist();
 
-        Long gitId = entity.id;
-        try {
-            transactionManager.getTransaction().registerSynchronization(new Synchronization() {
-                @Override
-                public void beforeCompletion() {}
-
-                @Override
-                public void afterCompletion(int status) {
-                    if (status == jakarta.transaction.Status.STATUS_COMMITTED) {
-                        triggerClone(gitId);
-                    }
-                }
-            });
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to register clone callback", e);
-        }
-
         return entity;
-    }
-
-    void triggerClone(Long gitId) {
-        Thread.startVirtualThread(() -> doClone(gitId));
-    }
-
-    void doClone(Long gitId) {
-        ManagedContext requestContext = Arc.container().requestContext();
-        requestContext.activate();
-        try {
-            // Phase 1: Read entity fields in a short transaction
-            record CloneContext(String url, String branch, String forkUrl) {}
-
-            CloneContext context = QuarkusTransaction.requiringNew().call(() -> {
-                GitEntity entity = GitEntity.findById(gitId);
-                if (entity == null) {
-                    LOG.warnf("Git entity %d not found during clone", gitId);
-                    return null;
-                }
-                return new CloneContext(entity.url, entity.branch, entity.forkUrl);
-            });
-
-            if (context == null) {
-                return;
-            }
-
-            // Phase 2: Long-running clone (no transaction)
-            String localPath = gitManager.cloneRepository(context.url(), context.branch());
-
-            if (context.forkUrl() != null && !context.forkUrl().isBlank()) {
-                gitManager.addForkRemote(localPath, context.forkUrl());
-            }
-
-            // Phase 3: Write result in a short transaction
-            QuarkusTransaction.requiringNew().run(() -> {
-                GitEntity entity = GitEntity.findById(gitId);
-                if (entity == null) {
-                    LOG.warnf("Git entity %d not found after clone", gitId);
-                    return;
-                }
-                entity.localPath = localPath;
-                entity.isCloneInProgress = false;
-                entity.persist();
-            });
-        } catch (Exception e) {
-            LOG.errorf(e, "Failed to clone git repository %d", gitId);
-            try {
-                QuarkusTransaction.requiringNew().run(() -> {
-                    GitEntity entity = GitEntity.findById(gitId);
-                    if (entity == null) {
-                        return;
-                    }
-                    entity.cloneError = e.getMessage();
-                    entity.isCloneInProgress = false;
-                    entity.persist();
-                });
-            } catch (Exception inner) {
-                LOG.errorf(inner, "Failed to record clone error for git %d", gitId);
-            }
-        } finally {
-            requestContext.terminate();
-        }
     }
 
     public GitEntity update(GitDto dto, GitEntity entity) {
@@ -133,18 +50,23 @@ public class GitService {
         normalizeBranch(entity);
         checkDuplicate(entity.url, entity.branch, entity.id);
 
-        gitManager.setRemoteUrl(entity.localPath, entity.url);
+        List<WorkspaceEntity> workspaces = WorkspaceEntity.list("git", entity);
+        for (WorkspaceEntity ws : workspaces) {
+            if (ws.localPath != null) {
+                gitManager.setRemoteUrl(ws.localPath, entity.url);
 
-        String newForkUrl = entity.forkUrl;
-        boolean hadFork = oldForkUrl != null && !oldForkUrl.isBlank();
-        boolean hasFork = newForkUrl != null && !newForkUrl.isBlank();
+                String newForkUrl = entity.forkUrl;
+                boolean hadFork = oldForkUrl != null && !oldForkUrl.isBlank();
+                boolean hasFork = newForkUrl != null && !newForkUrl.isBlank();
 
-        if (!hadFork && hasFork) {
-            gitManager.addForkRemote(entity.localPath, newForkUrl);
-        } else if (hadFork && hasFork && !oldForkUrl.equals(newForkUrl)) {
-            gitManager.setForkRemoteUrl(entity.localPath, newForkUrl);
-        } else if (hadFork && !hasFork) {
-            gitManager.removeForkRemote(entity.localPath);
+                if (!hadFork && hasFork) {
+                    gitManager.addForkRemote(ws.localPath, newForkUrl);
+                } else if (hadFork && hasFork && !oldForkUrl.equals(newForkUrl)) {
+                    gitManager.setForkRemoteUrl(ws.localPath, newForkUrl);
+                } else if (hadFork && !hasFork) {
+                    gitManager.removeForkRemote(ws.localPath);
+                }
+            }
         }
 
         entity.persist();
@@ -152,12 +74,9 @@ public class GitService {
     }
 
     public void delete(GitEntity entity) {
-        if (entity.localPath != null) {
-            try {
-                gitManager.deleteClonedDirectory(entity.localPath);
-            } catch (Exception e) {
-                LOG.warnf("Failed to delete cloned directory %s: %s", entity.localPath, e.getMessage());
-            }
+        List<WorkspaceEntity> workspaces = WorkspaceEntity.list("git", entity);
+        for (WorkspaceEntity ws : workspaces) {
+            workspaceService.delete(ws);
         }
 
         entity.delete();

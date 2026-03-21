@@ -7,6 +7,7 @@ import type {
   PlanDto,
   SearchResultDto,
   TaskDto,
+  WorkspaceDto,
 } from "./models";
 
 const BASE_URL = "/api/tasks";
@@ -116,6 +117,15 @@ export const enrichRequirement = (taskId: number) =>
 export const patchTaskPlan = (taskId: number, plan: Partial<PlanDto>) =>
   axios
     .patch<PlanDto>(`${BASE_URL}/${taskId}/plan`, plan)
+    .then((response) => response.data);
+
+export const patchWorkspace = (
+  gitId: number,
+  id: number,
+  workspace: Partial<WorkspaceDto>,
+) =>
+  axios
+    .patch<WorkspaceDto>(`/api/gits/${gitId}/workspaces/${id}`, workspace)
     .then((response) => response.data);
 
 export const streamPlanOutput = async function* (

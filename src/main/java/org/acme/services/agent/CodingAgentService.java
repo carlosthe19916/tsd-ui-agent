@@ -1,7 +1,9 @@
 package org.acme.services.agent;
 
-public interface CodingAgentService {
-    String generatePlan(String workdir, String requirement, Long taskId);
+import org.acme.services.workspace.Workspace;
 
-    void executePlan(String workdir, String planText, Long taskId);
+public interface CodingAgentService {
+    String generatePlan(Workspace workspace, String requirement, Long taskId);
+
+    void executePlan(Workspace workspace, String planText, Long taskId);
 }

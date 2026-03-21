@@ -8,6 +8,7 @@ import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.NotFoundException;
+import jakarta.ws.rs.PATCH;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
@@ -16,9 +17,13 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import org.acme.dto.GitDto;
+import org.acme.dto.WorkspaceDto;
 import org.acme.mapper.GitMapper;
+import org.acme.mapper.WorkspaceMapper;
 import org.acme.models.jpa.entity.GitEntity;
+import org.acme.models.jpa.entity.WorkspaceEntity;
 import org.acme.services.GitService;
+import org.acme.services.WorkspaceService;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -35,6 +40,12 @@ public class GitResource {
 
     @Inject
     GitService gitService;
+
+    @Inject
+    WorkspaceMapper workspaceMapper;
+
+    @Inject
+    WorkspaceService workspaceService;
 
     @GET
     public List<GitDto> list() {
@@ -74,6 +85,55 @@ public class GitResource {
         GitEntity entity = (GitEntity) GitEntity.findByIdOptional(id)
                 .orElseThrow(NotFoundException::new);
         gitService.delete(entity);
+        return Response.noContent().build();
+    }
+
+    // Workspace sub-resource endpoints
+
+    @GET
+    @Path("/{gitId}/workspaces")
+    public List<WorkspaceDto> listWorkspaces(@PathParam("gitId") Long gitId) {
+        return WorkspaceEntity.<WorkspaceEntity>list("git.id", gitId).stream()
+                .map(workspaceMapper::toDto)
+                .collect(Collectors.toList());
+    }
+
+    @GET
+    @Path("/{gitId}/workspaces/{wsId}")
+    public WorkspaceDto getWorkspace(@PathParam("gitId") Long gitId, @PathParam("wsId") Long wsId) {
+        WorkspaceEntity entity = (WorkspaceEntity) WorkspaceEntity.findByIdOptional(wsId)
+                .orElseThrow(NotFoundException::new);
+        return workspaceMapper.toDto(entity);
+    }
+
+    @POST
+    @Path("/{gitId}/workspaces")
+    public Response createWorkspace(@PathParam("gitId") Long gitId, @Valid WorkspaceDto dto) {
+        GitDto git = new GitDto();
+        git.id = gitId;
+        dto.git = git;
+        WorkspaceEntity entity = workspaceService.create(dto);
+        return Response.status(Response.Status.CREATED)
+                .entity(workspaceMapper.toDto(entity))
+                .build();
+    }
+
+    @PATCH
+    @Path("/{gitId}/workspaces/{wsId}")
+    public WorkspaceDto patchWorkspace(@PathParam("gitId") Long gitId, @PathParam("wsId") Long wsId,
+            WorkspaceDto dto) {
+        WorkspaceEntity entity = (WorkspaceEntity) WorkspaceEntity.findByIdOptional(wsId)
+                .orElseThrow(NotFoundException::new);
+        workspaceMapper.patchEntity(dto, entity);
+        return workspaceMapper.toDto(entity);
+    }
+
+    @DELETE
+    @Path("/{gitId}/workspaces/{wsId}")
+    public Response deleteWorkspace(@PathParam("gitId") Long gitId, @PathParam("wsId") Long wsId) {
+        WorkspaceEntity entity = (WorkspaceEntity) WorkspaceEntity.findByIdOptional(wsId)
+                .orElseThrow(NotFoundException::new);
+        workspaceService.delete(entity);
         return Response.noContent().build();
     }
 }

@@ -8,8 +8,12 @@ import jakarta.inject.Inject;
 import org.acme.models.jpa.entity.TaskEntity;
 import org.acme.services.agent.CodingAgentService;
 import org.acme.services.ai.RequirementSummarizerService;
+import org.acme.services.git.GitManager;
 import org.acme.services.sync.ExternalIssueContext;
 import org.acme.services.sync.SyncManager;
+import org.acme.services.workspace.Workspace;
+import org.acme.services.workspace.WorkspaceManager;
+import org.acme.services.workspace.WorkspaceRequest;
 import org.jboss.logging.Logger;
 
 import java.time.Instant;
@@ -31,7 +35,7 @@ public class PlanService {
     CodingAgentService codingAgentService;
 
     @Inject
-    WorktreeService worktreeService;
+    WorkspaceManager workspaceManager;
 
     public void triggerRequirementEnrichment(Long taskId) {
         Thread.startVirtualThread(() -> doRequirementEnrichment(taskId));
@@ -49,18 +53,26 @@ public class PlanService {
         ManagedContext requestContext = Arc.container().requestContext();
         requestContext.activate();
         try {
-            // Phase 1: Collect requirement and worktree path in a short transaction
-            record PlanGenerationContext(String worktreePath, String requirement) {}
+            // Phase 1: Collect requirement and provision workspace in a short transaction
+            record PlanGenerationContext(String workspaceId, String requirement) {}
 
             PlanGenerationContext context = QuarkusTransaction.requiringNew().call(() -> {
                 TaskEntity task = TaskEntity.findById(taskId);
-                if (task == null || task.plan == null) {
-                    LOG.warnf("Task %d or plan not found during plan generation", taskId);
+                if (task == null || task.plan == null || task.plan.workspace == null) {
+                    LOG.warnf("Task %d, plan, or workspace not found during plan generation", taskId);
                     return null;
                 }
 
-                String path = worktreeService.ensureWorktree(task.plan);
-                return new PlanGenerationContext(path, task.plan.requirement);
+                String wsId = task.plan.workspace.workspaceId;
+                if (wsId != null && workspaceManager.exists(wsId)) {
+                    return new PlanGenerationContext(wsId, task.plan.requirement);
+                }
+
+                String alias = GitManager.planBranchName(task.plan.id);
+                Workspace ws = workspaceManager.provision(new WorkspaceRequest(task.plan.workspace.localPath, alias));
+                task.plan.workspace.workspaceId = ws.id();
+                task.plan.workspace.persist();
+                return new PlanGenerationContext(ws.id(), task.plan.requirement);
             });
 
             if (context == null) {
@@ -68,7 +80,8 @@ public class PlanService {
             }
 
             // Phase 2: Call coding agent outside of any transaction
-            String result = codingAgentService.generatePlan(context.worktreePath(), context.requirement(), taskId);
+            Workspace workspace = workspaceManager.reconnect(context.workspaceId());
+            String result = codingAgentService.generatePlan(workspace, context.requirement(), taskId);
 
             // Phase 3: Store result in a short transaction
             QuarkusTransaction.requiringNew().run(() -> {
@@ -105,18 +118,27 @@ public class PlanService {
         ManagedContext requestContext = Arc.container().requestContext();
         requestContext.activate();
         try {
-            // Phase 1: Collect worktree path and plan text in a short transaction
-            record PlanExecutionContext(String worktreePath, String planText) {}
+            // Phase 1: Collect workspace and plan text in a short transaction
+            record PlanExecutionContext(String workspaceId, String planText) {}
 
             PlanExecutionContext context = QuarkusTransaction.requiringNew().call(() -> {
                 TaskEntity task = TaskEntity.findById(taskId);
-                if (task == null || task.plan == null) {
-                    LOG.warnf("Task %d or plan not found during plan execution", taskId);
+                if (task == null || task.plan == null || task.plan.workspace == null) {
+                    LOG.warnf("Task %d, plan, or workspace not found during plan execution", taskId);
                     return null;
                 }
 
-                String path = worktreeService.ensureWorktree(task.plan);
-                return new PlanExecutionContext(path, task.plan.plan);
+                String wsId = task.plan.workspace.workspaceId;
+                if (wsId != null && workspaceManager.exists(wsId)) {
+                    return new PlanExecutionContext(wsId, task.plan.plan);
+                }
+
+                String alias = GitManager.planBranchName(task.plan.id);
+                Workspace ws = workspaceManager.provision(
+                        new WorkspaceRequest(task.plan.workspace.localPath, alias));
+                task.plan.workspace.workspaceId = ws.id();
+                task.plan.workspace.persist();
+                return new PlanExecutionContext(ws.id(), task.plan.plan);
             });
 
             if (context == null) {
@@ -124,7 +146,8 @@ public class PlanService {
             }
 
             // Phase 2: Delegate to coding agent outside of any transaction
-            codingAgentService.executePlan(context.worktreePath(), context.planText(), taskId);
+            Workspace workspace = workspaceManager.reconnect(context.workspaceId());
+            codingAgentService.executePlan(workspace, context.planText(), taskId);
 
             // Phase 3: Store success in a short transaction
             QuarkusTransaction.requiringNew().run(() -> {

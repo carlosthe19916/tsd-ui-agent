@@ -1,10 +1,10 @@
-package org.acme.services;
+package org.acme.services.workspace.filesystem;
 
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
-import org.acme.models.jpa.entity.PlanEntity;
-import org.acme.services.git.GitManager;
+import org.acme.services.workspace.ExecutionMode;
+import org.acme.services.workspace.Workspace;
+import org.acme.services.workspace.WorkspaceToolsService;
+import org.acme.services.workspace.WorkspaceToolsServiceType;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
@@ -13,15 +13,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.Set;
-import java.util.UUID;
 
+@WorkspaceToolsServiceType(type = ExecutionMode.FILESYSTEM)
 @ApplicationScoped
-public class WorktreeService {
+public class FilesystemWorkspaceToolsService implements WorkspaceToolsService {
 
-    private static final Logger LOG = Logger.getLogger(WorktreeService.class);
-
-    @Inject
-    GitManager gitManager;
+    private static final Logger LOG = Logger.getLogger(FilesystemWorkspaceToolsService.class);
 
     @ConfigProperty(name = "tsd-agent.vscode.command")
     String vscodeCommand;
@@ -35,28 +32,10 @@ public class WorktreeService {
     @ConfigProperty(name = "tsd-agent.claude.command")
     String claudeCommand;
 
-    @Transactional
-    public String ensureWorktree(PlanEntity plan) {
-        if (plan.worktreePath != null && Files.isDirectory(Path.of(plan.worktreePath))) {
-            return plan.worktreePath;
-        }
-
-        if (plan.worktreePath != null) {
-            plan.worktreePath = null;
-        }
-
-        String alias = GitManager.planBranchName(plan.id);
-
-        String worktreePath = gitManager.addWorktree(plan.git.localPath, alias);
-        plan.worktreePath = worktreePath;
-        plan.persist();
-
-        return worktreePath;
-    }
-
-    public void openVSCode(String worktreePath) {
+    @Override
+    public void openIDE(Workspace workspace) {
         try {
-            new ProcessBuilder(vscodeCommand, worktreePath)
+            new ProcessBuilder(vscodeCommand, workspace.workingDirectory())
                     .inheritIO()
                     .start();
         } catch (IOException e) {
@@ -64,8 +43,9 @@ public class WorktreeService {
         }
     }
 
-    public void openTerminal(String worktreePath) {
-        String resolved = terminalCommand.formatted(worktreePath);
+    @Override
+    public void openTerminal(Workspace workspace) {
+        String resolved = terminalCommand.formatted(workspace.workingDirectory());
         String[] parts = resolved.split("\\s+");
         try {
             new ProcessBuilder(parts)
@@ -76,7 +56,9 @@ public class WorktreeService {
         }
     }
 
-    public String openClaude(String worktreePath, Long taskId, String requirement, String planApiUrl, String existingSessionId) {
+    @Override
+    public String openClaude(Workspace workspace, Long taskId, String requirement, String planApiUrl, String existingSessionId) {
+        String worktreePath = workspace.workingDirectory();
         try {
             if (existingSessionId != null) {
                 Path resumeScriptPath = Files.createTempFile("tsd-claude-resume-", ".sh");

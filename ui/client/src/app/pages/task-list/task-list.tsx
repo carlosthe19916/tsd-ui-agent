@@ -58,7 +58,7 @@ import {
   useCreateTaskPlanMutation,
   useOpenTerminalMutation,
   useOpenVSCodeMutation,
-  usePatchTaskPlanMutation,
+  usePatchWorkspaceMutation,
 } from "@app/queries/tasks";
 import { formatDateTime } from "@app/utils/utils";
 import { ButtonVariant } from "@patternfly/react-core";
@@ -117,7 +117,7 @@ const TaskListContent: React.FC = () => {
   const openVSCodeMutation = useOpenVSCodeMutation();
   const openTerminalMutation = useOpenTerminalMutation();
   const changeRequestMutation = useCreateChangeRequestMutation();
-  const patchPlanMutation = usePatchTaskPlanMutation(() =>
+  const patchWorkspaceMutation = usePatchWorkspaceMutation(() =>
     setClearClaudeTask(null),
   );
 
@@ -281,7 +281,7 @@ const TaskListContent: React.FC = () => {
                       )}
                     </DataListCell>,
                     <DataListCell key="outcomes" alignRight>
-                      {task?.plan?.git && (
+                      {task?.plan?.workspace && (
                         <FlexItem>
                           <Flex gap={{ default: "gapMd" }}>
                             <FlexItem>
@@ -316,7 +316,7 @@ const TaskListContent: React.FC = () => {
                                 </Button>
                               </Tooltip>
                             </FlexItem>
-                            {task.plan.claudeSessionId && (
+                            {task.plan.workspace?.claudeSessionId && (
                               <FlexItem>
                                 <Tooltip content="Clear Claude session">
                                   <Button
@@ -499,12 +499,16 @@ const TaskListContent: React.FC = () => {
         confirmBtnLabel="Clear"
         cancelBtnLabel="Cancel"
         confirmBtnVariant={ButtonVariant.danger}
-        inProgress={patchPlanMutation.isPending}
+        inProgress={patchWorkspaceMutation.isPending}
         onConfirm={() => {
-          if (clearClaudeTask) {
-            patchPlanMutation.mutate({
-              taskId: clearClaudeTask.id,
-              plan: { claudeSessionId: "" },
+          if (
+            clearClaudeTask?.plan?.workspace?.id &&
+            clearClaudeTask?.plan?.workspace?.git?.id
+          ) {
+            patchWorkspaceMutation.mutate({
+              gitId: clearClaudeTask.plan.workspace.git.id,
+              id: clearClaudeTask.plan.workspace.id,
+              workspace: { claudeSessionId: "" },
             });
           }
         }}

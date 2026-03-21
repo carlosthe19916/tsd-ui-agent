@@ -17,9 +17,6 @@ public class GitMapper {
         dto.forkUrl = entity.forkUrl;
         dto.vendorType = entity.vendorType;
         dto.credential = toCredentialDto(entity.credential);
-        dto.localPath = entity.localPath;
-        dto.isCloneInProgress = entity.isCloneInProgress;
-        dto.cloneError = entity.cloneError;
         return dto;
     }
 

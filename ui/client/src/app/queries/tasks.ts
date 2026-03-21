@@ -1,6 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import type { HubRequestParams, New, PlanDto } from "@app/api/models";
+import type {
+  HubRequestParams,
+  New,
+  PlanDto,
+  WorkspaceDto,
+} from "@app/api/models";
 import {
   createChangeRequest,
   createTaskPlan,
@@ -13,6 +18,7 @@ import {
   openTerminal,
   openVSCode,
   patchTaskPlan,
+  patchWorkspace,
   updateTaskPlan,
 } from "@app/api/task-api";
 
@@ -125,6 +131,25 @@ export const useCreateChangeRequestMutation = () => {
     mutationFn: (taskId: number) => createChangeRequest(taskId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [TASK_QUERY_KEY] });
+    },
+  });
+};
+
+export const usePatchWorkspaceMutation = (onSuccess?: () => void) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      gitId,
+      id,
+      workspace,
+    }: {
+      gitId: number;
+      id: number;
+      workspace: Partial<WorkspaceDto>;
+    }) => patchWorkspace(gitId, id, workspace),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [TASK_QUERY_KEY] });
+      onSuccess?.();
     },
   });
 };

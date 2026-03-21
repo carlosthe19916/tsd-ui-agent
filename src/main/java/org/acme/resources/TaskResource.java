@@ -27,19 +27,28 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriInfo;
+import org.acme.dto.GitDto;
 import org.acme.dto.PlanDto;
 import org.acme.dto.SearchResultDto;
 import org.acme.dto.TaskDto;
+import org.acme.dto.WorkspaceDto;
 import org.acme.mapper.PlanMapper;
 import org.acme.mapper.TaskMapper;
+import org.acme.models.jpa.entity.GitEntity;
 import org.acme.models.jpa.entity.PlanEntity;
 import org.acme.models.jpa.entity.TaskEntity;
 import org.acme.models.jpa.entity.TaskStatus;
+import org.acme.models.jpa.entity.WorkspaceEntity;
 import org.acme.services.ChangeRequestService;
 import org.acme.services.ExecutionOutputBroadcaster;
 import org.acme.services.PlanService;
-import org.acme.services.WorktreeService;
 import org.acme.services.ProjectGitMappingService;
+import org.acme.services.WorkspaceService;
+import org.acme.services.git.GitManager;
+import org.acme.services.workspace.Workspace;
+import org.acme.services.workspace.WorkspaceManager;
+import org.acme.services.workspace.WorkspaceRequest;
+import org.acme.services.workspace.WorkspaceToolsService;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.resteasy.reactive.RestStreamElementType;
 
@@ -72,7 +81,13 @@ public class TaskResource {
     ChangeRequestService changeRequestService;
 
     @Inject
-    WorktreeService worktreeService;
+    WorkspaceManager workspaceManager;
+
+    @Inject
+    WorkspaceService workspaceService;
+
+    @Inject
+    WorkspaceToolsService workspaceToolsService;
 
     @Inject
     ExecutionOutputBroadcaster broadcaster;
@@ -201,11 +216,21 @@ public class TaskResource {
             plan.requirement = (task.description != null && !task.description.isBlank()) ? task.description : task.title;
         }
 
-        // Auto-populate git repo if not provided
-        if (plan.git == null) {
+        // Auto-populate workspace from git repo if not provided
+        if (plan.workspace == null) {
+            GitEntity git = null;
             switch (task.project.type) {
-                case GITHUB -> projectGitMappingService.resolveFromGitHub(task.project).ifPresent(git -> plan.git = git);
-                case JIRA -> projectGitMappingService.resolveFromMapping(task).ifPresent(git -> plan.git = git);
+                case GITHUB -> git = projectGitMappingService.resolveFromGitHub(task.project).orElse(null);
+                case JIRA -> git = projectGitMappingService.resolveFromMapping(task).orElse(null);
+            }
+            if (git != null) {
+                // Create a workspace for this git
+                WorkspaceDto wsDto = new WorkspaceDto();
+                GitDto gitDto = new GitDto();
+                gitDto.id = git.id;
+                wsDto.git = gitDto;
+                WorkspaceEntity ws = workspaceService.create(wsDto);
+                plan.workspace = ws;
             }
         }
 
@@ -306,12 +331,12 @@ public class TaskResource {
         if (task.plan == null) {
             throw new NotFoundException("Task has no plan");
         }
-        if (task.plan.git == null) {
-            throw new BadRequestException("Plan has no git configuration");
+        if (task.plan.workspace == null) {
+            throw new BadRequestException("Plan has no workspace configuration");
         }
 
-        String path = worktreeService.ensureWorktree(task.plan);
-        worktreeService.openVSCode(path);
+        Workspace workspace = ensureWorkspace(task.plan);
+        workspaceToolsService.openIDE(workspace);
 
         return Response.noContent().build();
     }
@@ -324,12 +349,12 @@ public class TaskResource {
         if (task.plan == null) {
             throw new NotFoundException("Task has no plan");
         }
-        if (task.plan.git == null) {
-            throw new BadRequestException("Plan has no git configuration");
+        if (task.plan.workspace == null) {
+            throw new BadRequestException("Plan has no workspace configuration");
         }
 
-        String path = worktreeService.ensureWorktree(task.plan);
-        worktreeService.openTerminal(path);
+        Workspace workspace = ensureWorkspace(task.plan);
+        workspaceToolsService.openTerminal(workspace);
 
         return Response.noContent().build();
     }
@@ -345,8 +370,8 @@ public class TaskResource {
         if (!aiDiscoveryEnabled) {
             throw new BadRequestException("AI discovery is not enabled");
         }
-        if (task.plan.git == null) {
-            throw new BadRequestException("Plan has no git configuration");
+        if (task.plan.workspace == null) {
+            throw new BadRequestException("Plan has no workspace configuration");
         }
         if (task.plan.requirement == null || task.plan.requirement.isBlank()) {
             throw new BadRequestException("Plan has no requirement");
@@ -391,8 +416,8 @@ public class TaskResource {
         if (task.plan == null) {
             throw new NotFoundException("Task has no plan");
         }
-        if (task.plan.git == null) {
-            throw new BadRequestException("Plan has no git configuration");
+        if (task.plan.workspace == null) {
+            throw new BadRequestException("Plan has no workspace configuration");
         }
         if (task.plan.plan == null || task.plan.plan.isBlank()) {
             throw new BadRequestException("Plan has no execution plan text");
@@ -437,10 +462,13 @@ public class TaskResource {
         if (task.plan == null) {
             throw new NotFoundException("Task has no plan");
         }
-        if (task.plan.git == null) {
-            throw new BadRequestException("Plan has no git configuration");
+        if (task.plan.workspace == null) {
+            throw new BadRequestException("Plan has no workspace configuration");
         }
-        if (task.plan.git.credential == null) {
+        if (task.plan.workspace.git == null) {
+            throw new BadRequestException("Workspace has no git configuration");
+        }
+        if (task.plan.workspace.git.credential == null) {
             throw new BadRequestException("Git configuration has no credential for PR/MR creation");
         }
         if (task.plan.executionPlanCompletedAt == null) {
@@ -491,15 +519,15 @@ public class TaskResource {
         if (task.plan == null) {
             throw new NotFoundException("Task has no plan");
         }
-        if (task.plan.git == null) {
-            throw new BadRequestException("Plan has no git configuration");
+        if (task.plan.workspace == null) {
+            throw new BadRequestException("Plan has no workspace configuration");
         }
 
-        String path = worktreeService.ensureWorktree(task.plan);
+        Workspace workspace = ensureWorkspace(task.plan);
         String planApiUrl = uriInfo.getBaseUri() + "tasks/" + taskId + "/plan";
-        String sessionId = worktreeService.openClaude(path, taskId, task.plan.requirement, planApiUrl, task.plan.claudeSessionId);
-        if (task.plan.claudeSessionId == null) {
-            task.plan.claudeSessionId = sessionId;
+        String sessionId = workspaceToolsService.openClaude(workspace, taskId, task.plan.requirement, planApiUrl, task.plan.workspace.claudeSessionId);
+        if (task.plan.workspace.claudeSessionId == null) {
+            task.plan.workspace.claudeSessionId = sessionId;
         }
 
         return Response.noContent().build();
@@ -520,5 +548,17 @@ public class TaskResource {
                 })
                 .runSubscriptionOn(Infrastructure.getDefaultWorkerPool())
                 .onItem().transformToMulti(id -> broadcaster.subscribe(id));
+    }
+
+    private Workspace ensureWorkspace(PlanEntity plan) {
+        if (plan.workspace.workspaceId != null && workspaceManager.exists(plan.workspace.workspaceId)) {
+            return workspaceManager.reconnect(plan.workspace.workspaceId);
+        }
+
+        String alias = GitManager.planBranchName(plan.id);
+        Workspace ws = workspaceManager.provision(new WorkspaceRequest(plan.workspace.localPath, alias));
+        plan.workspace.workspaceId = ws.id();
+        plan.workspace.persist();
+        return ws;
     }
 }

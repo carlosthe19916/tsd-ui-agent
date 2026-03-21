@@ -9,17 +9,13 @@ import org.acme.services.git.GitManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.util.concurrent.TimeUnit;
-
 import static io.restassured.RestAssured.given;
-import static org.awaitility.Awaitility.await;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 
 @QuarkusTest
@@ -83,25 +79,13 @@ class GitResourceTest {
     }
 
     private int createGit(String url) {
-        int id = given()
+        return given()
                 .contentType(ContentType.JSON)
                 .body(git(url))
                 .when().post("/gits")
                 .then()
                 .statusCode(201)
                 .extract().path("id");
-        awaitCloneCompletion(id);
-        return id;
-    }
-
-    private void awaitCloneCompletion(int id) {
-        await().atMost(5, TimeUnit.SECONDS).untilAsserted(() ->
-                given()
-                        .when().get("/gits/{id}", id)
-                        .then()
-                        .statusCode(200)
-                        .body("isCloneInProgress", is(false))
-        );
     }
 
     @Test
@@ -482,68 +466,5 @@ class GitResourceTest {
                 .when().delete("/gits/{id}", 9999)
                 .then()
                 .statusCode(404);
-    }
-
-    @Test
-    void testCreateGitReturnsCloneInProgress() {
-        int id = given()
-                .contentType(ContentType.JSON)
-                .body(git("https://github.com/async/clone-progress.git"))
-                .when().post("/gits")
-                .then()
-                .statusCode(201)
-                .body("isCloneInProgress", is(true))
-                .extract().path("id");
-
-        await().atMost(5, TimeUnit.SECONDS).untilAsserted(() ->
-                given()
-                        .when().get("/gits/{id}", id)
-                        .then()
-                        .statusCode(200)
-                        .body("isCloneInProgress", is(false))
-                        .body("localPath", notNullValue())
-        );
-    }
-
-    @Test
-    void testCreateGitCloneErrorSetsErrorStatus() {
-        when(gitManager.cloneRepository("https://github.com/async/clone-error.git", ""))
-                .thenThrow(new RuntimeException("clone failed"));
-
-        int id = given()
-                .contentType(ContentType.JSON)
-                .body(git("https://github.com/async/clone-error.git"))
-                .when().post("/gits")
-                .then()
-                .statusCode(201)
-                .extract().path("id");
-
-        await().atMost(5, TimeUnit.SECONDS).untilAsserted(() ->
-                given()
-                        .when().get("/gits/{id}", id)
-                        .then()
-                        .statusCode(200)
-                        .body("isCloneInProgress", is(false))
-                        .body("cloneError", notNullValue())
-        );
-    }
-
-    @Test
-    void testCreateGitWithoutCloneError() {
-        int id = given()
-                .contentType(ContentType.JSON)
-                .body(git("https://github.com/async/no-error.git"))
-                .when().post("/gits")
-                .then()
-                .statusCode(201)
-                .extract().path("id");
-
-        awaitCloneCompletion(id);
-
-        given()
-                .when().get("/gits/{id}", id)
-                .then()
-                .statusCode(200)
-                .body("cloneError", nullValue());
     }
 }
