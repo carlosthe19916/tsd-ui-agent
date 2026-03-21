@@ -18,13 +18,7 @@ public class KubernetesConfig {
     @ConfigProperty(name = "tsd-agent.kubernetes.image", defaultValue = "mcr.microsoft.com/devcontainers/base:ubuntu")
     public String image;
 
-    @ConfigProperty(name = "tsd-agent.kubernetes.storage-class")
-    public Optional<String> storageClass;
-
-    @ConfigProperty(name = "tsd-agent.kubernetes.storage-size", defaultValue = "5Gi")
-    public String storageSize;
-
-    @ConfigProperty(name = "tsd-agent.kubernetes.working-dir", defaultValue = "/workspace")
+    @ConfigProperty(name = "tsd-agent.kubernetes.working-dir", defaultValue = "/projects/project")
     public String workingDir;
 
     @ConfigProperty(name = "tsd-agent.kubernetes.env-passthrough", defaultValue = "ANTHROPIC_API_KEY")
@@ -32,4 +26,7 @@ public class KubernetesConfig {
 
     @ConfigProperty(name = "tsd-agent.kubernetes.service-account")
     public Optional<String> serviceAccount;
+
+    @ConfigProperty(name = "tsd-agent.kubernetes.che-url")
+    public Optional<String> cheUrl;
 }

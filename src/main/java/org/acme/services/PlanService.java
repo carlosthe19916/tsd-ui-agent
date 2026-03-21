@@ -53,10 +53,12 @@ public class PlanService {
         ManagedContext requestContext = Arc.container().requestContext();
         requestContext.activate();
         try {
-            // Phase 1: Collect requirement and provision workspace in a short transaction
-            record PlanGenerationContext(String workspaceId, String requirement) {}
+            // Phase 1a: Collect data in a short transaction
+            record ProvisionContext(String existingWorkspaceId, String alias,
+                    String gitUrl, String gitBranch, String gitToken, String forkUrl,
+                    String requirement) {}
 
-            PlanGenerationContext context = QuarkusTransaction.requiringNew().call(() -> {
+            ProvisionContext pctx = QuarkusTransaction.requiringNew().call(() -> {
                 TaskEntity task = TaskEntity.findById(taskId);
                 if (task == null || task.plan == null || task.plan.workspace == null) {
                     LOG.warnf("Task %d, plan, or workspace not found during plan generation", taskId);
@@ -65,23 +67,45 @@ public class PlanService {
 
                 String wsId = task.plan.workspace.workspaceId;
                 if (wsId != null && workspaceManager.exists(wsId)) {
-                    return new PlanGenerationContext(wsId, task.plan.requirement);
+                    return new ProvisionContext(wsId, null, null, null, null, null, task.plan.requirement);
                 }
 
                 String alias = GitManager.planBranchName(task.plan.id);
-                Workspace ws = workspaceManager.provision(new WorkspaceRequest(task.plan.workspace.localPath, alias));
-                task.plan.workspace.workspaceId = ws.id();
-                task.plan.workspace.persist();
-                return new PlanGenerationContext(ws.id(), task.plan.requirement);
+                String gitUrl = task.plan.workspace.git != null ? task.plan.workspace.git.url : null;
+                String gitBranch = task.plan.workspace.git != null ? task.plan.workspace.git.branch : null;
+                String gitToken = (task.plan.workspace.git != null && task.plan.workspace.git.credential != null)
+                        ? task.plan.workspace.git.credential.token : null;
+                String forkUrl = task.plan.workspace.git != null ? task.plan.workspace.git.forkUrl : null;
+
+                return new ProvisionContext(null, alias, gitUrl, gitBranch, gitToken, forkUrl, task.plan.requirement);
             });
 
-            if (context == null) {
+            if (pctx == null) {
                 return;
             }
 
+            // Phase 1b: Provision workspace outside transaction (may involve clone)
+            String workspaceId = pctx.existingWorkspaceId();
+            if (workspaceId == null) {
+                WorkspaceRequest request = WorkspaceRequest.forRemoteClone(
+                        pctx.alias(), pctx.gitUrl(), pctx.gitBranch(), pctx.gitToken(), pctx.forkUrl());
+                Workspace ws = workspaceManager.provision(request);
+                workspaceId = ws.id();
+
+                // Phase 1c: Store workspaceId in a short transaction
+                String wsId = workspaceId;
+                QuarkusTransaction.requiringNew().run(() -> {
+                    TaskEntity task = TaskEntity.findById(taskId);
+                    if (task != null && task.plan != null && task.plan.workspace != null) {
+                        task.plan.workspace.workspaceId = wsId;
+                        task.plan.workspace.persist();
+                    }
+                });
+            }
+
             // Phase 2: Call coding agent outside of any transaction
-            Workspace workspace = workspaceManager.reconnect(context.workspaceId());
-            String result = codingAgentService.generatePlan(workspace, context.requirement(), taskId);
+            Workspace workspace = workspaceManager.reconnect(workspaceId);
+            String result = codingAgentService.generatePlan(workspace, pctx.requirement(), taskId);
 
             // Phase 3: Store result in a short transaction
             QuarkusTransaction.requiringNew().run(() -> {
@@ -118,10 +142,12 @@ public class PlanService {
         ManagedContext requestContext = Arc.container().requestContext();
         requestContext.activate();
         try {
-            // Phase 1: Collect workspace and plan text in a short transaction
-            record PlanExecutionContext(String workspaceId, String planText) {}
+            // Phase 1a: Collect data in a short transaction
+            record ProvisionContext(String existingWorkspaceId, String alias,
+                    String gitUrl, String gitBranch, String gitToken, String forkUrl,
+                    String planText) {}
 
-            PlanExecutionContext context = QuarkusTransaction.requiringNew().call(() -> {
+            ProvisionContext pctx = QuarkusTransaction.requiringNew().call(() -> {
                 TaskEntity task = TaskEntity.findById(taskId);
                 if (task == null || task.plan == null || task.plan.workspace == null) {
                     LOG.warnf("Task %d, plan, or workspace not found during plan execution", taskId);
@@ -130,24 +156,45 @@ public class PlanService {
 
                 String wsId = task.plan.workspace.workspaceId;
                 if (wsId != null && workspaceManager.exists(wsId)) {
-                    return new PlanExecutionContext(wsId, task.plan.plan);
+                    return new ProvisionContext(wsId, null, null, null, null, null, task.plan.plan);
                 }
 
                 String alias = GitManager.planBranchName(task.plan.id);
-                Workspace ws = workspaceManager.provision(
-                        new WorkspaceRequest(task.plan.workspace.localPath, alias));
-                task.plan.workspace.workspaceId = ws.id();
-                task.plan.workspace.persist();
-                return new PlanExecutionContext(ws.id(), task.plan.plan);
+                String gitUrl = task.plan.workspace.git != null ? task.plan.workspace.git.url : null;
+                String gitBranch = task.plan.workspace.git != null ? task.plan.workspace.git.branch : null;
+                String gitToken = (task.plan.workspace.git != null && task.plan.workspace.git.credential != null)
+                        ? task.plan.workspace.git.credential.token : null;
+                String forkUrl = task.plan.workspace.git != null ? task.plan.workspace.git.forkUrl : null;
+
+                return new ProvisionContext(null, alias, gitUrl, gitBranch, gitToken, forkUrl, task.plan.plan);
             });
 
-            if (context == null) {
+            if (pctx == null) {
                 return;
             }
 
+            // Phase 1b: Provision workspace outside transaction (may involve clone)
+            String workspaceId = pctx.existingWorkspaceId();
+            if (workspaceId == null) {
+                WorkspaceRequest request = WorkspaceRequest.forRemoteClone(
+                        pctx.alias(), pctx.gitUrl(), pctx.gitBranch(), pctx.gitToken(), pctx.forkUrl());
+                Workspace ws = workspaceManager.provision(request);
+                workspaceId = ws.id();
+
+                // Phase 1c: Store workspaceId in a short transaction
+                String wsId = workspaceId;
+                QuarkusTransaction.requiringNew().run(() -> {
+                    TaskEntity task = TaskEntity.findById(taskId);
+                    if (task != null && task.plan != null && task.plan.workspace != null) {
+                        task.plan.workspace.workspaceId = wsId;
+                        task.plan.workspace.persist();
+                    }
+                });
+            }
+
             // Phase 2: Delegate to coding agent outside of any transaction
-            Workspace workspace = workspaceManager.reconnect(context.workspaceId());
-            codingAgentService.executePlan(workspace, context.planText(), taskId);
+            Workspace workspace = workspaceManager.reconnect(workspaceId);
+            codingAgentService.executePlan(workspace, pctx.planText(), taskId);
 
             // Phase 3: Store success in a short transaction
             QuarkusTransaction.requiringNew().run(() -> {

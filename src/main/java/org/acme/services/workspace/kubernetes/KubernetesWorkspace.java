@@ -16,14 +16,16 @@ import java.util.stream.Collectors;
 
 public class KubernetesWorkspace implements Workspace {
 
+    private final String devWorkspaceName;
     private final String podName;
     private final String namespace;
     private final String containerName;
     private final String containerWorkingDir;
     private final String kubectlCommand;
 
-    public KubernetesWorkspace(String podName, String namespace, String containerName,
-            String containerWorkingDir, String kubectlCommand) {
+    public KubernetesWorkspace(String devWorkspaceName, String podName, String namespace,
+            String containerName, String containerWorkingDir, String kubectlCommand) {
+        this.devWorkspaceName = devWorkspaceName;
         this.podName = podName;
         this.namespace = namespace;
         this.containerName = containerName;
@@ -33,6 +35,10 @@ public class KubernetesWorkspace implements Workspace {
 
     @Override
     public String id() {
+        return devWorkspaceName;
+    }
+
+    public String podName() {
         return podName;
     }
 

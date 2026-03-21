@@ -33,7 +33,14 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
 
     @Override
     public Workspace provision(WorkspaceRequest request) throws WorkspaceException {
-        String worktreePath = gitManager.addWorktree(request.mainClonePath(), request.branchAlias());
+        String clonePath = request.mainClonePath();
+        if (clonePath == null) {
+            clonePath = gitManager.cloneRepository(request.gitUrl(), request.gitBranch());
+            if (request.forkUrl() != null && !request.forkUrl().isBlank()) {
+                gitManager.addForkRemote(clonePath, request.forkUrl());
+            }
+        }
+        String worktreePath = gitManager.addWorktree(clonePath, request.branchAlias());
         String folderName = Path.of(worktreePath).getFileName().toString();
 
         Path overrideConfigPath = generateOverrideConfig(folderName);

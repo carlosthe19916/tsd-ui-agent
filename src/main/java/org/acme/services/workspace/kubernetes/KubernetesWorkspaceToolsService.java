@@ -32,18 +32,25 @@ public class KubernetesWorkspaceToolsService implements WorkspaceToolsService {
 
     @Override
     public void openIDE(Workspace workspace) {
-        LOG.infof("To attach VS Code to the Kubernetes workspace, use the Kubernetes extension: " +
-                "pod=%s, namespace=%s, container=workspace", workspace.id(), config.namespace);
+        String cheUrl = config.cheUrl.orElse(null);
+        if (cheUrl != null) {
+            String dashboardUrl = cheUrl + "/dashboard/#/ide/" + config.namespace + "/" + workspace.id();
+            LOG.infof("Eclipse Che IDE available at: %s", dashboardUrl);
+        } else {
+            LOG.infof("To attach VS Code to the Kubernetes workspace, use the Kubernetes extension: " +
+                    "devworkspace=%s, namespace=%s", workspace.id(), config.namespace);
+        }
     }
 
     @Override
     public void openTerminal(Workspace workspace) {
         try {
+            String pod = podNameOf(workspace);
             Path scriptPath = Files.createTempFile("tsd-k8s-term-", ".sh");
             String script = """
                     #!/bin/bash
                     %s exec -it %s -n %s -c workspace -- /bin/bash
-                    """.formatted(config.command, workspace.id(), config.namespace);
+                    """.formatted(config.command, pod, config.namespace);
             Files.writeString(scriptPath, script);
             Files.setPosixFilePermissions(scriptPath, Set.of(
                     PosixFilePermission.OWNER_READ,
@@ -66,8 +73,9 @@ public class KubernetesWorkspaceToolsService implements WorkspaceToolsService {
     @Override
     public String openClaude(Workspace workspace, Long taskId, String requirement, String planApiUrl, String existingSessionId) {
         try {
+            String pod = podNameOf(workspace);
             String kubectlExecPrefix = "%s exec -it %s -n %s -c workspace --".formatted(
-                    config.command, workspace.id(), config.namespace);
+                    config.command, pod, config.namespace);
 
             if (existingSessionId != null) {
                 Path resumeScriptPath = Files.createTempFile("tsd-claude-resume-", ".sh");
@@ -135,5 +143,12 @@ public class KubernetesWorkspaceToolsService implements WorkspaceToolsService {
         } catch (IOException e) {
             throw new RuntimeException("Failed to open Claude: " + e.getMessage(), e);
         }
+    }
+
+    private static String podNameOf(Workspace workspace) {
+        if (workspace instanceof KubernetesWorkspace kw) {
+            return kw.podName();
+        }
+        return workspace.id();
     }
 }

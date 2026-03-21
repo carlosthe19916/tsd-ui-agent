@@ -499,25 +499,13 @@ class TaskResourceTest {
 
     private int createWorkspace(int gitId) {
         WorkspaceDto wsDto = new WorkspaceDto();
-        int id = given()
+        return given()
                 .contentType(ContentType.JSON)
                 .body(wsDto)
                 .when().post("/gits/{gitId}/workspaces", gitId)
                 .then()
                 .statusCode(201)
                 .extract().path("id");
-        awaitCloneCompletion(gitId, id);
-        return id;
-    }
-
-    private void awaitCloneCompletion(int gitId, int workspaceId) {
-        await().atMost(5, TimeUnit.SECONDS).untilAsserted(() ->
-                given()
-                        .when().get("/gits/{gitId}/workspaces/{wsId}", gitId, workspaceId)
-                        .then()
-                        .statusCode(200)
-                        .body("isCloneInProgress", is(false))
-        );
     }
 
     private static PlanDto planDto(String plan, String requirement, Long workspaceId) {

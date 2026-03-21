@@ -2,7 +2,6 @@ package org.acme.services.workspace.kubernetes;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.acme.services.git.GitManager;
 import org.acme.services.workspace.ExecutionMode;
 import org.acme.services.workspace.Workspace;
 import org.acme.services.workspace.WorkspaceException;
@@ -15,7 +14,6 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -30,101 +28,59 @@ public class KubernetesWorkspaceManager implements WorkspaceManager {
     private static final String CONTAINER_NAME = "workspace";
 
     @Inject
-    GitManager gitManager;
-
-    @Inject
     KubernetesConfig config;
 
     @Override
     public Workspace provision(WorkspaceRequest request) throws WorkspaceException {
-        String worktreePath = gitManager.addWorktree(request.mainClonePath(), request.branchAlias());
-        String podName = sanitizePodName(request.branchAlias());
+        String workspaceName = sanitizePodName(request.branchAlias());
 
         ensureNamespace();
-        createPvc(podName);
-        createPod(podName, request.environment());
-        waitForReady(podName);
-        copyWorktreeContent(worktreePath, podName);
 
-        LOG.infof("Kubernetes workspace provisioned: pod=%s, namespace=%s", podName, config.namespace);
-        return new KubernetesWorkspace(podName, config.namespace, CONTAINER_NAME, config.workingDir, config.command);
+        String yaml = generateDevWorkspaceYaml(workspaceName, request);
+        runKubectlWithStdin(yaml.getBytes(StandardCharsets.UTF_8), "apply", "-f", "-");
+
+        waitForDevWorkspaceRunning(workspaceName);
+
+        String podName = getDevWorkspacePodName(workspaceName);
+        LOG.infof("Eclipse Che workspace provisioned: devworkspace=%s, pod=%s, namespace=%s",
+                workspaceName, podName, config.namespace);
+
+        return new KubernetesWorkspace(workspaceName, podName, config.namespace,
+                CONTAINER_NAME, config.workingDir, config.command);
     }
 
     @Override
     public Workspace reconnect(String workspaceId) throws WorkspaceException {
-        String phase = getPodPhase(workspaceId);
+        String phase = getDevWorkspacePhase(workspaceId);
         if (!"Running".equals(phase)) {
-            throw new WorkspaceException("Pod " + workspaceId + " is not running (phase: " + phase + ")");
+            throw new WorkspaceException("DevWorkspace " + workspaceId + " is not running (phase: " + phase + ")");
         }
-        return new KubernetesWorkspace(workspaceId, config.namespace, CONTAINER_NAME, config.workingDir, config.command);
+        String podName = getDevWorkspacePodName(workspaceId);
+        return new KubernetesWorkspace(workspaceId, podName, config.namespace,
+                CONTAINER_NAME, config.workingDir, config.command);
     }
 
     @Override
     public void destroy(String workspaceId) throws WorkspaceException {
         try {
-            runKubectl("delete", "pod", workspaceId, "-n", config.namespace, "--grace-period=10");
-            LOG.infof("Deleted pod %s in namespace %s", workspaceId, config.namespace);
+            runKubectl("delete", "devworkspace", workspaceId, "-n", config.namespace, "--ignore-not-found");
+            LOG.infof("Deleted DevWorkspace %s in namespace %s", workspaceId, config.namespace);
         } catch (Exception e) {
-            LOG.warnf("Failed to delete pod %s: %s", workspaceId, e.getMessage());
-        }
-
-        try {
-            runKubectl("delete", "pvc", workspaceId, "-n", config.namespace);
-            LOG.infof("Deleted PVC %s in namespace %s", workspaceId, config.namespace);
-        } catch (Exception e) {
-            LOG.warnf("Failed to delete PVC %s: %s", workspaceId, e.getMessage());
+            LOG.warnf("Failed to delete DevWorkspace %s: %s", workspaceId, e.getMessage());
         }
     }
 
     @Override
     public boolean exists(String workspaceId) {
         try {
-            runKubectl("get", "pod", workspaceId, "-n", config.namespace);
+            runKubectl("get", "devworkspace", workspaceId, "-n", config.namespace);
             return true;
         } catch (Exception e) {
             return false;
         }
     }
 
-    private void ensureNamespace() throws WorkspaceException {
-        runKubectl("create", "namespace", config.namespace, "--dry-run=client", "-o", "yaml");
-        // Pipe the output to apply — simpler to just do two calls
-        try {
-            runKubectl("get", "namespace", config.namespace);
-        } catch (WorkspaceException e) {
-            runKubectl("create", "namespace", config.namespace);
-        }
-    }
-
-    private void createPvc(String pvcName) throws WorkspaceException {
-        String yaml = generatePvcYaml(pvcName);
-        runKubectlWithStdin(yaml.getBytes(StandardCharsets.UTF_8), "apply", "-f", "-");
-        LOG.debugf("Created PVC %s in namespace %s", pvcName, config.namespace);
-    }
-
-    private void createPod(String podName, Map<String, String> environment) throws WorkspaceException {
-        String yaml = generatePodYaml(podName, environment);
-        runKubectlWithStdin(yaml.getBytes(StandardCharsets.UTF_8), "apply", "-f", "-");
-        LOG.debugf("Created pod %s in namespace %s", podName, config.namespace);
-    }
-
-    private void waitForReady(String podName) throws WorkspaceException {
-        runKubectl("wait", "--for=condition=Ready", "pod/" + podName,
-                "-n", config.namespace, "--timeout=300s");
-    }
-
-    private void copyWorktreeContent(String worktreePath, String podName) throws WorkspaceException {
-        runKubectl("cp", worktreePath + "/.", config.namespace + "/" + podName + ":" + config.workingDir,
-                "-c", CONTAINER_NAME);
-        LOG.debugf("Copied worktree content from %s to pod %s:%s", worktreePath, podName, config.workingDir);
-    }
-
-    private String getPodPhase(String podName) throws WorkspaceException {
-        return runKubectl("get", "pod", podName, "-n", config.namespace,
-                "-o", "jsonpath={.status.phase}").trim();
-    }
-
-    String generatePodYaml(String podName, Map<String, String> environment) {
+    String generateDevWorkspaceYaml(String workspaceName, WorkspaceRequest request) {
         StringBuilder envSection = new StringBuilder();
 
         List<String> envVars = config.envPassthrough.orElse(List.of());
@@ -139,18 +95,23 @@ public class KubernetesWorkspaceManager implements WorkspaceManager {
             }
         }
 
-        for (Map.Entry<String, String> entry : environment.entrySet()) {
+        for (Map.Entry<String, String> entry : request.environment().entrySet()) {
             envSection.append("        - name: ").append(entry.getKey()).append("\n");
             envSection.append("          value: \"").append(escapeYamlValue(entry.getValue())).append("\"\n");
         }
 
-        String serviceAccountLine = config.serviceAccount
-                .map(sa -> "  serviceAccountName: " + sa + "\n")
-                .orElse("");
+        String gitUrl = request.gitUrl();
+        if (request.gitToken() != null && gitUrl != null && gitUrl.startsWith("https://")) {
+            gitUrl = gitUrl.replace("https://", "https://oauth2:" + request.gitToken() + "@");
+        }
+
+        String revisionSection = (request.gitBranch() != null && !request.gitBranch().isBlank())
+                ? "        checkoutFrom:\n          revision: " + request.gitBranch() + "\n"
+                : "";
 
         return """
-                apiVersion: v1
-                kind: Pod
+                apiVersion: workspace.devfile.io/v1alpha2
+                kind: DevWorkspace
                 metadata:
                   name: %s
                   namespace: %s
@@ -158,47 +119,68 @@ public class KubernetesWorkspaceManager implements WorkspaceManager {
                     app: tsd-agent-workspace
                     tsd-agent.workspace-id: %s
                 spec:
-                  %scontainers:
-                  - name: %s
-                    image: %s
-                    workingDir: %s
-                    command: ["sleep", "infinity"]
-                    env:
-                %s    volumeMounts:
-                    - name: workspace-storage
-                      mountPath: %s
-                  volumes:
-                  - name: workspace-storage
-                    persistentVolumeClaim:
-                      claimName: %s
-                """.formatted(
-                podName, config.namespace, podName,
-                serviceAccountLine,
-                CONTAINER_NAME, config.image, config.workingDir,
-                envSection,
-                config.workingDir,
-                podName
+                  started: true
+                  template:
+                    projects:
+                    - name: project
+                      git:
+                        remotes:
+                          origin: %s
+                %s    components:
+                    - name: %s
+                      container:
+                        image: %s
+                        env:
+                %s""".formatted(
+                workspaceName, config.namespace, workspaceName,
+                gitUrl,
+                revisionSection,
+                CONTAINER_NAME, config.image,
+                envSection
         );
     }
 
-    String generatePvcYaml(String pvcName) {
-        String storageClassLine = config.storageClass
-                .map(sc -> "  storageClassName: " + sc + "\n")
-                .orElse("");
+    private void waitForDevWorkspaceRunning(String workspaceName) throws WorkspaceException {
+        long deadline = System.currentTimeMillis() + 300_000;
+        while (System.currentTimeMillis() < deadline) {
+            String phase = getDevWorkspacePhase(workspaceName);
+            if ("Running".equals(phase)) {
+                return;
+            }
+            if ("Failed".equals(phase)) {
+                throw new WorkspaceException("DevWorkspace " + workspaceName + " failed to start");
+            }
+            try {
+                Thread.sleep(5000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new WorkspaceException("Interrupted while waiting for DevWorkspace", e);
+            }
+        }
+        throw new WorkspaceException("Timed out waiting for DevWorkspace " + workspaceName + " to become Running");
+    }
 
-        return """
-                apiVersion: v1
-                kind: PersistentVolumeClaim
-                metadata:
-                  name: %s
-                  namespace: %s
-                spec:
-                  %saccessModes:
-                  - ReadWriteOnce
-                  resources:
-                    requests:
-                      storage: %s
-                """.formatted(pvcName, config.namespace, storageClassLine, config.storageSize);
+    private String getDevWorkspacePhase(String workspaceName) throws WorkspaceException {
+        return runKubectl("get", "devworkspace", workspaceName, "-n", config.namespace,
+                "-o", "jsonpath={.status.phase}").trim();
+    }
+
+    private String getDevWorkspacePodName(String workspaceName) throws WorkspaceException {
+        String podName = runKubectl("get", "pods", "-n", config.namespace,
+                "-l", "controller.devfile.io/devworkspace_name=" + workspaceName,
+                "-o", "jsonpath={.items[0].metadata.name}").trim();
+        if (podName.isEmpty()) {
+            throw new WorkspaceException("No pod found for DevWorkspace: " + workspaceName);
+        }
+        return podName;
+    }
+
+    private void ensureNamespace() throws WorkspaceException {
+        try {
+            runKubectl("get", "namespace", config.namespace);
+        } catch (WorkspaceException e) {
+            runKubectl("create", "namespace", config.namespace);
+        }
     }
 
     private String runKubectl(String... args) throws WorkspaceException {

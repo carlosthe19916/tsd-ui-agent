@@ -170,21 +170,13 @@ class ChangeRequestServiceTest {
 
     private int createWorkspace(int gitId) {
         WorkspaceDto wsDto = new WorkspaceDto();
-        int id = given()
+        return given()
                 .contentType(ContentType.JSON)
                 .body(wsDto)
                 .when().post("/gits/{gitId}/workspaces", gitId)
                 .then()
                 .statusCode(201)
                 .extract().path("id");
-        await().atMost(5, TimeUnit.SECONDS).untilAsserted(() ->
-                given()
-                        .when().get("/gits/{gitId}/workspaces/{wsId}", gitId, id)
-                        .then()
-                        .statusCode(200)
-                        .body("isCloneInProgress", is(false))
-        );
-        return id;
     }
 
     private static PlanDto planDto(String plan, Long workspaceId) {

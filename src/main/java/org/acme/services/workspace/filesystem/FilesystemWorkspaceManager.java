@@ -17,7 +17,14 @@ public class FilesystemWorkspaceManager implements WorkspaceManager {
 
     @Override
     public Workspace provision(WorkspaceRequest request) throws WorkspaceException {
-        String worktreePath = gitManager.addWorktree(request.mainClonePath(), request.branchAlias());
+        String clonePath = request.mainClonePath();
+        if (clonePath == null) {
+            clonePath = gitManager.cloneRepository(request.gitUrl(), request.gitBranch());
+            if (request.forkUrl() != null && !request.forkUrl().isBlank()) {
+                gitManager.addForkRemote(clonePath, request.forkUrl());
+            }
+        }
+        String worktreePath = gitManager.addWorktree(clonePath, request.branchAlias());
         return new FilesystemWorkspace(worktreePath);
     }
 
@@ -31,8 +38,16 @@ public class FilesystemWorkspaceManager implements WorkspaceManager {
 
     @Override
     public void destroy(String workspaceId) throws WorkspaceException {
-        // Worktree removal requires knowing the main clone path.
-        // For now, this is a no-op; cleanup is handled via GitManager externally.
+        try {
+            Path worktreePath = Path.of(workspaceId);
+            // Worktree is at {UUID}/trees/{branch}, clone dir is the {UUID} parent
+            Path cloneRoot = worktreePath.getParent().getParent();
+            if (Files.isDirectory(cloneRoot)) {
+                gitManager.deleteClonedDirectory(cloneRoot.toString());
+            }
+        } catch (Exception e) {
+            throw new WorkspaceException("Failed to clean up workspace: " + workspaceId, e);
+        }
     }
 
     @Override

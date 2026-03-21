@@ -80,9 +80,15 @@ public class ChangeRequestService {
                 LOG.infof("Task %d: No changes to commit, proceeding with push: %s", taskId, e.getMessage());
             }
 
-            String baseBranch = (context.gitBranch() != null && !context.gitBranch().isBlank())
-                    ? context.gitBranch()
-                    : gitManager.getCurrentBranch(context.mainClonePath());
+            String baseBranch;
+            if (context.gitBranch() != null && !context.gitBranch().isBlank()) {
+                baseBranch = context.gitBranch();
+            } else if (context.mainClonePath() != null) {
+                baseBranch = gitManager.getCurrentBranch(context.mainClonePath());
+            } else {
+                baseBranch = workspace.exec("git", "symbolic-ref", "refs/remotes/origin/HEAD")
+                        .trim().replace("refs/remotes/origin/", "");
+            }
             String branchName = GitManager.planBranchName(context.planId());
 
             GitVendorType vendorType = context.vendorType();
