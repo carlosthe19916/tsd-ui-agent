@@ -58,20 +58,20 @@ public class PlanService {
 
             PlanGenerationContext context = QuarkusTransaction.requiringNew().call(() -> {
                 TaskEntity task = TaskEntity.findById(taskId);
-                if (task == null || task.plan == null) {
-                    LOG.warnf("Task %d or plan not found during plan generation", taskId);
+                if (task == null || task.plan == null || task.plan.workspace == null) {
+                    LOG.warnf("Task %d, plan, or workspace not found during plan generation", taskId);
                     return null;
                 }
 
-                String wsId = task.plan.workspaceId;
+                String wsId = task.plan.workspace.workspaceId;
                 if (wsId != null && workspaceManager.exists(wsId)) {
                     return new PlanGenerationContext(wsId, task.plan.requirement);
                 }
 
                 String alias = GitManager.planBranchName(task.plan.id);
-                Workspace ws = workspaceManager.provision(new WorkspaceRequest(task.plan.git.localPath, alias));
-                task.plan.workspaceId = ws.id();
-                task.plan.persist();
+                Workspace ws = workspaceManager.provision(new WorkspaceRequest(task.plan.workspace.localPath, alias));
+                task.plan.workspace.workspaceId = ws.id();
+                task.plan.workspace.persist();
                 return new PlanGenerationContext(ws.id(), task.plan.requirement);
             });
 
@@ -123,21 +123,21 @@ public class PlanService {
 
             PlanExecutionContext context = QuarkusTransaction.requiringNew().call(() -> {
                 TaskEntity task = TaskEntity.findById(taskId);
-                if (task == null || task.plan == null) {
-                    LOG.warnf("Task %d or plan not found during plan execution", taskId);
+                if (task == null || task.plan == null || task.plan.workspace == null) {
+                    LOG.warnf("Task %d, plan, or workspace not found during plan execution", taskId);
                     return null;
                 }
 
-                String wsId = task.plan.workspaceId;
+                String wsId = task.plan.workspace.workspaceId;
                 if (wsId != null && workspaceManager.exists(wsId)) {
                     return new PlanExecutionContext(wsId, task.plan.plan);
                 }
 
                 String alias = GitManager.planBranchName(task.plan.id);
                 Workspace ws = workspaceManager.provision(
-                        new WorkspaceRequest(task.plan.git.localPath, alias));
-                task.plan.workspaceId = ws.id();
-                task.plan.persist();
+                        new WorkspaceRequest(task.plan.workspace.localPath, alias));
+                task.plan.workspace.workspaceId = ws.id();
+                task.plan.workspace.persist();
                 return new PlanExecutionContext(ws.id(), task.plan.plan);
             });
 

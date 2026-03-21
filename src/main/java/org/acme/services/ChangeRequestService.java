@@ -54,16 +54,16 @@ public class ChangeRequestService {
 
             ChangeRequestContext context = QuarkusTransaction.requiringNew().call(() -> {
                 TaskEntity task = TaskEntity.findById(taskId);
-                if (task == null || task.plan == null || task.plan.git == null) {
-                    LOG.warnf("Task %d, plan, or git not found during change request", taskId);
+                if (task == null || task.plan == null || task.plan.workspace == null || task.plan.workspace.git == null) {
+                    LOG.warnf("Task %d, plan, workspace, or git not found during change request", taskId);
                     return null;
                 }
 
                 return new ChangeRequestContext(
-                        task.plan.workspaceId, task.plan.git.localPath, task.plan.git.url,
-                        task.plan.git.forkUrl, task.title, task.plan.requirement,
-                        task.plan.id, task.plan.git.credential != null ? task.plan.git.credential.token : null,
-                        task.plan.git.branch, task.plan.git.vendorType
+                        task.plan.workspace.workspaceId, task.plan.workspace.localPath, task.plan.workspace.git.url,
+                        task.plan.workspace.git.forkUrl, task.title, task.plan.requirement,
+                        task.plan.id, task.plan.workspace.git.credential != null ? task.plan.workspace.git.credential.token : null,
+                        task.plan.workspace.git.branch, task.plan.workspace.git.vendorType
                 );
             });
 

@@ -10,7 +10,7 @@ public class PlanDto {
 
     public String requirement;
 
-    public GitDto git;
+    public WorkspaceDto workspace;
 
     public boolean isRequirementInProgress;
 
@@ -25,10 +25,6 @@ public class PlanDto {
     public Instant createdAt;
 
     public Instant updatedAt;
-
-    public String workspaceId;
-
-    public String claudeSessionId;
 
     public boolean isPlanGenerationInProgress;
 

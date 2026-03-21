@@ -13,7 +13,7 @@ import {
   useWizardContext,
 } from "@patternfly/react-core";
 
-import type { GitDto, TaskDto } from "@app/api/models";
+import type { TaskDto, WorkspaceDto } from "@app/api/models";
 import {
   useCreateTaskPlanMutation,
   useUpdateTaskPlanMutation,
@@ -115,7 +115,9 @@ const PlanWizardModalContent: React.FC<{
 
   const [gitConfigState, setGitConfigState] =
     React.useState<GitConfigurationState>({
-      gitId: task.plan?.git?.id ? String(task.plan.git.id) : "",
+      gitId: task.plan?.workspace?.git?.id
+        ? String(task.plan.workspace.git.id)
+        : "",
       isValid: true,
     });
 
@@ -131,8 +133,11 @@ const PlanWizardModalContent: React.FC<{
   const updateMutation = useUpdateTaskPlanMutation(onClose);
 
   const handleSave = () => {
-    const gitPayload: GitDto | undefined = gitConfigState.gitId
-      ? ({ id: Number(gitConfigState.gitId) } as GitDto)
+    const workspacePayload: WorkspaceDto | undefined = gitConfigState.gitId
+      ? {
+          ...(task.plan?.workspace ?? {}),
+          git: { id: Number(gitConfigState.gitId) } as WorkspaceDto["git"],
+        }
       : undefined;
 
     if (task.plan) {
@@ -142,7 +147,7 @@ const PlanWizardModalContent: React.FC<{
           ...task.plan,
           requirement: requirementState.requirement,
           plan: planState.plan,
-          git: gitPayload,
+          workspace: workspacePayload,
         },
       });
     } else {
@@ -150,7 +155,7 @@ const PlanWizardModalContent: React.FC<{
         taskId: task.id,
         plan: {
           plan: planState.plan,
-          git: gitPayload,
+          workspace: workspacePayload,
           status: "IN_PROGRESS",
           type: "MANUAL",
         },
@@ -186,21 +191,23 @@ const PlanWizardModalContent: React.FC<{
           />
         }
       >
+        <WizardStep name="Git Configuration" id="git-config-step">
+          <GitConfigurationStep
+            initialState={gitConfigState}
+            onStateChanged={setGitConfigState}
+            worktreePath={task.plan?.workspace?.workspaceId}
+            originalGitId={
+              task.plan?.workspace?.git?.id
+                ? String(task.plan.workspace.git.id)
+                : undefined
+            }
+          />
+        </WizardStep>
         <WizardStep name="Requirement" id="requirement-step">
           <RequirementStep
             taskId={task.id}
             initialState={requirementState}
             onStateChanged={setRequirementState}
-          />
-        </WizardStep>
-        <WizardStep name="Git Configuration" id="git-config-step">
-          <GitConfigurationStep
-            initialState={gitConfigState}
-            onStateChanged={setGitConfigState}
-            worktreePath={task.plan?.workspaceId}
-            originalGitId={
-              task.plan?.git?.id ? String(task.plan.git.id) : undefined
-            }
           />
         </WizardStep>
         <WizardStep name="Plan" id="execution-plan-step">

@@ -49,14 +49,8 @@ public class PlanEntity extends PanacheEntityBase {
     public Instant updatedAt;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "git_id")
-    public GitEntity git;
-
-    @Column(name = "workspace_id")
-    public String workspaceId;
-
-    @Column(name = "claude_session_id")
-    public String claudeSessionId;
+    @JoinColumn(name = "workspace_id")
+    public WorkspaceEntity workspace;
 
     @Column(name = "is_plan_generation_in_progress")
     public boolean isPlanGenerationInProgress = false;

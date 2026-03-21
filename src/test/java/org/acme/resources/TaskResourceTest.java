@@ -7,19 +7,20 @@ import org.acme.dto.CredentialDto;
 import org.acme.dto.GitDto;
 import org.acme.dto.PlanDto;
 import org.acme.dto.ProjectDto;
+import org.acme.dto.WorkspaceDto;
 import org.acme.models.jpa.entity.SourceType;
 import org.acme.models.jpa.entity.TaskStatus;
 import org.acme.services.git.GitManager;
 import org.acme.services.ai.RequirementSummarizerService;
 import org.acme.services.sync.ExternalIssue;
 import org.acme.services.sync.SyncManager;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
 
 import org.acme.services.ChangeRequestService;
 import org.acme.services.workspace.WorkspaceManager;
 import org.acme.services.workspace.WorkspaceToolsService;
 import org.acme.services.workspace.filesystem.FilesystemWorkspace;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.util.List;
@@ -85,6 +86,7 @@ class TaskResourceTest {
         doNothing().when(gitManager).push(anyString(), anyString(), anyString());
         when(gitManager.getCurrentBranch(anyString())).thenReturn("main");
         doNothing().when(changeRequestService).triggerChangeRequest(any());
+        doNothing().when(gitManager).deleteClonedDirectory(anyString());
     }
 
     private int createProjectAndSync(SourceType type, List<ExternalIssue> issues) {
@@ -459,7 +461,7 @@ class TaskResourceTest {
                 .statusCode(409);
     }
 
-    // Plan requirement & git tests
+    // Plan requirement & workspace tests
 
     private int createCredential(String name) {
         CredentialDto cred = new CredentialDto();
@@ -486,31 +488,46 @@ class TaskResourceTest {
             credDto.id = credentialId;
             gitDto.credential = credDto;
         }
-        int id = given()
+        return given()
                 .contentType(ContentType.JSON)
                 .body(gitDto)
                 .when().post("/gits")
                 .then()
                 .statusCode(201)
                 .extract().path("id");
+    }
+
+    private int createWorkspace(int gitId) {
+        WorkspaceDto wsDto = new WorkspaceDto();
+        int id = given()
+                .contentType(ContentType.JSON)
+                .body(wsDto)
+                .when().post("/gits/{gitId}/workspaces", gitId)
+                .then()
+                .statusCode(201)
+                .extract().path("id");
+        awaitCloneCompletion(gitId, id);
+        return id;
+    }
+
+    private void awaitCloneCompletion(int gitId, int workspaceId) {
         await().atMost(5, TimeUnit.SECONDS).untilAsserted(() ->
                 given()
-                        .when().get("/gits/{id}", id)
+                        .when().get("/gits/{gitId}/workspaces/{wsId}", gitId, workspaceId)
                         .then()
                         .statusCode(200)
                         .body("isCloneInProgress", is(false))
         );
-        return id;
     }
 
-    private static PlanDto planDto(String plan, String requirement, Long gitId) {
+    private static PlanDto planDto(String plan, String requirement, Long workspaceId) {
         PlanDto dto = new PlanDto();
         dto.plan = plan;
         dto.requirement = requirement;
-        if (gitId != null) {
-            GitDto git = new GitDto();
-            git.id = gitId;
-            dto.git = git;
+        if (workspaceId != null) {
+            WorkspaceDto ws = new WorkspaceDto();
+            ws.id = workspaceId;
+            dto.workspace = ws;
         }
         return dto;
     }
@@ -537,11 +554,12 @@ class TaskResourceTest {
     }
 
     @Test
-    void testCreatePlanWithGit() {
+    void testCreatePlanWithWorkspace() {
         int taskId = createTaskAndReturnId();
-        int gitId = createGit("https://github.com/test/plan-git");
+        int gitId = createGit("https://github.com/test/plan-ws");
+        int wsId = createWorkspace(gitId);
 
-        PlanDto plan = planDto("# Content", null, (long) gitId);
+        PlanDto plan = planDto("# Content", null, (long) wsId);
 
         given()
                 .contentType(ContentType.JSON)
@@ -549,23 +567,24 @@ class TaskResourceTest {
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201)
-                .body("git.id", is(gitId))
-                .body("git.url", is("https://github.com/test/plan-git"));
+                .body("workspace.id", is(wsId))
+                .body("workspace.git.url", is("https://github.com/test/plan-ws"));
 
         given()
                 .when().get("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(200)
-                .body("git.id", is(gitId))
-                .body("git.url", is("https://github.com/test/plan-git"));
+                .body("workspace.id", is(wsId))
+                .body("workspace.git.url", is("https://github.com/test/plan-ws"));
     }
 
     @Test
-    void testCreatePlanWithRequirementAndGit() {
+    void testCreatePlanWithRequirementAndWorkspace() {
         int taskId = createTaskAndReturnId();
         int gitId = createGit("https://github.com/test/plan-both");
+        int wsId = createWorkspace(gitId);
 
-        PlanDto plan = planDto("# Both", "Requirement text", (long) gitId);
+        PlanDto plan = planDto("# Both", "Requirement text", (long) wsId);
 
         given()
                 .contentType(ContentType.JSON)
@@ -574,8 +593,8 @@ class TaskResourceTest {
                 .then()
                 .statusCode(201)
                 .body("requirement", is("Requirement text"))
-                .body("git.id", is(gitId))
-                .body("git.url", is("https://github.com/test/plan-both"));
+                .body("workspace.id", is(wsId))
+                .body("workspace.git.url", is("https://github.com/test/plan-both"));
     }
 
     @Test
@@ -599,41 +618,44 @@ class TaskResourceTest {
     }
 
     @Test
-    void testUpdatePlanGit() {
+    void testUpdatePlanWorkspace() {
         int taskId = createTaskAndReturnId();
-        int gitId1 = createGit("https://github.com/test/git-v1");
-        int gitId2 = createGit("https://github.com/test/git-v2");
+        int gitId1 = createGit("https://github.com/test/ws-v1");
+        int wsId1 = createWorkspace(gitId1);
+        int gitId2 = createGit("https://github.com/test/ws-v2");
+        int wsId2 = createWorkspace(gitId2);
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto("# Plan", null, (long) gitId1))
+                .body(planDto("# Plan", null, (long) wsId1))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201)
-                .body("git.id", is(gitId1));
+                .body("workspace.id", is(wsId1));
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto("# Plan", null, (long) gitId2))
+                .body(planDto("# Plan", null, (long) wsId2))
                 .when().put("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(200)
-                .body("git.id", is(gitId2))
-                .body("git.url", is("https://github.com/test/git-v2"));
+                .body("workspace.id", is(wsId2))
+                .body("workspace.git.url", is("https://github.com/test/ws-v2"));
     }
 
     @Test
-    void testUpdatePlanClearGit() {
+    void testUpdatePlanClearWorkspace() {
         int taskId = createTaskAndReturnId();
-        int gitId = createGit("https://github.com/test/git-clear");
+        int gitId = createGit("https://github.com/test/ws-clear");
+        int wsId = createWorkspace(gitId);
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto("# Plan", null, (long) gitId))
+                .body(planDto("# Plan", null, (long) wsId))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201)
-                .body("git.id", is(gitId));
+                .body("workspace.id", is(wsId));
 
         given()
                 .contentType(ContentType.JSON)
@@ -641,11 +663,11 @@ class TaskResourceTest {
                 .when().put("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(200)
-                .body("git", nullValue());
+                .body("workspace", nullValue());
     }
 
     @Test
-    void testCreatePlanWithInvalidGitId() {
+    void testCreatePlanWithInvalidWorkspaceId() {
         int taskId = createTaskAndReturnId();
 
         PlanDto plan = planDto("# Plan", null, 999999L);
@@ -656,7 +678,7 @@ class TaskResourceTest {
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201)
-                .body("git", nullValue());
+                .body("workspace", nullValue());
     }
 
     private int createTaskWithDescriptionAndReturnId(String description) {
@@ -749,7 +771,7 @@ class TaskResourceTest {
     }
 
     @Test
-    void testOpenVSCodeWithoutGit() {
+    void testOpenVSCodeWithoutWorkspace() {
         int taskId = createTaskAndReturnId();
 
         given()
@@ -770,10 +792,11 @@ class TaskResourceTest {
     void testOpenVSCodeSuccess() {
         int taskId = createTaskAndReturnId();
         int gitId = createGit("https://github.com/test/worktree-vscode");
+        int wsId = createWorkspace(gitId);
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto("# Plan", null, (long) gitId))
+                .body(planDto("# Plan", null, (long) wsId))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201);
@@ -797,7 +820,7 @@ class TaskResourceTest {
     }
 
     @Test
-    void testOpenTerminalWithoutGit() {
+    void testOpenTerminalWithoutWorkspace() {
         int taskId = createTaskAndReturnId();
 
         given()
@@ -818,10 +841,11 @@ class TaskResourceTest {
     void testOpenTerminalSuccess() {
         int taskId = createTaskAndReturnId();
         int gitId = createGit("https://github.com/test/worktree-terminal");
+        int wsId = createWorkspace(gitId);
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto("# Plan", null, (long) gitId))
+                .body(planDto("# Plan", null, (long) wsId))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201);
@@ -845,7 +869,7 @@ class TaskResourceTest {
     }
 
     @Test
-    void testOpenClaudeWithoutGit() {
+    void testOpenClaudeWithoutWorkspace() {
         int taskId = createTaskAndReturnId();
 
         given()
@@ -866,10 +890,11 @@ class TaskResourceTest {
     void testOpenClaudeSuccess() {
         int taskId = createTaskAndReturnId();
         int gitId = createGit("https://github.com/test/worktree-claude");
+        int wsId = createWorkspace(gitId);
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto("# Plan", null, (long) gitId))
+                .body(planDto("# Plan", null, (long) wsId))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201);
@@ -891,28 +916,29 @@ class TaskResourceTest {
     }
 
     @Test
-    void testUpdatePlanClearsWorktreePathOnGitChange() {
+    void testUpdatePlanClearsWorkspaceOnChange() {
         int taskId = createTaskAndReturnId();
         int gitId1 = createGit("https://github.com/test/worktree-change-1");
+        int wsId1 = createWorkspace(gitId1);
         int gitId2 = createGit("https://github.com/test/worktree-change-2");
+        int wsId2 = createWorkspace(gitId2);
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto("# Plan", null, (long) gitId1))
+                .body(planDto("# Plan", null, (long) wsId1))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201)
-                .body("git.id", is(gitId1));
+                .body("workspace.id", is(wsId1));
 
-        // Change git repo
+        // Change workspace
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto("# Plan", null, (long) gitId2))
+                .body(planDto("# Plan", null, (long) wsId2))
                 .when().put("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(200)
-                .body("git.id", is(gitId2))
-                .body("workspaceId", nullValue());
+                .body("workspace.id", is(wsId2));
     }
 
     // PATCH plan tests
@@ -941,17 +967,18 @@ class TaskResourceTest {
     }
 
     @Test
-    void testPatchPlanPreservesGitWhenNotSent() {
+    void testPatchPlanPreservesWorkspaceWhenNotSent() {
         int taskId = createTaskAndReturnId();
-        int gitId = createGit("https://github.com/test/patch-git");
+        int gitId = createGit("https://github.com/test/patch-ws");
+        int wsId = createWorkspace(gitId);
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto("# Plan", null, (long) gitId))
+                .body(planDto("# Plan", null, (long) wsId))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201)
-                .body("git.id", is(gitId));
+                .body("workspace.id", is(wsId));
 
         PlanDto patch = new PlanDto();
         patch.plan = "# New";
@@ -963,7 +990,7 @@ class TaskResourceTest {
                 .then()
                 .statusCode(200)
                 .body("plan", is("# New"))
-                .body("git.id", is(gitId));
+                .body("workspace.id", is(wsId));
     }
 
     @Test
@@ -985,14 +1012,15 @@ class TaskResourceTest {
     void testOpenClaudeGeneratesSessionId() {
         int taskId = createTaskAndReturnId();
         int gitId = createGit("https://github.com/test/claude-session");
+        int wsId = createWorkspace(gitId);
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto("# Plan", null, (long) gitId))
+                .body(planDto("# Plan", null, (long) wsId))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201)
-                .body("claudeSessionId", nullValue());
+                .body("workspace.claudeSessionId", nullValue());
 
         given()
                 .contentType(ContentType.JSON)
@@ -1004,44 +1032,7 @@ class TaskResourceTest {
                 .when().get("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(200)
-                .body("claudeSessionId", is("test-session-id"));
-    }
-
-    @Test
-    void testUpdatePlanClearsSessionIdOnGitChange() {
-        int taskId = createTaskAndReturnId();
-        int gitId1 = createGit("https://github.com/test/session-clear-1");
-        int gitId2 = createGit("https://github.com/test/session-clear-2");
-
-        given()
-                .contentType(ContentType.JSON)
-                .body(planDto("# Plan", null, (long) gitId1))
-                .when().post("/tasks/{taskId}/plan", taskId)
-                .then()
-                .statusCode(201);
-
-        // Open Claude to generate session ID
-        given()
-                .contentType(ContentType.JSON)
-                .when().post("/tasks/{taskId}/plan/open-claude", taskId)
-                .then()
-                .statusCode(204);
-
-        given()
-                .when().get("/tasks/{taskId}/plan", taskId)
-                .then()
-                .statusCode(200)
-                .body("claudeSessionId", is("test-session-id"));
-
-        // Change git repo — should clear session ID
-        given()
-                .contentType(ContentType.JSON)
-                .body(planDto("# Plan", null, (long) gitId2))
-                .when().put("/tasks/{taskId}/plan", taskId)
-                .then()
-                .statusCode(200)
-                .body("git.id", is(gitId2))
-                .body("claudeSessionId", nullValue());
+                .body("workspace.claudeSessionId", is("test-session-id"));
     }
 
     // Change Request endpoint tests
@@ -1058,7 +1049,7 @@ class TaskResourceTest {
     }
 
     @Test
-    void testChangeRequestWithoutGit() {
+    void testChangeRequestWithoutWorkspace() {
         int taskId = createTaskAndReturnId();
 
         given()
@@ -1079,10 +1070,11 @@ class TaskResourceTest {
     void testChangeRequestWithoutCredential() {
         int taskId = createTaskAndReturnId();
         int gitId = createGit("https://github.com/test/cr-no-token");
+        int wsId = createWorkspace(gitId);
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto("# Plan", null, (long) gitId))
+                .body(planDto("# Plan", null, (long) wsId))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201);
@@ -1095,28 +1087,29 @@ class TaskResourceTest {
     }
 
     @Test
-    void testPlanGitCredentialDoesNotExposeToken() {
-        int credId = createCredential("plan-git-cred");
+    void testPlanWorkspaceGitCredentialDoesNotExposeToken() {
+        int credId = createCredential("plan-ws-cred");
         int taskId = createTaskAndReturnId();
         int gitId = createGit("https://github.com/test/token-field", (long) credId);
+        int wsId = createWorkspace(gitId);
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto("# Plan", null, (long) gitId))
+                .body(planDto("# Plan", null, (long) wsId))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201)
-                .body("git.credential.id", is(credId))
-                .body("git.credential.name", is("plan-git-cred"))
-                .body("git.credential.token", nullValue());
+                .body("workspace.git.credential.id", is(credId))
+                .body("workspace.git.credential.name", is("plan-ws-cred"))
+                .body("workspace.git.credential.token", nullValue());
 
         given()
                 .when().get("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(200)
-                .body("git.credential.id", is(credId))
-                .body("git.credential.name", is("plan-git-cred"))
-                .body("git.credential.token", nullValue());
+                .body("workspace.git.credential.id", is(credId))
+                .body("workspace.git.credential.name", is("plan-ws-cred"))
+                .body("workspace.git.credential.token", nullValue());
     }
 
     @Test
@@ -1124,10 +1117,11 @@ class TaskResourceTest {
         int credId = createCredential("cr-no-exec-cred");
         int taskId = createTaskAndReturnId();
         int gitId = createGit("https://github.com/test/cr-no-exec", (long) credId);
+        int wsId = createWorkspace(gitId);
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto("# Plan", null, (long) gitId))
+                .body(planDto("# Plan", null, (long) wsId))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201);
@@ -1152,10 +1146,11 @@ class TaskResourceTest {
     void testTaskListIncludesPlanFields() {
         int taskId = createTaskAndReturnId();
         int gitId = createGit("https://github.com/test/plan-list");
+        int wsId = createWorkspace(gitId);
 
         given()
                 .contentType(ContentType.JSON)
-                .body(planDto("# Listed", "List requirement", (long) gitId))
+                .body(planDto("# Listed", "List requirement", (long) wsId))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201);
@@ -1166,6 +1161,6 @@ class TaskResourceTest {
                 .then()
                 .statusCode(200)
                 .body("data.find { it.id == " + taskId + " }.plan.requirement", is("List requirement"))
-                .body("data.find { it.id == " + taskId + " }.plan.git.url", is("https://github.com/test/plan-list"));
+                .body("data.find { it.id == " + taskId + " }.plan.workspace.git.url", is("https://github.com/test/plan-list"));
     }
 }

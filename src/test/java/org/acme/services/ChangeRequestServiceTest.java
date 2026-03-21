@@ -7,6 +7,7 @@ import org.acme.dto.CredentialDto;
 import org.acme.dto.GitDto;
 import org.acme.dto.PlanDto;
 import org.acme.dto.ProjectDto;
+import org.acme.dto.WorkspaceDto;
 import org.acme.models.jpa.entity.SourceType;
 import org.acme.models.jpa.entity.TaskStatus;
 import org.acme.services.ai.RequirementSummarizerService;
@@ -69,6 +70,7 @@ class ChangeRequestServiceTest {
                 .thenAnswer(invocation -> new FilesystemWorkspace(invocation.getArgument(0)));
         when(workspaceManager.exists(anyString())).thenReturn(true);
         doNothing().when(changeRequestService).triggerChangeRequest(any());
+        doNothing().when(gitManager).deleteClonedDirectory(anyString());
     }
 
     private int createProjectAndSync(List<ExternalIssue> issues) {
@@ -157,21 +159,43 @@ class ChangeRequestServiceTest {
             credDto.id = credentialId;
             gitDto.credential = credDto;
         }
-        int id = given()
+        return given()
                 .contentType(ContentType.JSON)
                 .body(gitDto)
                 .when().post("/gits")
                 .then()
                 .statusCode(201)
                 .extract().path("id");
+    }
+
+    private int createWorkspace(int gitId) {
+        WorkspaceDto wsDto = new WorkspaceDto();
+        int id = given()
+                .contentType(ContentType.JSON)
+                .body(wsDto)
+                .when().post("/gits/{gitId}/workspaces", gitId)
+                .then()
+                .statusCode(201)
+                .extract().path("id");
         await().atMost(5, TimeUnit.SECONDS).untilAsserted(() ->
                 given()
-                        .when().get("/gits/{id}", id)
+                        .when().get("/gits/{gitId}/workspaces/{wsId}", gitId, id)
                         .then()
                         .statusCode(200)
                         .body("isCloneInProgress", is(false))
         );
         return id;
+    }
+
+    private static PlanDto planDto(String plan, Long workspaceId) {
+        PlanDto dto = new PlanDto();
+        dto.plan = plan;
+        if (workspaceId != null) {
+            WorkspaceDto ws = new WorkspaceDto();
+            ws.id = workspaceId;
+            dto.workspace = ws;
+        }
+        return dto;
     }
 
     @Test
@@ -180,16 +204,11 @@ class ChangeRequestServiceTest {
         int taskId = getTaskId(projectId);
         int credId = createCredential("cr-noexec-cred");
         int gitId = createGit("https://github.com/test/cr-noexec", (long) credId);
-
-        PlanDto plan = new PlanDto();
-        plan.plan = "# Test plan";
-        GitDto git = new GitDto();
-        git.id = (long) gitId;
-        plan.git = git;
+        int wsId = createWorkspace(gitId);
 
         given()
                 .contentType(ContentType.JSON)
-                .body(plan)
+                .body(planDto("# Test plan", (long) wsId))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201);
@@ -203,8 +222,8 @@ class ChangeRequestServiceTest {
     }
 
     @Test
-    void testChangeRequestRequiresGit() {
-        int projectId = createProjectAndSync(List.of(issue("cr-nogit-1", "CR no git task")));
+    void testChangeRequestRequiresWorkspace() {
+        int projectId = createProjectAndSync(List.of(issue("cr-nows-1", "CR no workspace task")));
         int taskId = getTaskId(projectId);
 
         PlanDto plan = new PlanDto();
@@ -229,16 +248,11 @@ class ChangeRequestServiceTest {
         int projectId = createProjectAndSync(List.of(issue("cr-notoken-1", "CR no token task")));
         int taskId = getTaskId(projectId);
         int gitId = createGit("https://github.com/test/cr-notoken");
-
-        PlanDto plan = new PlanDto();
-        plan.plan = "# Test plan";
-        GitDto git = new GitDto();
-        git.id = (long) gitId;
-        plan.git = git;
+        int wsId = createWorkspace(gitId);
 
         given()
                 .contentType(ContentType.JSON)
-                .body(plan)
+                .body(planDto("# Test plan", (long) wsId))
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201);

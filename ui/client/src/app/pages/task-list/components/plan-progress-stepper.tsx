@@ -122,6 +122,67 @@ export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
   return (
     <ProgressStepper>
       <ProgressStep
+        variant={plan.workspace?.git ? "success" : "pending"}
+        id={`git-${taskId}`}
+        titleId={`git-title-${taskId}`}
+        aria-label={`Git configuration step, ${plan.workspace?.git ? "completed" : "pending"}`}
+        description={
+          plan.workspace?.git ? plan.workspace.git.url : "Not configured"
+        }
+        popoverRender={(stepRef) => (
+          <Popover
+            aria-label="Git configuration details"
+            headerContent={<div>Git Configuration</div>}
+            bodyContent={
+              plan.workspace?.git ? (
+                <DescriptionList isCompact>
+                  <DescriptionListGroup>
+                    <DescriptionListTerm>URL</DescriptionListTerm>
+                    <DescriptionListDescription>
+                      {plan.workspace.git.url}
+                    </DescriptionListDescription>
+                  </DescriptionListGroup>
+                  {plan.workspace.git.branch && (
+                    <DescriptionListGroup>
+                      <DescriptionListTerm>Branch</DescriptionListTerm>
+                      <DescriptionListDescription>
+                        {plan.workspace.git.branch}
+                      </DescriptionListDescription>
+                    </DescriptionListGroup>
+                  )}
+                  {plan.workspace.git.forkUrl && (
+                    <DescriptionListGroup>
+                      <DescriptionListTerm>Fork URL</DescriptionListTerm>
+                      <DescriptionListDescription>
+                        {plan.workspace.git.forkUrl}
+                      </DescriptionListDescription>
+                    </DescriptionListGroup>
+                  )}
+                  <DescriptionListGroup>
+                    <DescriptionListTerm>Credential</DescriptionListTerm>
+                    <DescriptionListDescription>
+                      {plan.workspace.git.credential
+                        ? plan.workspace.git.credential.name
+                        : "Not configured"}
+                    </DescriptionListDescription>
+                  </DescriptionListGroup>
+                </DescriptionList>
+              ) : (
+                <div>No git repository has been configured yet.</div>
+              )
+            }
+            footerContent={
+              <Button variant="link" isInline onClick={() => onEditStep(1)}>
+                {plan.workspace?.git ? "Edit configuration" : "Configure"}
+              </Button>
+            }
+            triggerRef={stepRef}
+          />
+        )}
+      >
+        Git Configuration
+      </ProgressStep>
+      <ProgressStep
         variant={reqVariant}
         icon={plan.isRequirementInProgress ? <Spinner size="sm" /> : undefined}
         id={`req-${taskId}`}
@@ -135,7 +196,7 @@ export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
             bodyContent={<div>{getRequirementPopupContent(plan)}</div>}
             footerContent={
               <div style={{ display: "flex", gap: 16 }}>
-                <Button variant="link" isInline onClick={() => onEditStep(1)}>
+                <Button variant="link" isInline onClick={() => onEditStep(2)}>
                   {plan.requirement ? "Edit requirement" : "Add requirement"}
                 </Button>
                 <Button
@@ -154,65 +215,6 @@ export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
         )}
       >
         Requirement
-      </ProgressStep>
-      <ProgressStep
-        variant={plan.git ? "success" : "pending"}
-        id={`git-${taskId}`}
-        titleId={`git-title-${taskId}`}
-        aria-label={`Git configuration step, ${plan.git ? "completed" : "pending"}`}
-        description={plan.git ? plan.git.url : "Not configured"}
-        popoverRender={(stepRef) => (
-          <Popover
-            aria-label="Git configuration details"
-            headerContent={<div>Git Configuration</div>}
-            bodyContent={
-              plan.git ? (
-                <DescriptionList isCompact>
-                  <DescriptionListGroup>
-                    <DescriptionListTerm>URL</DescriptionListTerm>
-                    <DescriptionListDescription>
-                      {plan.git.url}
-                    </DescriptionListDescription>
-                  </DescriptionListGroup>
-                  {plan.git.branch && (
-                    <DescriptionListGroup>
-                      <DescriptionListTerm>Branch</DescriptionListTerm>
-                      <DescriptionListDescription>
-                        {plan.git.branch}
-                      </DescriptionListDescription>
-                    </DescriptionListGroup>
-                  )}
-                  {plan.git.forkUrl && (
-                    <DescriptionListGroup>
-                      <DescriptionListTerm>Fork URL</DescriptionListTerm>
-                      <DescriptionListDescription>
-                        {plan.git.forkUrl}
-                      </DescriptionListDescription>
-                    </DescriptionListGroup>
-                  )}
-                  <DescriptionListGroup>
-                    <DescriptionListTerm>Credential</DescriptionListTerm>
-                    <DescriptionListDescription>
-                      {plan.git.credential
-                        ? plan.git.credential.name
-                        : "Not configured"}
-                    </DescriptionListDescription>
-                  </DescriptionListGroup>
-                </DescriptionList>
-              ) : (
-                <div>No git repository has been configured yet.</div>
-              )
-            }
-            footerContent={
-              <Button variant="link" isInline onClick={() => onEditStep(2)}>
-                {plan.git ? "Edit configuration" : "Configure"}
-              </Button>
-            }
-            triggerRef={stepRef}
-          />
-        )}
-      >
-        Git Configuration
       </ProgressStep>
       <ProgressStep
         variant={planVariant}
@@ -250,7 +252,7 @@ export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
                   isInline
                   onClick={() => generatePlanMutation.mutate(taskId)}
                   isDisabled={
-                    !plan.git ||
+                    !plan.workspace?.git ||
                     !plan.requirement?.trim() ||
                     plan.isPlanGenerationInProgress
                   }
@@ -297,7 +299,7 @@ export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
                   isInline
                   onClick={() => openClaudeMutation.mutate(taskId)}
                   isDisabled={
-                    !plan.git ||
+                    !plan.workspace?.git ||
                     !plan.plan?.trim() ||
                     openClaudeMutation.isPending
                   }
@@ -310,7 +312,7 @@ export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
                   isInline
                   onClick={() => executePlanMutation.mutate(taskId)}
                   isDisabled={
-                    !plan.git ||
+                    !plan.workspace?.git ||
                     !plan.plan?.trim() ||
                     plan.isExecutionPlanInProgress
                   }
@@ -354,7 +356,7 @@ export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
                     View Pull Request
                   </a>
                 </div>
-              ) : !plan.git?.credential ? (
+              ) : !plan.workspace?.git?.credential ? (
                 <div>
                   No credential is configured in the git settings. A credential
                   is required to create pull/merge requests.
@@ -382,7 +384,7 @@ export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
                   isDisabled={
                     !plan.executionPlanCompletedAt ||
                     plan.isChangeRequestInProgress ||
-                    !plan.git?.credential
+                    !plan.workspace?.git?.credential
                   }
                 >
                   Create PR
