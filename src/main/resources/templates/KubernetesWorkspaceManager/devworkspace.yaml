@@ -18,8 +18,9 @@ spec:
       kubernetes:
         name: {editorTemplateName}
   template:
-{#if devworkspaceConfigNamespace}
     attributes:
+      controller.devfile.io/scc: container-build
+{#if devworkspaceConfigNamespace}
       controller.devfile.io/devworkspace-config:
         name: devworkspace-config
         namespace: {devworkspaceConfigNamespace}
