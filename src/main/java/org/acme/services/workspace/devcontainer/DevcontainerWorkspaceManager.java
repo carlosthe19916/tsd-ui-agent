@@ -3,11 +3,14 @@ package org.acme.services.workspace.devcontainer;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.command.InspectImageResponse;
+import io.quarkus.qute.CheckedTemplate;
+import io.quarkus.qute.TemplateInstance;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.json.Json;
 import jakarta.json.JsonObject;
-import jakarta.json.JsonObjectBuilder;
+import org.acme.services.agent.CodingAgent;
+
 import org.acme.services.workspace.*;
 import org.acme.services.workspace.filesystem.FilesystemWorkspaceManager;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -30,6 +33,20 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
 
     private static final Logger LOG = Logger.getLogger(DevcontainerWorkspaceManager.class);
 
+    @CheckedTemplate
+    public static class Templates {
+        public static native TemplateInstance devcontainer(
+                String image, String remoteUser, String workspaceFolder,
+                List<EnvVar> envVars, List<String> mounts,
+                String postCreateCommand, String postStartCommand,
+                List<Integer> appPort);
+    }
+
+    public record EnvVar(String name, String value) {}
+
+    @ConfigProperty(name = "tsd-agent.coding-agent")
+    CodingAgent codingAgent;
+
     @ConfigProperty(name = "tsd-agent.devcontainer.command")
     public String command;
 
@@ -38,6 +55,9 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
 
     @ConfigProperty(name = "tsd-agent.devcontainer.env-passthrough")
     public Optional<List<String>> envPassthrough;
+
+    @ConfigProperty(name = "tsd-agent.devcontainer.mounts")
+    public Optional<List<String>> mounts;
 
     @Inject
     DockerClient dockerClient;
@@ -181,23 +201,50 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
             Path configDir = devcontainerConfigDir(sanitizedUrl, worktreeAlias);
             Files.createDirectories(configDir);
 
-            JsonObjectBuilder envBuilder = Json.createObjectBuilder();
-            List<String> envVars = envPassthrough.orElse(List.of());
-            for (String envVar : envVars) {
-                String trimmed = envVar.trim();
-                if (!trimmed.isEmpty()) {
-                    envBuilder.add(trimmed, "${localEnv:" + trimmed + "}");
+            List<EnvVar> envVars = new java.util.ArrayList<>(envPassthrough.orElse(List.of()).stream()
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .map(name -> new EnvVar(name, "${localEnv:" + name + "}"))
+                    .toList());
+            envVars.add(new EnvVar("DEVCONTAINER", "true"));
+
+            List<String> mountList = new java.util.ArrayList<>(mounts.orElse(List.of()).stream()
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .toList());
+
+            String effectiveImage;
+            String remoteUser;
+            String postCreateCommand;
+            String postStartCommand = null;
+            List<Integer> appPort = null;
+
+            switch (codingAgent) {
+                case CLAUDE -> {
+                    effectiveImage = "node:20";
+                    remoteUser = "node";
+                    postCreateCommand = "npm install -g @anthropic-ai/claude-code@latest";
+                    mountList.add("source=claude-config-${devcontainerId},target=/home/node/.claude,type=volume");
                 }
+                case OPENCODE -> {
+                    effectiveImage = image;
+                    remoteUser = "vscode";
+                    postCreateCommand = "curl -fsSL https://opencode.ai/install | bash";
+                    postStartCommand = "/home/vscode/.opencode/bin/opencode serve --port 3000 --hostname 0.0.0.0 > /tmp/opencode-server.log 2>&1 & while ! curl -s http://localhost:3000 > /dev/null 2>&1; do sleep 1; done";
+                    appPort = List.of(3000);
+                    mountList.add("source=opencode-data-${devcontainerId},target=/home/vscode/.local/share/opencode,type=volume");
+                }
+                default -> throw new WorkspaceException("Unsupported coding agent: " + codingAgent);
             }
 
-            JsonObject configJson = Json.createObjectBuilder()
-                    .add("image", image)
-                    .add("workspaceFolder", "/workspaces/trees/" + worktreeAlias)
-                    .add("containerEnv", envBuilder)
-                    .build();
+            String configContent = Templates.devcontainer(
+                    effectiveImage, remoteUser, "/workspaces/trees/" + worktreeAlias,
+                    envVars, mountList.isEmpty() ? null : mountList,
+                    postCreateCommand, postStartCommand, appPort
+            ).render();
 
             Path configPath = configDir.resolve("devcontainer.json");
-            Files.writeString(configPath, configJson.toString());
+            Files.writeString(configPath, configContent);
             LOG.debugf("Generated override config at %s", configPath);
             return configPath;
         } catch (Exception e) {
@@ -211,6 +258,7 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
                     command, "up",
                     "--workspace-folder", workspaceFolder,
                     "--override-config", overrideConfigPath,
+                    "--remove-existing-container",
                     "--mount-git-worktree-common-dir")
                     .redirectErrorStream(true);
             Process process = pb.start();
