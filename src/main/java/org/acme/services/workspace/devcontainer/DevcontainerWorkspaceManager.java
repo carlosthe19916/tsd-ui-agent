@@ -63,6 +63,9 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
     DockerClient dockerClient;
 
     @Inject
+    PortAllocator portAllocator;
+
+    @Inject
     @WorkspaceManagerType(type = ExecutionMode.FILESYSTEM)
     FilesystemWorkspaceManager filesystemManager;
 
@@ -121,6 +124,12 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
     public void destroy(String workspaceId) throws WorkspaceException {
         try {
             String containerId = parseContainerId(workspaceId);
+            String worktreePath = parseWorktreePath(workspaceId);
+
+            // Release allocated port
+            String worktreeAlias = Path.of(worktreePath).getFileName().toString();
+            portAllocator.release(worktreeAlias);
+
             if (containerId == null || containerId.isBlank() || "unknown".equals(containerId)) {
                 return;
             }
@@ -201,6 +210,20 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
             Path configDir = devcontainerConfigDir(sanitizedUrl, worktreeAlias);
             Files.createDirectories(configDir);
 
+            // Check if project has its own devcontainer config
+            Path worktreePath = Path.of(baseDir, "repositories", sanitizedUrl, "trees", worktreeAlias);
+            boolean hasProjectConfig = hasProjectDevcontainerConfig(worktreePath);
+            boolean isComposeConfig = hasProjectConfig && isDockerComposeConfig(worktreePath);
+
+            // If project has a non-compose config, don't set image (let project's config win)
+            boolean useProjectImage = hasProjectConfig && !isComposeConfig;
+            if (useProjectImage) {
+                LOG.infof("Project has devcontainer config, merging with agent overrides");
+            }
+            if (isComposeConfig) {
+                LOG.infof("Project uses docker-compose devcontainer, generating config from scratch");
+            }
+
             List<EnvVar> envVars = new java.util.ArrayList<>(envPassthrough.orElse(List.of()).stream()
                     .map(String::trim)
                     .filter(s -> !s.isEmpty())
@@ -221,17 +244,18 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
 
             switch (codingAgent) {
                 case CLAUDE -> {
-                    effectiveImage = "node:20";
+                    effectiveImage = useProjectImage ? null : "node:20";
                     remoteUser = "node";
                     postCreateCommand = "npm install -g @anthropic-ai/claude-code@latest";
                     mountList.add("source=claude-config-${devcontainerId},target=/home/node/.claude,type=volume");
                 }
                 case OPENCODE -> {
-                    effectiveImage = image;
+                    effectiveImage = useProjectImage ? null : image;
                     remoteUser = "vscode";
                     postCreateCommand = "curl -fsSL https://opencode.ai/install | bash";
-                    postStartCommand = "/home/vscode/.opencode/bin/opencode serve --port 3000 --hostname 0.0.0.0 > /tmp/opencode-server.log 2>&1 & while ! curl -s http://localhost:3000 > /dev/null 2>&1; do sleep 1; done";
-                    appPort = List.of(3000);
+                    int port = portAllocator.allocate(worktreeAlias);
+                    postStartCommand = "/home/vscode/.opencode/bin/opencode serve --port " + port + " --hostname 0.0.0.0 > /tmp/opencode-server.log 2>&1 & while ! curl -s http://localhost:" + port + " > /dev/null 2>&1; do sleep 1; done";
+                    appPort = List.of(port);
                     mountList.add("source=opencode-data-${devcontainerId},target=/home/vscode/.local/share/opencode,type=volume");
                 }
                 default -> throw new WorkspaceException("Unsupported coding agent: " + codingAgent);
@@ -250,6 +274,28 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
         } catch (Exception e) {
             throw new WorkspaceException("Failed to generate devcontainer override config", e);
         }
+    }
+
+    private boolean hasProjectDevcontainerConfig(Path worktreePath) {
+        return Files.exists(worktreePath.resolve(".devcontainer/devcontainer.json"))
+                || Files.exists(worktreePath.resolve(".devcontainer.json"));
+    }
+
+    private boolean isDockerComposeConfig(Path worktreePath) {
+        for (Path configFile : List.of(
+                worktreePath.resolve(".devcontainer/devcontainer.json"),
+                worktreePath.resolve(".devcontainer.json"))) {
+            if (Files.exists(configFile)) {
+                try {
+                    String content = Files.readString(configFile);
+                    JsonObject json = Json.createReader(new StringReader(content)).readObject();
+                    return json.containsKey("dockerComposeFile");
+                } catch (Exception e) {
+                    LOG.warnf("Failed to parse project devcontainer config: %s", e.getMessage());
+                }
+            }
+        }
+        return false;
     }
 
     private String runDevcontainerUp(String workspaceFolder, String overrideConfigPath) throws WorkspaceException {

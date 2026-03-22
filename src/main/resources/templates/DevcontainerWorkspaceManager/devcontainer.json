@@ -1,5 +1,7 @@
 \{
+{#if image}
   "image": "{image}",
+{/if}
   "remoteUser": "{remoteUser}",
   "workspaceFolder": "{workspaceFolder}",
   "containerEnv": \{
