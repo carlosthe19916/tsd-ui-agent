@@ -7,11 +7,9 @@ import {
   DataList,
   DataListAction,
   DataListCell,
-  DataListContent,
   DataListItem,
   DataListItemCells,
   DataListItemRow,
-  DataListToggle,
   Dropdown,
   DropdownItem,
   DropdownList,
@@ -25,11 +23,11 @@ import {
   SelectOption,
   Title,
   Toolbar,
+  Tooltip,
   ToolbarContent,
   ToolbarGroup,
   ToolbarItem,
 } from "@patternfly/react-core";
-import { Table, Tbody, Td, Th, Thead, Tr } from "@patternfly/react-table";
 import EllipsisVIcon from "@patternfly/react-icons/dist/esm/icons/ellipsis-v-icon";
 import SortAmountDownIcon from "@patternfly/react-icons/dist/esm/icons/sort-amount-down-icon";
 import SortAmountUpIcon from "@patternfly/react-icons/dist/esm/icons/sort-amount-up-icon";
@@ -39,6 +37,7 @@ import { TablePersistenceKeyPrefixes } from "@app/Constants";
 import type { GitDto } from "@app/api/models";
 import { ConfirmDialog } from "@app/components/ConfirmDialog";
 import { ConditionalDataListBody } from "@app/components/DataListControls";
+import { PageDrawerContent } from "@app/components/PageDrawerContext";
 import { FilterToolbar, FilterType } from "@app/components/FilterToolbar";
 import { SimplePagination } from "@app/components/SimplePagination";
 import { useLocalTableControls } from "@app/hooks/table-controls";
@@ -52,6 +51,11 @@ import {
 import type { WorkspaceDto } from "@app/api/models";
 
 import { GitFormModal } from "./components/git-form-modal";
+import {
+  parseWorkspaceId,
+  WorkspaceStatusLabel,
+  WorkspaceTypeLabel,
+} from "./components/workspace-status";
 
 const GitWorkspaceCell: React.FC<{ gitId: number }> = ({ gitId }) => {
   const { data: workspaces } = useFetchWorkspaces(gitId);
@@ -97,28 +101,51 @@ const GitExpandedContent: React.FC<{ gitId: number }> = ({ gitId }) => {
 
   return (
     <>
-      <Table aria-label="Workspaces table" variant="compact">
-        <Thead>
-          <Tr>
-            <Th>ID</Th>
-            <Th>Workspace ID</Th>
-            <Th>Status</Th>
-            <Th />
-          </Tr>
-        </Thead>
-        <Tbody>
-          {workspaces.map((ws) => (
-            <Tr key={ws.id}>
-              <Td>{ws.id}</Td>
-              <Td>{ws.workspaceId ?? "-"}</Td>
-              <Td>
-                {ws.isProvisioningInProgress
-                  ? "Provisioning..."
-                  : ws.provisioningError
-                    ? "Error"
-                    : "Ready"}
-              </Td>
-              <Td isActionCell>
+      <DataList aria-label="Workspaces list" isCompact>
+        {workspaces.map((ws) => (
+          <DataListItem key={ws.id} aria-labelledby={`ws-${ws.id}`}>
+            <DataListItemRow>
+              <DataListItemCells
+                dataListCells={[
+                  <DataListCell key="info" width={3}>
+                    {(() => {
+                      const { containerId, path } = parseWorkspaceId(
+                        ws.workspaceId,
+                      );
+                      return (
+                        <Flex
+                          direction={{ default: "column" }}
+                          gap={{ default: "gapXs" }}
+                        >
+                          {containerId && (
+                            <FlexItem id={`ws-${ws.id}`}>
+                              <Tooltip content={containerId}>
+                                <code>{containerId.substring(0, 12)}</code>
+                              </Tooltip>
+                            </FlexItem>
+                          )}
+                          <FlexItem {...(!containerId ? { id: `ws-${ws.id}` } : {})}>
+                            <small>{path ?? "-"}</small>
+                          </FlexItem>
+                          <FlexItem>
+                            <WorkspaceTypeLabel
+                              workspaceId={ws.workspaceId}
+                            />
+                          </FlexItem>
+                        </Flex>
+                      );
+                    })()}
+                  </DataListCell>,
+                  <DataListCell key="status" width={2} alignRight>
+                    <WorkspaceStatusLabel ws={ws} />
+                  </DataListCell>,
+                ]}
+              />
+              <DataListAction
+                id={`ws-action-${ws.id}`}
+                aria-label="Workspace actions"
+                aria-labelledby={`ws-${ws.id} ws-action-${ws.id}`}
+              >
                 <Button
                   variant={ButtonVariant.danger}
                   size="sm"
@@ -126,11 +153,11 @@ const GitExpandedContent: React.FC<{ gitId: number }> = ({ gitId }) => {
                 >
                   Delete
                 </Button>
-              </Td>
-            </Tr>
-          ))}
-        </Tbody>
-      </Table>
+              </DataListAction>
+            </DataListItemRow>
+          </DataListItem>
+        ))}
+      </DataList>
 
       {wsToDelete && (
         <ConfirmDialog
@@ -165,7 +192,7 @@ export const GitList: React.FC = () => {
   const [gitToDelete, setGitToDelete] = React.useState<GitDto | null>(null);
   const [isSortByOpen, setIsSortByOpen] = React.useState(false);
   const [openKebabId, setOpenKebabId] = React.useState<number | null>(null);
-  const [expandedGitId, setExpandedGitId] = React.useState<number | null>(null);
+  const [selectedGit, setSelectedGit] = React.useState<GitDto | null>(null);
 
   const { data: gits, isFetching } = useFetchGits();
   const deleteMutation = useDeleteGitMutation(() => setGitToDelete(null));
@@ -309,25 +336,49 @@ export const GitList: React.FC = () => {
           </ToolbarContent>
         </Toolbar>
 
+        <PageDrawerContent
+          isExpanded={selectedGit !== null}
+          onCloseClick={() => setSelectedGit(null)}
+          header={
+            <>
+              <Title headingLevel="h3" size="lg">
+                Workspaces
+              </Title>
+              <small>{selectedGit?.url}</small>
+            </>
+          }
+          pageKey="git-list"
+          focusKey={selectedGit?.id}
+        >
+          {selectedGit && <GitExpandedContent gitId={selectedGit.id} />}
+        </PageDrawerContent>
+
         <ConditionalDataListBody
           isLoading={isFetching}
           isNoData={(gits ?? []).length === 0}
         >
-          <DataList aria-label="Git repositories list">
+          <DataList
+            aria-label="Git repositories list"
+            selectedDataListItemId={
+              selectedGit ? `git-${selectedGit.id}` : undefined
+            }
+            onSelectDataListItem={(_event, id) => {
+              const gitId = Number(id.replace("git-", ""));
+              const git = currentPageItems?.find((g) => g.id === gitId);
+              if (git) {
+                setSelectedGit(
+                  selectedGit?.id === git.id ? null : git,
+                );
+              }
+            }}
+          >
             {currentPageItems?.map((git) => (
               <DataListItem
                 key={git.id}
-                aria-labelledby={`git-${git.id}`}
-                isExpanded={expandedGitId === git.id}
+                id={`git-${git.id}`}
+                aria-labelledby={`git-label-${git.id}`}
               >
                 <DataListItemRow>
-                  <DataListToggle
-                    id={`git-toggle-${git.id}`}
-                    onClick={() =>
-                      setExpandedGitId(expandedGitId === git.id ? null : git.id)
-                    }
-                    isExpanded={expandedGitId === git.id}
-                  />
                   <DataListItemCells
                     dataListCells={[
                       <DataListCell key="url" width={3}>
@@ -335,10 +386,16 @@ export const GitList: React.FC = () => {
                           direction={{ default: "column" }}
                           gap={{ default: "gapXs" }}
                         >
-                          <FlexItem>{git.url}</FlexItem>
-                          <FlexItem>Branch: {git.branch || "Default"}</FlexItem>
+                          <FlexItem id={`git-label-${git.id}`}>
+                            {git.url}
+                          </FlexItem>
                           <FlexItem>
-                            <small>Type: {git.vendorType || "Unknown"}</small>
+                            Branch: {git.branch || "Default"}
+                          </FlexItem>
+                          <FlexItem>
+                            <small>
+                              Type: {git.vendorType || "Unknown"}
+                            </small>
                           </FlexItem>
                           <FlexItem>
                             <Icon>
@@ -356,7 +413,7 @@ export const GitList: React.FC = () => {
                   <DataListAction
                     id={`git-action-${git.id}`}
                     aria-label="Actions"
-                    aria-labelledby={`git-${git.id} git-action-${git.id}`}
+                    aria-labelledby={`git-label-${git.id} git-action-${git.id}`}
                   >
                     <Dropdown
                       isOpen={openKebabId === git.id}
@@ -384,7 +441,9 @@ export const GitList: React.FC = () => {
                       <DropdownList>
                         <DropdownItem
                           key="edit"
-                          onClick={() => setModalState({ type: "edit", git })}
+                          onClick={() =>
+                            setModalState({ type: "edit", git })
+                          }
                         >
                           Edit
                         </DropdownItem>
@@ -398,14 +457,6 @@ export const GitList: React.FC = () => {
                     </Dropdown>
                   </DataListAction>
                 </DataListItemRow>
-                <DataListContent
-                  aria-label={`Workspaces for ${git.url}`}
-                  isHidden={expandedGitId !== git.id}
-                >
-                  {expandedGitId === git.id && (
-                    <GitExpandedContent gitId={git.id} />
-                  )}
-                </DataListContent>
               </DataListItem>
             ))}
           </DataList>

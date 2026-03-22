@@ -32,3 +32,10 @@ export const createWorkspace = (gitId: number, taskId?: number) =>
 
 export const deleteWorkspace = (wsId: number) =>
   axios.delete<void>(`${WORKSPACES_URL}/${wsId}`);
+
+export const getWorkspaceStatus = (wsId: number) =>
+  axios
+    .get<{ status: "RUNNING" | "STOPPED" | "ERROR"; reason?: string }>(
+      `${WORKSPACES_URL}/${wsId}/status`,
+    )
+    .then((response) => response.data);

@@ -6,6 +6,7 @@ import {
   deleteGit,
   deleteWorkspace,
   getGits,
+  getWorkspaceStatus,
   getWorkspaces,
   updateGit,
 } from "@app/api/git-api";
@@ -13,6 +14,7 @@ import type { GitDto, New } from "@app/api/models";
 
 const GIT_QUERY_KEY = "gits";
 const WORKSPACES_QUERY_KEY = "workspaces";
+const WORKSPACE_STATUS_QUERY_KEY = "workspace-status";
 
 export const useFetchGits = () => {
   return useQuery({
@@ -77,6 +79,17 @@ export const useCreateWorkspaceMutation = (onSuccess?: () => void) => {
       });
       onSuccess?.();
     },
+  });
+};
+
+export const useFetchWorkspaceStatus = (
+  wsId: number | undefined,
+  enabled: boolean,
+) => {
+  return useQuery({
+    queryKey: [WORKSPACE_STATUS_QUERY_KEY, wsId],
+    queryFn: () => getWorkspaceStatus(wsId!),
+    enabled: enabled && wsId != null,
   });
 };
 
