@@ -45,22 +45,29 @@ class WorkspaceResourceTest {
                 .extract().path("id");
     }
 
+    private WorkspaceDto workspaceDtoForGit(int gitId) {
+        WorkspaceDto dto = new WorkspaceDto();
+        dto.git = new GitDto();
+        dto.git.id = (long) gitId;
+        return dto;
+    }
+
     private int createWorkspace(int gitId) {
         int id = given()
                 .contentType(ContentType.JSON)
-                .body(new WorkspaceDto())
-                .when().post("/gits/{gitId}/workspaces", gitId)
+                .body(workspaceDtoForGit(gitId))
+                .when().post("/workspaces")
                 .then()
                 .statusCode(201)
                 .extract().path("id");
-        awaitProvisioningCompletion(gitId, id);
+        awaitProvisioningCompletion(id);
         return id;
     }
 
-    private void awaitProvisioningCompletion(int gitId, int id) {
+    private void awaitProvisioningCompletion(int id) {
         await().atMost(5, TimeUnit.SECONDS).untilAsserted(() ->
                 given()
-                        .when().get("/gits/{gitId}/workspaces/{wsId}", gitId, id)
+                        .when().get("/workspaces/{id}", id)
                         .then()
                         .statusCode(200)
                         .body("isProvisioningInProgress", is(false))
@@ -73,8 +80,8 @@ class WorkspaceResourceTest {
 
         given()
                 .contentType(ContentType.JSON)
-                .body(new WorkspaceDto())
-                .when().post("/gits/{gitId}/workspaces", gitId)
+                .body(workspaceDtoForGit(gitId))
+                .when().post("/workspaces")
                 .then()
                 .statusCode(201)
                 .body("id", notNullValue())
@@ -88,8 +95,8 @@ class WorkspaceResourceTest {
 
         int id = given()
                 .contentType(ContentType.JSON)
-                .body(new WorkspaceDto())
-                .when().post("/gits/{gitId}/workspaces", gitId)
+                .body(workspaceDtoForGit(gitId))
+                .when().post("/workspaces")
                 .then()
                 .statusCode(201)
                 .body("isProvisioningInProgress", is(true))
@@ -97,7 +104,7 @@ class WorkspaceResourceTest {
 
         await().atMost(5, TimeUnit.SECONDS).untilAsserted(() ->
                 given()
-                        .when().get("/gits/{gitId}/workspaces/{wsId}", gitId, id)
+                        .when().get("/workspaces/{id}", id)
                         .then()
                         .statusCode(200)
                         .body("isProvisioningInProgress", is(false))
@@ -114,15 +121,15 @@ class WorkspaceResourceTest {
 
         int id = given()
                 .contentType(ContentType.JSON)
-                .body(new WorkspaceDto())
-                .when().post("/gits/{gitId}/workspaces", gitId)
+                .body(workspaceDtoForGit(gitId))
+                .when().post("/workspaces")
                 .then()
                 .statusCode(201)
                 .extract().path("id");
 
         await().atMost(5, TimeUnit.SECONDS).untilAsserted(() ->
                 given()
-                        .when().get("/gits/{gitId}/workspaces/{wsId}", gitId, id)
+                        .when().get("/workspaces/{id}", id)
                         .then()
                         .statusCode(200)
                         .body("isProvisioningInProgress", is(false))
@@ -136,13 +143,15 @@ class WorkspaceResourceTest {
         createWorkspace(gitId);
 
         given()
-                .when().get("/gits/{gitId}/workspaces", gitId)
+                .queryParam("gitId", gitId)
+                .when().get("/workspaces")
                 .then()
                 .statusCode(200)
                 .body("size()", greaterThanOrEqualTo(1));
 
         given()
-                .when().get("/gits/{gitId}/workspaces", 999999)
+                .queryParam("gitId", 999999)
+                .when().get("/workspaces")
                 .then()
                 .statusCode(200)
                 .body("size()", is(0));
@@ -154,7 +163,7 @@ class WorkspaceResourceTest {
         int id = createWorkspace(gitId);
 
         given()
-                .when().get("/gits/{gitId}/workspaces/{wsId}", gitId, id)
+                .when().get("/workspaces/{id}", id)
                 .then()
                 .statusCode(200)
                 .body("id", is(id))
@@ -163,10 +172,8 @@ class WorkspaceResourceTest {
 
     @Test
     void testGetWorkspaceNotFound() {
-        int gitId = createGit("https://github.com/ws/get-nf.git");
-
         given()
-                .when().get("/gits/{gitId}/workspaces/{wsId}", gitId, 9999)
+                .when().get("/workspaces/{id}", 9999)
                 .then()
                 .statusCode(404);
     }
@@ -177,22 +184,20 @@ class WorkspaceResourceTest {
         int id = createWorkspace(gitId);
 
         given()
-                .when().delete("/gits/{gitId}/workspaces/{wsId}", gitId, id)
+                .when().delete("/workspaces/{id}", id)
                 .then()
                 .statusCode(204);
 
         given()
-                .when().get("/gits/{gitId}/workspaces/{wsId}", gitId, id)
+                .when().get("/workspaces/{id}", id)
                 .then()
                 .statusCode(404);
     }
 
     @Test
     void testDeleteWorkspaceNotFound() {
-        int gitId = createGit("https://github.com/ws/delete-nf.git");
-
         given()
-                .when().delete("/gits/{gitId}/workspaces/{wsId}", gitId, 9999)
+                .when().delete("/workspaces/{id}", 9999)
                 .then()
                 .statusCode(404);
     }
@@ -203,7 +208,7 @@ class WorkspaceResourceTest {
         int id = createWorkspace(gitId);
 
         given()
-                .when().get("/gits/{gitId}/workspaces/{wsId}", gitId, id)
+                .when().get("/workspaces/{id}", id)
                 .then()
                 .statusCode(200)
                 .body("provisioningError", nullValue());

@@ -64,7 +64,9 @@ const ProjectExpandedContent: React.FC<{ project: ProjectDto }> = ({
 
   const gitById = React.useMemo(() => {
     const map = new Map<number, string>();
-    gits?.forEach((g) => map.set(g.id, g.url));
+    for (const g of gits ?? []) {
+      map.set(g.id, g.url);
+    }
     return map;
   }, [gits]);
 

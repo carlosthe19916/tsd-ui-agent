@@ -88,7 +88,7 @@ export const useFetchWorkspaceStatus = (
 ) => {
   return useQuery({
     queryKey: [WORKSPACE_STATUS_QUERY_KEY, wsId],
-    queryFn: () => getWorkspaceStatus(wsId!),
+    queryFn: () => getWorkspaceStatus(wsId as number),
     enabled: enabled && wsId != null,
   });
 };
@@ -96,7 +96,7 @@ export const useFetchWorkspaceStatus = (
 export const useDeleteWorkspaceMutation = (onSuccess?: () => void) => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ gitId, wsId }: { gitId: number; wsId: number }) =>
+    mutationFn: ({ wsId }: { gitId: number; wsId: number }) =>
       deleteWorkspace(wsId),
     onSuccess: (_response, { gitId }) => {
       queryClient.invalidateQueries({

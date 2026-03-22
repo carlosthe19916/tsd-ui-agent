@@ -497,10 +497,12 @@ class TaskResourceTest {
 
     private int createWorkspace(int gitId) {
         WorkspaceDto wsDto = new WorkspaceDto();
+        wsDto.git = new GitDto();
+        wsDto.git.id = (long) gitId;
         return given()
                 .contentType(ContentType.JSON)
                 .body(wsDto)
-                .when().post("/gits/{gitId}/workspaces", gitId)
+                .when().post("/workspaces")
                 .then()
                 .statusCode(201)
                 .extract().path("id");
