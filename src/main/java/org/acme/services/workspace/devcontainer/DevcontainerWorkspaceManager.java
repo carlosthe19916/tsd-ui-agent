@@ -3,11 +3,14 @@ package org.acme.services.workspace.devcontainer;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.command.InspectImageResponse;
+import io.quarkus.qute.CheckedTemplate;
+import io.quarkus.qute.TemplateInstance;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.json.Json;
 import jakarta.json.JsonObject;
-import jakarta.json.JsonObjectBuilder;
+import org.acme.services.agent.CodingAgent;
+
 import org.acme.services.workspace.*;
 import org.acme.services.workspace.filesystem.FilesystemWorkspaceManager;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -30,6 +33,20 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
 
     private static final Logger LOG = Logger.getLogger(DevcontainerWorkspaceManager.class);
 
+    @CheckedTemplate
+    public static class Templates {
+        public static native TemplateInstance devcontainer(
+                String image, String remoteUser, String workspaceFolder,
+                List<EnvVar> envVars, List<String> mounts,
+                String postCreateCommand, String postStartCommand,
+                List<Integer> appPort);
+    }
+
+    public record EnvVar(String name, String value) {}
+
+    @ConfigProperty(name = "tsd-agent.coding-agent")
+    CodingAgent codingAgent;
+
     @ConfigProperty(name = "tsd-agent.devcontainer.command")
     public String command;
 
@@ -39,8 +56,14 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
     @ConfigProperty(name = "tsd-agent.devcontainer.env-passthrough")
     public Optional<List<String>> envPassthrough;
 
+    @ConfigProperty(name = "tsd-agent.devcontainer.mounts")
+    public Optional<List<String>> mounts;
+
     @Inject
     DockerClient dockerClient;
+
+    @Inject
+    PortAllocator portAllocator;
 
     @Inject
     @WorkspaceManagerType(type = ExecutionMode.FILESYSTEM)
@@ -101,6 +124,12 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
     public void destroy(String workspaceId) throws WorkspaceException {
         try {
             String containerId = parseContainerId(workspaceId);
+            String worktreePath = parseWorktreePath(workspaceId);
+
+            // Release allocated port
+            String worktreeAlias = Path.of(worktreePath).getFileName().toString();
+            portAllocator.release(worktreeAlias);
+
             if (containerId == null || containerId.isBlank() || "unknown".equals(containerId)) {
                 return;
             }
@@ -181,28 +210,92 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
             Path configDir = devcontainerConfigDir(sanitizedUrl, worktreeAlias);
             Files.createDirectories(configDir);
 
-            JsonObjectBuilder envBuilder = Json.createObjectBuilder();
-            List<String> envVars = envPassthrough.orElse(List.of());
-            for (String envVar : envVars) {
-                String trimmed = envVar.trim();
-                if (!trimmed.isEmpty()) {
-                    envBuilder.add(trimmed, "${localEnv:" + trimmed + "}");
-                }
+            // Check if project has its own devcontainer config
+            Path worktreePath = Path.of(baseDir, "repositories", sanitizedUrl, "trees", worktreeAlias);
+            boolean hasProjectConfig = hasProjectDevcontainerConfig(worktreePath);
+            boolean isComposeConfig = hasProjectConfig && isDockerComposeConfig(worktreePath);
+
+            // If project has a non-compose config, don't set image (let project's config win)
+            boolean useProjectImage = hasProjectConfig && !isComposeConfig;
+            if (useProjectImage) {
+                LOG.infof("Project has devcontainer config, merging with agent overrides");
+            }
+            if (isComposeConfig) {
+                LOG.infof("Project uses docker-compose devcontainer, generating config from scratch");
             }
 
-            JsonObject configJson = Json.createObjectBuilder()
-                    .add("image", image)
-                    .add("workspaceFolder", "/workspaces/trees/" + worktreeAlias)
-                    .add("containerEnv", envBuilder)
-                    .build();
+            List<EnvVar> envVars = new java.util.ArrayList<>(envPassthrough.orElse(List.of()).stream()
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .map(name -> new EnvVar(name, "${localEnv:" + name + "}"))
+                    .toList());
+            envVars.add(new EnvVar("DEVCONTAINER", "true"));
+
+            List<String> mountList = new java.util.ArrayList<>(mounts.orElse(List.of()).stream()
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .toList());
+
+            String effectiveImage;
+            String remoteUser;
+            String postCreateCommand;
+            String postStartCommand = null;
+            List<Integer> appPort = null;
+
+            switch (codingAgent) {
+                case CLAUDE -> {
+                    effectiveImage = useProjectImage ? null : image;
+                    remoteUser = "vscode";
+                    postCreateCommand = "curl -fsSL https://claude.ai/install.sh | bash";
+                    mountList.add("source=claude-data-${devcontainerId},target=/home/vscode/.claude,type=volume");
+                }
+                case OPENCODE -> {
+                    effectiveImage = useProjectImage ? null : image;
+                    remoteUser = "vscode";
+                    postCreateCommand = "curl -fsSL https://opencode.ai/install | bash";
+                    int openCodePort = portAllocator.allocate(worktreeAlias);
+                    postStartCommand = "/home/vscode/.opencode/bin/opencode serve --port " + openCodePort + " --hostname 0.0.0.0 > /tmp/opencode-server.log 2>&1 & while ! curl -s http://localhost:" + openCodePort + " > /dev/null 2>&1; do sleep 1; done";
+                    appPort = List.of(openCodePort);
+                    mountList.add("source=opencode-data-${devcontainerId},target=/home/vscode/.local/share/opencode,type=volume");
+                }
+                default -> throw new WorkspaceException("Unsupported coding agent: " + codingAgent);
+            }
+
+            String configContent = Templates.devcontainer(
+                    effectiveImage, remoteUser, "/workspaces/trees/" + worktreeAlias,
+                    envVars, mountList.isEmpty() ? null : mountList,
+                    postCreateCommand, postStartCommand, appPort
+            ).render();
 
             Path configPath = configDir.resolve("devcontainer.json");
-            Files.writeString(configPath, configJson.toString());
+            Files.writeString(configPath, configContent);
             LOG.debugf("Generated override config at %s", configPath);
             return configPath;
         } catch (Exception e) {
             throw new WorkspaceException("Failed to generate devcontainer override config", e);
         }
+    }
+
+    private boolean hasProjectDevcontainerConfig(Path worktreePath) {
+        return Files.exists(worktreePath.resolve(".devcontainer/devcontainer.json"))
+                || Files.exists(worktreePath.resolve(".devcontainer.json"));
+    }
+
+    private boolean isDockerComposeConfig(Path worktreePath) {
+        for (Path configFile : List.of(
+                worktreePath.resolve(".devcontainer/devcontainer.json"),
+                worktreePath.resolve(".devcontainer.json"))) {
+            if (Files.exists(configFile)) {
+                try {
+                    String content = Files.readString(configFile);
+                    JsonObject json = Json.createReader(new StringReader(content)).readObject();
+                    return json.containsKey("dockerComposeFile");
+                } catch (Exception e) {
+                    LOG.warnf("Failed to parse project devcontainer config: %s", e.getMessage());
+                }
+            }
+        }
+        return false;
     }
 
     private String runDevcontainerUp(String workspaceFolder, String overrideConfigPath) throws WorkspaceException {
@@ -211,6 +304,7 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
                     command, "up",
                     "--workspace-folder", workspaceFolder,
                     "--override-config", overrideConfigPath,
+                    "--remove-existing-container",
                     "--mount-git-worktree-common-dir")
                     .redirectErrorStream(true);
             Process process = pb.start();
