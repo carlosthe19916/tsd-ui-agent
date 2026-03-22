@@ -18,7 +18,6 @@ import org.acme.services.workspace.WorkspaceRequest;
 import org.jboss.logging.Logger;
 
 @ApplicationScoped
-@Transactional
 public class WorkspaceService {
 
     private static final Logger LOG = Logger.getLogger(WorkspaceService.class);
@@ -32,6 +31,7 @@ public class WorkspaceService {
     @Inject
     TransactionManager transactionManager;
 
+    @Transactional
     public WorkspaceEntity create(WorkspaceDto dto) {
         WorkspaceEntity entity = workspaceMapper.toEntity(dto);
         if (entity.git == null) {
@@ -115,6 +115,7 @@ public class WorkspaceService {
         }
     }
 
+    @Transactional
     public void delete(WorkspaceEntity entity) {
         if (entity.workspaceId != null) {
             try {
