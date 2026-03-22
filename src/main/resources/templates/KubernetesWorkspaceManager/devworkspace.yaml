@@ -1,0 +1,51 @@
+apiVersion: workspace.devfile.io/v1alpha2
+kind: DevWorkspace
+metadata:
+  name: {workspaceName}
+  namespace: {namespace}
+  annotations:
+    che.eclipse.org/che-editor: che-incubator/che-code/latest
+  labels:
+    app: tsd-agent-workspace
+    tsd-agent.workspace-id: {workspaceName}
+spec:
+{#if routingClass}
+  routingClass: {routingClass}
+{/if}
+  started: true
+  contributions:
+    - name: editor
+      kubernetes:
+        name: {editorTemplateName}
+  template:
+{#if devworkspaceConfigNamespace}
+    attributes:
+      controller.devfile.io/devworkspace-config:
+        name: devworkspace-config
+        namespace: {devworkspaceConfigNamespace}
+{/if}
+    projects:
+      - name: project
+        git:
+          remotes:
+            origin: "{gitUrl}"
+{#if gitBranch}
+          checkoutFrom:
+            revision: {gitBranch}
+{/if}
+    components:
+      - name: workspace
+        container:
+          image: {image}
+          mountSources: true
+          args:
+            - tail
+            - "-f"
+            - /dev/null
+{#if envVars}
+          env:
+{#for env in envVars}
+            - name: {env.name}
+              value: "{env.value}"
+{/for}
+{/if}
