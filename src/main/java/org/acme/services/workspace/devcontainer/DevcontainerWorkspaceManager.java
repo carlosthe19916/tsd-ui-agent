@@ -133,6 +133,26 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
         return Files.isDirectory(Path.of(worktreePath));
     }
 
+    @Override
+    public WorkspaceHealthStatus healthStatus(String workspaceId) {
+        String containerId = parseContainerId(workspaceId);
+        if (containerId == null || containerId.isBlank() || "unknown".equals(containerId)) {
+            return WorkspaceHealthStatus.error("No container ID");
+        }
+        try {
+            InspectContainerResponse info = dockerClient.inspectContainerCmd(containerId).exec();
+            InspectContainerResponse.ContainerState state = info.getState();
+            if (Boolean.TRUE.equals(state.getRunning())) {
+                return WorkspaceHealthStatus.running();
+            }
+            return WorkspaceHealthStatus.stopped("Container is stopped");
+        } catch (com.github.dockerjava.api.exception.NotFoundException e) {
+            return WorkspaceHealthStatus.error("Container does not exist");
+        } catch (Exception e) {
+            return WorkspaceHealthStatus.error(e.getMessage());
+        }
+    }
+
     private static String parseContainerId(String workspaceId) {
         int colonIdx = workspaceId.indexOf(':');
         return colonIdx >= 0 ? workspaceId.substring(0, colonIdx) : workspaceId;

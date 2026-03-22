@@ -20,6 +20,8 @@ import org.acme.mapper.WorkspaceMapper;
 import org.acme.models.jpa.entity.TaskEntity;
 import org.acme.models.jpa.entity.WorkspaceEntity;
 import org.acme.services.WorkspaceService;
+import org.acme.services.workspace.WorkspaceHealthStatus;
+import org.acme.services.workspace.WorkspaceManager;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -36,6 +38,9 @@ public class WorkspaceResource {
 
     @Inject
     WorkspaceService workspaceService;
+
+    @Inject
+    WorkspaceManager workspaceManager;
 
     @GET
     public List<WorkspaceDto> list(@QueryParam("gitId") Long gitId) {
@@ -76,6 +81,17 @@ public class WorkspaceResource {
         return Response.status(Response.Status.CREATED)
                 .entity(workspaceMapper.toDto(entity))
                 .build();
+    }
+
+    @GET
+    @Path("/{id}/status")
+    public WorkspaceHealthStatus status(@PathParam("id") Long id) {
+        WorkspaceEntity entity = (WorkspaceEntity) WorkspaceEntity.findByIdOptional(id)
+                .orElseThrow(NotFoundException::new);
+        if (entity.workspaceId == null) {
+            return WorkspaceHealthStatus.stopped("not provisioned");
+        }
+        return workspaceManager.healthStatus(entity.workspaceId);
     }
 
     @DELETE

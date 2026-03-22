@@ -5,6 +5,7 @@ import jakarta.inject.Inject;
 import org.acme.services.workspace.ExecutionMode;
 import org.acme.services.workspace.Workspace;
 import org.acme.services.workspace.WorkspaceException;
+import org.acme.services.workspace.WorkspaceHealthStatus;
 import org.acme.services.workspace.WorkspaceManager;
 import org.acme.services.workspace.WorkspaceManagerType;
 import org.acme.services.workspace.WorkspaceRequest;
@@ -77,6 +78,22 @@ public class KubernetesWorkspaceManager implements WorkspaceManager {
             return true;
         } catch (Exception e) {
             return false;
+        }
+    }
+
+    @Override
+    public WorkspaceHealthStatus healthStatus(String workspaceId) {
+        try {
+            String phase = getDevWorkspacePhase(workspaceId);
+            if ("Running".equals(phase)) {
+                return WorkspaceHealthStatus.running();
+            }
+            if ("Failed".equals(phase)) {
+                return WorkspaceHealthStatus.error("DevWorkspace phase: Failed");
+            }
+            return WorkspaceHealthStatus.stopped("DevWorkspace phase: " + phase);
+        } catch (Exception e) {
+            return WorkspaceHealthStatus.error(e.getMessage());
         }
     }
 

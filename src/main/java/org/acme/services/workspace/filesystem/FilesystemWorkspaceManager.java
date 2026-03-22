@@ -64,4 +64,12 @@ public class FilesystemWorkspaceManager implements WorkspaceManager {
     public boolean exists(String workspaceId) {
         return Files.isDirectory(Path.of(workspaceId));
     }
+
+    @Override
+    public WorkspaceHealthStatus healthStatus(String workspaceId) {
+        if (Files.isDirectory(Path.of(workspaceId))) {
+            return WorkspaceHealthStatus.running();
+        }
+        return WorkspaceHealthStatus.error("Directory does not exist: " + workspaceId);
+    }
 }
