@@ -130,6 +130,14 @@
             <artifactId>quarkus-docker-client</artifactId>
             <version>0.0.5</version>
         </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-kubernetes-client</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-qute</artifactId>
+        </dependency>
     </dependencies>
 
     <build>

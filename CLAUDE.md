@@ -58,7 +58,3 @@ org.acme
 - **Dev**: Ollama via OpenAI-compatible API (`localhost:11434`)
 - **Prod**: Anthropic Claude via `quarkus-langchain4j-anthropic`
 - Provider selection via `quarkus.langchain4j.chat-model.provider` per Quarkus profile
-
-### Reference Submodules
-
-`.modules/` contains git submodules of reference projects (searchpe, camel, etc.) used for pattern reference and testing against real codebases.
