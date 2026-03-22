@@ -244,18 +244,18 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
 
             switch (codingAgent) {
                 case CLAUDE -> {
-                    effectiveImage = useProjectImage ? null : "node:20";
-                    remoteUser = "node";
-                    postCreateCommand = "npm install -g @anthropic-ai/claude-code@latest";
-                    mountList.add("source=claude-config-${devcontainerId},target=/home/node/.claude,type=volume");
+                    effectiveImage = useProjectImage ? null : image;
+                    remoteUser = "vscode";
+                    postCreateCommand = "curl -fsSL https://claude.ai/install.sh | bash";
+                    mountList.add("source=claude-data-${devcontainerId},target=/home/vscode/.claude,type=volume");
                 }
                 case OPENCODE -> {
                     effectiveImage = useProjectImage ? null : image;
                     remoteUser = "vscode";
                     postCreateCommand = "curl -fsSL https://opencode.ai/install | bash";
-                    int port = portAllocator.allocate(worktreeAlias);
-                    postStartCommand = "/home/vscode/.opencode/bin/opencode serve --port " + port + " --hostname 0.0.0.0 > /tmp/opencode-server.log 2>&1 & while ! curl -s http://localhost:" + port + " > /dev/null 2>&1; do sleep 1; done";
-                    appPort = List.of(port);
+                    int openCodePort = portAllocator.allocate(worktreeAlias);
+                    postStartCommand = "/home/vscode/.opencode/bin/opencode serve --port " + openCodePort + " --hostname 0.0.0.0 > /tmp/opencode-server.log 2>&1 & while ! curl -s http://localhost:" + openCodePort + " > /dev/null 2>&1; do sleep 1; done";
+                    appPort = List.of(openCodePort);
                     mountList.add("source=opencode-data-${devcontainerId},target=/home/vscode/.local/share/opencode,type=volume");
                 }
                 default -> throw new WorkspaceException("Unsupported coding agent: " + codingAgent);
