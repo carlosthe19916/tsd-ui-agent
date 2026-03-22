@@ -49,7 +49,11 @@ export const WorkspaceTypeLabel: React.FC<{ workspaceId?: string }> = ({
   const type = workspaceType(workspaceId);
   if (!type) return <Label color="grey">-</Label>;
   const { text, color } = typeLabel[type];
-  return <Label color={color} isCompact>{text}</Label>;
+  return (
+    <Label color={color} isCompact>
+      {text}
+    </Label>
+  );
 };
 
 export const WorkspaceStatusLabel: React.FC<{ ws: WorkspaceDto }> = ({

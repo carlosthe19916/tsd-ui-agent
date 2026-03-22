@@ -104,80 +104,85 @@ const GitExpandedContent: React.FC<{ gitId: number }> = ({ gitId }) => {
     <>
       <DataList aria-label="Workspaces list" isCompact>
         {workspaces.map((ws) => {
-          const { containerId, path } = parseWorkspaceId(
-            ws.workspaceId,
-          );
-          return <DataListItem key={ws.id} aria-labelledby={`ws-${ws.id}`}>
-            <DataListItemRow>
-              <DataListItemCells
-                dataListCells={[
-                  <DataListCell key="info" width={3} isFilled>
-                    <Flex
-                      direction={{ default: "column" }}
-                      gap={{ default: "gapXs" }}
-                    >
-                      {containerId && (
-                        <FlexItem id={`ws-${ws.id}`}>
-                          Container: <Tooltip content={containerId}>
-                            <code>{containerId.substring(0, 12)}</code>
-                          </Tooltip>
+          const { containerId, path } = parseWorkspaceId(ws.workspaceId);
+          return (
+            <DataListItem key={ws.id} aria-labelledby={`ws-${ws.id}`}>
+              <DataListItemRow>
+                <DataListItemCells
+                  dataListCells={[
+                    <DataListCell key="info" width={3} isFilled>
+                      <Flex
+                        direction={{ default: "column" }}
+                        gap={{ default: "gapXs" }}
+                      >
+                        {containerId && (
+                          <FlexItem id={`ws-${ws.id}`}>
+                            Container:{" "}
+                            <Tooltip content={containerId}>
+                              <code>{containerId.substring(0, 12)}</code>
+                            </Tooltip>
+                          </FlexItem>
+                        )}
+                        <FlexItem
+                          {...(!containerId ? { id: `ws-${ws.id}` } : {})}
+                        >
+                          Path:{" "}
+                          <Truncate
+                            maxCharsDisplayed={40}
+                            content={path ?? "-"}
+                          />
                         </FlexItem>
-                      )}
-                      <FlexItem {...(!containerId ? { id: `ws-${ws.id}` } : {})}>
-                        Path: <Truncate maxCharsDisplayed={40} content={path ?? "-"} />
-                      </FlexItem>
-                      <FlexItem>
-                        <WorkspaceTypeLabel
-                          workspaceId={ws.workspaceId}
-                        />
-                      </FlexItem>
-                    </Flex>
-                  </DataListCell>,
-                  <DataListCell key="status" alignRight>
-                    <WorkspaceStatusLabel ws={ws} />
-                  </DataListCell>,
-                ]}
-              />
-              <DataListAction
-                id={`ws-action-${ws.id}`}
-                aria-label="Workspace actions"
-                aria-labelledby={`ws-${ws.id} ws-action-${ws.id}`}
-              >
-                <Dropdown
-                  isOpen={openWsKebabId === ws.id}
-                  onSelect={() => setOpenWsKebabId(null)}
-                  onOpenChange={(isOpen) =>
-                    setOpenWsKebabId(isOpen ? (ws.id ?? null) : null)
-                  }
-                  toggle={(toggleRef) => (
-                    <MenuToggle
-                      ref={toggleRef}
-                      aria-label="Workspace kebab toggle"
-                      variant="plain"
-                      onClick={() =>
-                        setOpenWsKebabId(
-                          openWsKebabId === ws.id ? null : (ws.id ?? null),
-                        )
-                      }
-                      isExpanded={openWsKebabId === ws.id}
-                    >
-                      <EllipsisVIcon />
-                    </MenuToggle>
-                  )}
-                  popperProps={{ position: "right" }}
+                        <FlexItem>
+                          <WorkspaceTypeLabel workspaceId={ws.workspaceId} />
+                        </FlexItem>
+                      </Flex>
+                    </DataListCell>,
+                    <DataListCell key="status" alignRight>
+                      <WorkspaceStatusLabel ws={ws} />
+                    </DataListCell>,
+                  ]}
+                />
+                <DataListAction
+                  id={`ws-action-${ws.id}`}
+                  aria-label="Workspace actions"
+                  aria-labelledby={`ws-${ws.id} ws-action-${ws.id}`}
                 >
-                  <DropdownList>
-                    <DropdownItem
-                      key="delete"
-                      onClick={() => setWsToDelete(ws)}
-                    >
-                      Delete
-                    </DropdownItem>
-                  </DropdownList>
-                </Dropdown>
-              </DataListAction>
-            </DataListItemRow>
-          </DataListItem>
+                  <Dropdown
+                    isOpen={openWsKebabId === ws.id}
+                    onSelect={() => setOpenWsKebabId(null)}
+                    onOpenChange={(isOpen) =>
+                      setOpenWsKebabId(isOpen ? (ws.id ?? null) : null)
+                    }
+                    toggle={(toggleRef) => (
+                      <MenuToggle
+                        ref={toggleRef}
+                        aria-label="Workspace kebab toggle"
+                        variant="plain"
+                        onClick={() =>
+                          setOpenWsKebabId(
+                            openWsKebabId === ws.id ? null : (ws.id ?? null),
+                          )
+                        }
+                        isExpanded={openWsKebabId === ws.id}
+                      >
+                        <EllipsisVIcon />
+                      </MenuToggle>
+                    )}
+                    popperProps={{ position: "right" }}
+                  >
+                    <DropdownList>
+                      <DropdownItem
+                        key="delete"
+                        onClick={() => setWsToDelete(ws)}
+                      >
+                        Delete
+                      </DropdownItem>
+                    </DropdownList>
+                  </Dropdown>
+                </DataListAction>
+              </DataListItemRow>
+            </DataListItem>
+          );
         })}
       </DataList>
 
@@ -388,9 +393,7 @@ export const GitList: React.FC = () => {
               const gitId = Number(id.replace("git-", ""));
               const git = currentPageItems?.find((g) => g.id === gitId);
               if (git) {
-                setSelectedGit(
-                  selectedGit?.id === git.id ? null : git,
-                );
+                setSelectedGit(selectedGit?.id === git.id ? null : git);
               }
             }}
           >
@@ -411,13 +414,9 @@ export const GitList: React.FC = () => {
                           <FlexItem id={`git-label-${git.id}`}>
                             {git.url}
                           </FlexItem>
+                          <FlexItem>Branch: {git.branch || "Default"}</FlexItem>
                           <FlexItem>
-                            Branch: {git.branch || "Default"}
-                          </FlexItem>
-                          <FlexItem>
-                            <small>
-                              Type: {git.vendorType || "Unknown"}
-                            </small>
+                            <small>Type: {git.vendorType || "Unknown"}</small>
                           </FlexItem>
                           <FlexItem>
                             <Icon>
@@ -463,9 +462,7 @@ export const GitList: React.FC = () => {
                       <DropdownList>
                         <DropdownItem
                           key="edit"
-                          onClick={() =>
-                            setModalState({ type: "edit", git })
-                          }
+                          onClick={() => setModalState({ type: "edit", git })}
                         >
                           Edit
                         </DropdownItem>

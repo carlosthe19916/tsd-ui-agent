@@ -25,9 +25,7 @@ export const DefaultLayout: React.FC<DefaultLayoutProps> = ({ children }) => {
       skipToContent={PageSkipToContent}
       mainContainerId={pageId}
     >
-      <PageContentWithDrawerProvider>
-        {children}
-      </PageContentWithDrawerProvider>
+      <PageContentWithDrawerProvider>{children}</PageContentWithDrawerProvider>
     </Page>
   );
 };
