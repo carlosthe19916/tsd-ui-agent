@@ -28,7 +28,7 @@ import java.util.*;
 public class KubernetesWorkspaceManager implements WorkspaceManager {
 
     private static final Logger LOG = Logger.getLogger(KubernetesWorkspaceManager.class);
-    private static final String CONTAINER_NAME = "workspace";
+    private static final String CONTAINER_NAME = "tools";
 
     private static final CustomResourceDefinitionContext DEV_WORKSPACE_CONTEXT =
             new CustomResourceDefinitionContext.Builder()
@@ -48,11 +48,15 @@ public class KubernetesWorkspaceManager implements WorkspaceManager {
 
     @CheckedTemplate
     public static class Templates {
+        public static native TemplateInstance devfile(
+                String workspaceName, String image,
+                List<EnvVar> envVars);
+
         public static native TemplateInstance devworkspace(
                 String workspaceName, String namespace, String editorTemplateName,
                 String routingClass, String devworkspaceConfigNamespace,
                 String gitUrl, String gitBranch, String image,
-                List<EnvVar> envVars);
+                List<EnvVar> envVars, String devfileContent);
 
         public static native TemplateInstance editorTemplate(
                 String templateName, String namespace,
@@ -190,6 +194,8 @@ public class KubernetesWorkspaceManager implements WorkspaceManager {
             gitUrl = gitUrl.replace("https://", "https://oauth2:" + request.gitToken() + "@");
         }
 
+        String devfileContent = renderDevfile(workspaceName, envVars);
+
         String yaml = Templates.devworkspace(
                 workspaceName, namespace, editorTemplateName,
                 routingClass.orElse(null),
@@ -197,10 +203,23 @@ public class KubernetesWorkspaceManager implements WorkspaceManager {
                 gitUrl,
                 (request.gitBranch() != null && !request.gitBranch().isBlank()) ? request.gitBranch() : null,
                 image,
-                envVars.isEmpty() ? null : envVars
+                envVars.isEmpty() ? null : envVars,
+                devfileContent
         ).render();
 
         return Serialization.unmarshal(yaml, GenericKubernetesResource.class);
+    }
+
+    String renderDevfile(String workspaceName, List<EnvVar> envVars) {
+        String devfile = Templates.devfile(
+                workspaceName, image,
+                envVars.isEmpty() ? null : envVars
+        ).render();
+
+        // Indent each line by 6 spaces for embedding in the YAML block scalar annotation
+        return devfile.lines()
+                .map(line -> "      " + line)
+                .collect(java.util.stream.Collectors.joining("\n"));
     }
 
     GenericKubernetesResource renderEditorTemplate(String workspaceName, String templateName) {

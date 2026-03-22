@@ -5,6 +5,8 @@ metadata:
   namespace: {namespace}
   annotations:
     che.eclipse.org/che-editor: che-incubator/che-code/latest
+    che.eclipse.org/devfile: |
+{devfileContent}
   labels:
     app: tsd-agent-workspace
     tsd-agent.workspace-id: {workspaceName}
@@ -20,6 +22,7 @@ spec:
   template:
     attributes:
       controller.devfile.io/scc: container-build
+      controller.devfile.io/storage-type: per-user
 {#if devworkspaceConfigNamespace}
       controller.devfile.io/devworkspace-config:
         name: devworkspace-config
@@ -35,10 +38,12 @@ spec:
             revision: {gitBranch}
 {/if}
     components:
-      - name: workspace
+      - name: tools
         container:
           image: {image}
+          memoryLimit: 2Gi
           mountSources: true
+          sourceMapping: /projects
           args:
             - tail
             - "-f"

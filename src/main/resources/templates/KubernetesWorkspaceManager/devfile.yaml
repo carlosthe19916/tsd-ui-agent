@@ -1,0 +1,20 @@
+schemaVersion: 2.2.2
+metadata:
+  name: {workspaceName}
+components:
+  - container:
+      image: {image}
+      memoryLimit: 2Gi
+      mountSources: true
+      args:
+        - tail
+        - '-f'
+        - /dev/null
+{#if envVars}
+      env:
+{#for env in envVars}
+        - name: {env.name}
+          value: '{env.value}'
+{/for}
+{/if}
+    name: tools

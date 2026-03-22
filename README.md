@@ -11,12 +11,22 @@ ollama pull granite3.3:8b
 ollama serve
 ```
 
+### Filesystem mode
+
+- Install git
+
+### Devcontainer Mode
+
+- Install git
+- Docker
+- Install devcontainer-cli
+
 ### Kubernetes Mode
 
 - Start Minikube:
 
 ```shell
-minikube start --addons=ingress,dashboard --memory=10240 --cpus=4 --disk-size=50GB
+minikube start --addons=ingress,dashboard --vm=true --memory=15360 --cpus=6 --disk-size=70GB
 ```
 
 - Install `chectl` if you don't have it. See https://github.com/che-incubator/chectl#installation
@@ -41,7 +51,16 @@ kubectl patch checluster eclipse-che -n eclipse-che --type=merge -p '
             "image": "quay.io/devfile/universal-developer-image:ubi8-latest"
           }
         }
-      ]
+      ],
+      "security": {
+        "containerSecurityContext": {
+          "runAsUser": 1001,
+          "podSecurityContext": {
+            "runAsUser": 1001,
+            "fsGroup": 1001
+          }
+        }
+      }
     }
   }
 }'
