@@ -29,6 +29,14 @@
         "-Dquarkus.log.level=WARN",
         "org.apache.camel:camel-jbang-mcp:4.18.0:runner"
       ]
+    },
+    "quarkus-mcp": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "http://localhost:8080/q/dev-mcp"
+      ]
     }
   }
 }

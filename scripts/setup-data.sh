@@ -82,15 +82,15 @@ REDHAT_JIRA_CREDENTIAL_ID=$(create_credential jira-redhat "$REDHAT_JIRA_TOKEN")
 REDHAT_GITLAB_CREDENTIAL_ID=$(create_credential gitlab-redhat "$REDHAT_GITLAB_PAT")
 
 # Git repositories
-TSD_UI_AGENT_GIT_ID=$(create_git git@github.com:carlosthe19916/tsd-ui-agent.git "$GITHUB_CREDENTIAL_ID" GITHUB)
+TSD_UI_AGENT_GIT_ID=$(create_git https://github.com/carlosthe19916/tsd-ui-agent.git "$GITHUB_CREDENTIAL_ID" GITHUB)
 
-TRUSTIFY_GIT_ID=$(create_git git@github.com:trustificationdemo/trustify.git "$GITHUB_CREDENTIAL_ID" GITHUB \
-  git@github.com:carlosthe19916/trustify.git)
-TRUSTIFY_UI_GIT_ID=$(create_git git@github.com:trustificationdemo/trustify-ui.git "$GITHUB_CREDENTIAL_ID" GITHUB \
-  git@github.com:carlosthe19916/trustify-ui.git)
+TRUSTIFY_GIT_ID=$(create_git https://github.com/trustificationdemo/trustify.git "$GITHUB_CREDENTIAL_ID" GITHUB \
+  https://github.com/carlosthe19916/trustify.git)
+TRUSTIFY_UI_GIT_ID=$(create_git https://github.com/trustificationdemo/trustify-ui.git "$GITHUB_CREDENTIAL_ID" GITHUB \
+  https://github.com/carlosthe19916/trustify-ui.git)
 
-PACKAGES_REDHAT_GIT_ID=$(create_git git@gitlab.cee.redhat.com:hosted-pulp/ui-packages.redhat.com.git "$REDHAT_GITLAB_CREDENTIAL_ID" GITLAB \
-  git@gitlab.cee.redhat.com:cferiavi/ui-packages.redhat.com.git)
+PACKAGES_REDHAT_GIT_ID=$(create_git https://gitlab.cee.redhat.com/hosted-pulp/ui-packages.redhat.com.git "$REDHAT_GITLAB_CREDENTIAL_ID" GITLAB \
+  https://gitlab.cee.redhat.com/cferiavi/ui-packages.redhat.com.git)
 
 # Projects
 TSD_UI_AGENT_PROJECT_ID=$(create_project tsd-ui-agent GITHUB \

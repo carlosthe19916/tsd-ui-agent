@@ -28,8 +28,8 @@ const buildSchema = (existingGits: GitDto[], editId: number | undefined) =>
       .string()
       .required("URL is required")
       .matches(
-        /^(https?:\/\/.+|git@[^:]+:.+|git:\/\/.+)$/,
-        "Must be a valid Git URL (e.g. https://github.com/org/repo.git or git@github.com:org/repo.git)",
+        /^https:\/\/.+$/,
+        "Must be an HTTPS Git URL (e.g. https://github.com/org/repo.git)",
       )
       .test(
         "unique-url-branch",
@@ -72,10 +72,10 @@ const buildSchema = (existingGits: GitDto[], editId: number | undefined) =>
       .default("")
       .test(
         "valid-git-url",
-        "Must be a valid Git URL (e.g. https://github.com/org/repo.git or git@github.com:org/repo.git)",
+        "Must be an HTTPS Git URL (e.g. https://github.com/org/repo.git)",
         (value) => {
           if (!value) return true;
-          return /^(https?:\/\/.+|git@[^:]+:.+|git:\/\/.+)$/.test(value);
+          return /^https:\/\/.+$/.test(value);
         },
       ),
   });

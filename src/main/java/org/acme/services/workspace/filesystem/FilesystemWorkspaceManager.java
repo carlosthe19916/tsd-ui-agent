@@ -26,9 +26,17 @@ public class FilesystemWorkspaceManager implements WorkspaceManager {
         String cloneDir = Path.of(baseDir, "repositories", sanitized, "default").toString();
 
         if (!Files.isDirectory(Path.of(cloneDir))) {
-            gitManager.cloneRepository(request.gitUrl(), request.gitBranch(), cloneDir);
+            String cloneUrl = request.gitUrl();
+            if (request.gitToken() != null && cloneUrl != null && cloneUrl.startsWith("https://")) {
+                cloneUrl = cloneUrl.replace("https://", "https://oauth2:" + request.gitToken() + "@");
+            }
+            gitManager.cloneRepository(cloneUrl, request.gitBranch(), cloneDir);
             if (request.forkUrl() != null && !request.forkUrl().isBlank()) {
-                gitManager.addForkRemote(cloneDir, request.forkUrl());
+                String forkUrl = request.forkUrl();
+                if (request.gitToken() != null && forkUrl.startsWith("https://")) {
+                    forkUrl = forkUrl.replace("https://", "https://oauth2:" + request.gitToken() + "@");
+                }
+                gitManager.addForkRemote(cloneDir, forkUrl);
             }
         } else {
             String branch = request.gitBranch() != null && !request.gitBranch().isBlank() ? request.gitBranch() : "HEAD";
