@@ -13,6 +13,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
+import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 @WorkspaceToolsServiceType(type = ExecutionMode.KUBERNETES)
@@ -21,8 +23,23 @@ public class KubernetesWorkspaceToolsService implements WorkspaceToolsService {
 
     private static final Logger LOG = Logger.getLogger(KubernetesWorkspaceToolsService.class);
 
-    @Inject
-    KubernetesConfig config;
+    @ConfigProperty(name = "tsd-agent.kubernetes.namespace", defaultValue = "tsd-agent-workspaces")
+    public String namespace;
+
+    @ConfigProperty(name = "tsd-agent.kubernetes.image", defaultValue = "mcr.microsoft.com/devcontainers/base:ubuntu")
+    public String image;
+
+    @ConfigProperty(name = "tsd-agent.kubernetes.working-dir", defaultValue = "/projects/project")
+    public String workingDir;
+
+    @ConfigProperty(name = "tsd-agent.kubernetes.env-passthrough", defaultValue = "ANTHROPIC_API_KEY")
+    public Optional<List<String>> envPassthrough;
+
+    @ConfigProperty(name = "tsd-agent.kubernetes.service-account")
+    public Optional<String> serviceAccount;
+
+    @ConfigProperty(name = "tsd-agent.kubernetes.che-url")
+    public Optional<String> cheUrl;
 
     @ConfigProperty(name = "tsd-agent.terminal.exec-command")
     String terminalExecCommand;
@@ -32,13 +49,13 @@ public class KubernetesWorkspaceToolsService implements WorkspaceToolsService {
 
     @Override
     public void openIDE(Workspace workspace) {
-        String cheUrl = config.cheUrl.orElse(null);
+        String cheUrl = this.cheUrl.orElse(null);
         if (cheUrl != null) {
-            String dashboardUrl = cheUrl + "/dashboard/#/ide/" + config.namespace + "/" + workspace.id();
+            String dashboardUrl = cheUrl + "/dashboard/#/ide/" + namespace + "/" + workspace.id();
             LOG.infof("Eclipse Che IDE available at: %s", dashboardUrl);
         } else {
             LOG.infof("To attach VS Code to the Kubernetes workspace, use the Kubernetes extension: " +
-                    "devworkspace=%s, namespace=%s", workspace.id(), config.namespace);
+                    "devworkspace=%s, namespace=%s", workspace.id(), namespace);
         }
     }
 
@@ -50,7 +67,7 @@ public class KubernetesWorkspaceToolsService implements WorkspaceToolsService {
             String script = """
                     #!/bin/bash
                     %s exec -it %s -n %s -c workspace -- /bin/bash
-                    """.formatted(config.command, pod, config.namespace);
+                    """.formatted(pod, namespace);
             Files.writeString(scriptPath, script);
             Files.setPosixFilePermissions(scriptPath, Set.of(
                     PosixFilePermission.OWNER_READ,
@@ -74,8 +91,7 @@ public class KubernetesWorkspaceToolsService implements WorkspaceToolsService {
     public String openClaude(Workspace workspace, Long taskId, String requirement, String planApiUrl, String existingSessionId) {
         try {
             String pod = podNameOf(workspace);
-            String kubectlExecPrefix = "%s exec -it %s -n %s -c workspace --".formatted(
-                    config.command, pod, config.namespace);
+            String kubectlExecPrefix = "%s exec -it %s -n %s -c workspace --".formatted(pod, namespace);
 
             if (existingSessionId != null) {
                 Path resumeScriptPath = Files.createTempFile("tsd-claude-resume-", ".sh");
