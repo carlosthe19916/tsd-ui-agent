@@ -1,6 +1,7 @@
-package org.acme.services.workspace.devcontainer;
+package org.acme.services.workspace.kubernetes;
 
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import org.acme.services.workspace.ExecutionMode;
 import org.acme.services.workspace.Workspace;
 import org.acme.services.workspace.WorkspaceToolsService;
@@ -14,17 +15,14 @@ import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.Set;
 
-@WorkspaceToolsServiceType(type = ExecutionMode.DOCKER)
+@WorkspaceToolsServiceType(type = ExecutionMode.KUBERNETES)
 @ApplicationScoped
-public class DevcontainerWorkspaceToolsService implements WorkspaceToolsService {
+public class KubernetesWorkspaceToolsService implements WorkspaceToolsService {
 
-    private static final Logger LOG = Logger.getLogger(DevcontainerWorkspaceToolsService.class);
+    private static final Logger LOG = Logger.getLogger(KubernetesWorkspaceToolsService.class);
 
-    @ConfigProperty(name = "tsd-agent.devcontainer.command")
-    public String command;
-
-    @ConfigProperty(name = "tsd-agent.devcontainer.image")
-    public String image;
+    @Inject
+    KubernetesConfig config;
 
     @ConfigProperty(name = "tsd-agent.terminal.exec-command")
     String terminalExecCommand;
@@ -34,25 +32,25 @@ public class DevcontainerWorkspaceToolsService implements WorkspaceToolsService 
 
     @Override
     public void openIDE(Workspace workspace) {
-        try {
-            String folder = hostFolderOf(workspace);
-            new ProcessBuilder(command, "open", "--workspace-folder", folder)
-                    .inheritIO()
-                    .start();
-        } catch (IOException e) {
-            LOG.warnf("Failed to open IDE via devcontainer open: %s. Try opening VS Code manually and attaching to the container.", e.getMessage());
+        String cheUrl = config.cheUrl.orElse(null);
+        if (cheUrl != null) {
+            String dashboardUrl = cheUrl + "/dashboard/#/ide/" + config.namespace + "/" + workspace.id();
+            LOG.infof("Eclipse Che IDE available at: %s", dashboardUrl);
+        } else {
+            LOG.infof("To attach VS Code to the Kubernetes workspace, use the Kubernetes extension: " +
+                    "devworkspace=%s, namespace=%s", workspace.id(), config.namespace);
         }
     }
 
     @Override
     public void openTerminal(Workspace workspace) {
         try {
-            String folder = hostFolderOf(workspace);
-            Path scriptPath = Files.createTempFile("tsd-devcontainer-term-", ".sh");
+            String pod = podNameOf(workspace);
+            Path scriptPath = Files.createTempFile("tsd-k8s-term-", ".sh");
             String script = """
                     #!/bin/bash
-                    %s exec --workspace-folder %s /bin/bash
-                    """.formatted(command, folder);
+                    %s exec -it %s -n %s -c workspace -- /bin/bash
+                    """.formatted(config.command, pod, config.namespace);
             Files.writeString(scriptPath, script);
             Files.setPosixFilePermissions(scriptPath, Set.of(
                     PosixFilePermission.OWNER_READ,
@@ -61,7 +59,7 @@ public class DevcontainerWorkspaceToolsService implements WorkspaceToolsService 
             ));
 
             String resolved = terminalExecCommand
-                    .replace("%s", folder)
+                    .replace("%s", workspace.id())
                     .replace("%c", scriptPath.toString());
             String[] parts = resolved.split("\\s+");
             new ProcessBuilder(parts)
@@ -75,14 +73,16 @@ public class DevcontainerWorkspaceToolsService implements WorkspaceToolsService 
     @Override
     public String openClaude(Workspace workspace, Long taskId, String requirement, String planApiUrl, String existingSessionId) {
         try {
-            String folder = hostFolderOf(workspace);
+            String pod = podNameOf(workspace);
+            String kubectlExecPrefix = "%s exec -it %s -n %s -c workspace --".formatted(
+                    config.command, pod, config.namespace);
 
             if (existingSessionId != null) {
                 Path resumeScriptPath = Files.createTempFile("tsd-claude-resume-", ".sh");
                 String resumeScript = """
                         #!/bin/bash
-                        %s exec --workspace-folder %s %s --resume %s
-                        """.formatted(command, folder, claudeCommand, existingSessionId);
+                        %s %s --resume %s
+                        """.formatted(kubectlExecPrefix, claudeCommand, existingSessionId);
                 Files.writeString(resumeScriptPath, resumeScript);
                 Files.setPosixFilePermissions(resumeScriptPath, Set.of(
                         PosixFilePermission.OWNER_READ,
@@ -91,7 +91,7 @@ public class DevcontainerWorkspaceToolsService implements WorkspaceToolsService 
                 ));
 
                 String resolved = terminalExecCommand
-                        .replace("%s", folder)
+                        .replace("%s", workspace.id())
                         .replace("%c", resumeScriptPath.toString());
                 String[] parts = resolved.split("\\s+");
                 new ProcessBuilder(parts)
@@ -116,14 +116,14 @@ public class DevcontainerWorkspaceToolsService implements WorkspaceToolsService 
                     echo ""
                     read -p "Should Claude create a plan for this? (yes/no): " confirm
                     if [ "$confirm" = "yes" ]; then
-                      %s exec --workspace-folder %s %s --session-id %s --permission-mode plan \\
+                      %s %s --session-id %s --permission-mode plan \\
                         --append-system-prompt "Once the plan is ready, ask the user: 'Would you like me to save this plan to the app?' If they confirm, do an HTTP PATCH to $TASK_URL with a JSON body containing the field 'plan' as a plain markdown string." \\
                         "$(cat <<'PROMPT_EOF'
                     %s
                     PROMPT_EOF
                     )"
                     fi
-                    """.formatted(planApiUrl, requirement, command, folder, claudeCommand, sessionId, requirement);
+                    """.formatted(planApiUrl, requirement, kubectlExecPrefix, claudeCommand, sessionId, requirement);
 
             Files.writeString(scriptPath, script);
             Files.setPosixFilePermissions(scriptPath, Set.of(
@@ -133,7 +133,7 @@ public class DevcontainerWorkspaceToolsService implements WorkspaceToolsService 
             ));
 
             String resolved = terminalExecCommand
-                    .replace("%s", folder)
+                    .replace("%s", workspace.id())
                     .replace("%c", scriptPath.toString());
             String[] parts = resolved.split("\\s+");
             new ProcessBuilder(parts)
@@ -145,9 +145,9 @@ public class DevcontainerWorkspaceToolsService implements WorkspaceToolsService 
         }
     }
 
-    private static String hostFolderOf(Workspace workspace) {
-        if (workspace instanceof DevcontainerWorkspace dw) {
-            return dw.hostWorkspaceFolder();
+    private static String podNameOf(Workspace workspace) {
+        if (workspace instanceof KubernetesWorkspace kw) {
+            return kw.podName();
         }
         return workspace.id();
     }

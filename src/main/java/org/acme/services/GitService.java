@@ -11,7 +11,6 @@ import org.acme.mapper.GitMapper;
 import org.acme.models.jpa.entity.CredentialEntity;
 import org.acme.models.jpa.entity.GitEntity;
 import org.acme.models.jpa.entity.WorkspaceEntity;
-import org.acme.services.git.GitManager;
 import org.jboss.logging.Logger;
 
 import java.util.List;
@@ -22,9 +21,6 @@ import java.util.Map;
 public class GitService {
 
     private static final Logger LOG = Logger.getLogger(GitService.class);
-
-    @Inject
-    GitManager gitManager;
 
     @Inject
     GitMapper gitMapper;
@@ -44,30 +40,10 @@ public class GitService {
     }
 
     public GitEntity update(GitDto dto, GitEntity entity) {
-        String oldForkUrl = entity.forkUrl;
         gitMapper.updateEntity(dto, entity);
         entity.credential = resolveCredential(dto);
         normalizeBranch(entity);
         checkDuplicate(entity.url, entity.branch, entity.id);
-
-        List<WorkspaceEntity> workspaces = WorkspaceEntity.list("git", entity);
-        for (WorkspaceEntity ws : workspaces) {
-            if (ws.localPath != null) {
-                gitManager.setRemoteUrl(ws.localPath, entity.url);
-
-                String newForkUrl = entity.forkUrl;
-                boolean hadFork = oldForkUrl != null && !oldForkUrl.isBlank();
-                boolean hasFork = newForkUrl != null && !newForkUrl.isBlank();
-
-                if (!hadFork && hasFork) {
-                    gitManager.addForkRemote(ws.localPath, newForkUrl);
-                } else if (hadFork && hasFork && !oldForkUrl.equals(newForkUrl)) {
-                    gitManager.setForkRemoteUrl(ws.localPath, newForkUrl);
-                } else if (hadFork && !hasFork) {
-                    gitManager.removeForkRemote(ws.localPath);
-                }
-            }
-        }
 
         entity.persist();
         return entity;

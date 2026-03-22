@@ -11,20 +11,16 @@ import jakarta.transaction.Transactional;
 import jakarta.ws.rs.NotFoundException;
 import org.acme.dto.WorkspaceDto;
 import org.acme.mapper.WorkspaceMapper;
-import org.acme.models.jpa.entity.GitEntity;
 import org.acme.models.jpa.entity.WorkspaceEntity;
-import org.acme.services.git.GitManager;
+import org.acme.services.workspace.Workspace;
 import org.acme.services.workspace.WorkspaceManager;
+import org.acme.services.workspace.WorkspaceRequest;
 import org.jboss.logging.Logger;
 
 @ApplicationScoped
-@Transactional
 public class WorkspaceService {
 
     private static final Logger LOG = Logger.getLogger(WorkspaceService.class);
-
-    @Inject
-    GitManager gitManager;
 
     @Inject
     WorkspaceMapper workspaceMapper;
@@ -35,13 +31,14 @@ public class WorkspaceService {
     @Inject
     TransactionManager transactionManager;
 
+    @Transactional
     public WorkspaceEntity create(WorkspaceDto dto) {
         WorkspaceEntity entity = workspaceMapper.toEntity(dto);
         if (entity.git == null) {
             throw new NotFoundException("Git not found");
         }
 
-        entity.isCloneInProgress = true;
+        entity.isProvisioningInProgress = true;
         entity.persist();
 
         Long workspaceEntityId = entity.id;
@@ -53,85 +50,73 @@ public class WorkspaceService {
                 @Override
                 public void afterCompletion(int status) {
                     if (status == jakarta.transaction.Status.STATUS_COMMITTED) {
-                        triggerClone(workspaceEntityId);
+                        Thread.startVirtualThread(() -> doProvision(workspaceEntityId));
                     }
                 }
             });
         } catch (Exception e) {
-            throw new RuntimeException("Failed to register clone callback", e);
+            throw new RuntimeException("Failed to register provisioning callback", e);
         }
 
         return entity;
     }
 
-    void triggerClone(Long workspaceEntityId) {
-        Thread.startVirtualThread(() -> doClone(workspaceEntityId));
-    }
-
-    void doClone(Long workspaceEntityId) {
+    void doProvision(Long workspaceEntityId) {
         ManagedContext requestContext = Arc.container().requestContext();
         requestContext.activate();
         try {
-            record CloneContext(String url, String branch, String forkUrl) {}
+            record ProvisionContext(String gitUrl, String gitBranch, String gitToken, String forkUrl) {}
 
-            CloneContext context = QuarkusTransaction.requiringNew().call(() -> {
+            ProvisionContext context = QuarkusTransaction.requiringNew().call(() -> {
                 WorkspaceEntity entity = WorkspaceEntity.findById(workspaceEntityId);
                 if (entity == null || entity.git == null) {
-                    LOG.warnf("Workspace entity %d or its git not found during clone", workspaceEntityId);
+                    LOG.warnf("Workspace entity %d or its git not found during provisioning", workspaceEntityId);
                     return null;
                 }
-                return new CloneContext(entity.git.url, entity.git.branch, entity.git.forkUrl);
+                return new ProvisionContext(
+                        entity.git.url,
+                        entity.git.branch,
+                        entity.git.credential != null ? entity.git.credential.token : null,
+                        entity.git.forkUrl
+                );
             });
 
             if (context == null) {
                 return;
             }
 
-            String localPath = gitManager.cloneRepository(context.url(), context.branch());
-
-            if (context.forkUrl() != null && !context.forkUrl().isBlank()) {
-                gitManager.addForkRemote(localPath, context.forkUrl());
-            }
+            WorkspaceRequest request = new WorkspaceRequest(context.gitUrl(), context.gitBranch(), context.gitToken(), context.forkUrl());
+            Workspace ws = workspaceManager.provision(request);
 
             QuarkusTransaction.requiringNew().run(() -> {
                 WorkspaceEntity entity = WorkspaceEntity.findById(workspaceEntityId);
-                if (entity == null) {
-                    LOG.warnf("Workspace entity %d not found after clone", workspaceEntityId);
-                    return;
+                if (entity != null) {
+                    entity.workspaceId = ws.id();
+                    entity.isProvisioningInProgress = false;
+                    entity.persist();
                 }
-                entity.localPath = localPath;
-                entity.isCloneInProgress = false;
-                entity.persist();
             });
         } catch (Exception e) {
-            LOG.errorf(e, "Failed to clone git repository for workspace %d", workspaceEntityId);
+            LOG.errorf(e, "Failed to provision workspace %d", workspaceEntityId);
             try {
                 QuarkusTransaction.requiringNew().run(() -> {
                     WorkspaceEntity entity = WorkspaceEntity.findById(workspaceEntityId);
-                    if (entity == null) {
-                        return;
+                    if (entity != null) {
+                        entity.provisioningError = e.getMessage();
+                        entity.isProvisioningInProgress = false;
+                        entity.persist();
                     }
-                    entity.cloneError = e.getMessage();
-                    entity.isCloneInProgress = false;
-                    entity.persist();
                 });
             } catch (Exception inner) {
-                LOG.errorf(inner, "Failed to record clone error for workspace %d", workspaceEntityId);
+                LOG.errorf(inner, "Failed to record provisioning error for workspace %d", workspaceEntityId);
             }
         } finally {
             requestContext.terminate();
         }
     }
 
+    @Transactional
     public void delete(WorkspaceEntity entity) {
-        if (entity.localPath != null) {
-            try {
-                gitManager.deleteClonedDirectory(entity.localPath);
-            } catch (Exception e) {
-                LOG.warnf("Failed to delete cloned directory %s: %s", entity.localPath, e.getMessage());
-            }
-        }
-
         if (entity.workspaceId != null) {
             try {
                 workspaceManager.destroy(entity.workspaceId);

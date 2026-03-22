@@ -3,11 +3,13 @@ package org.acme.services.workspace;
 import java.util.Map;
 
 public record WorkspaceRequest(
-        String mainClonePath,
-        String branchAlias,
+        String gitUrl,
+        String gitBranch,
+        String gitToken,
+        String forkUrl,
         Map<String, String> environment
 ) {
-    public WorkspaceRequest(String mainClonePath, String branchAlias) {
-        this(mainClonePath, branchAlias, Map.of());
+    public WorkspaceRequest(String gitUrl, String gitBranch, String gitToken, String forkUrl) {
+        this(gitUrl, gitBranch, gitToken, forkUrl, Map.of());
     }
 }

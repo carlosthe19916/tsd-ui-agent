@@ -9,4 +9,6 @@ public interface WorkspaceManager {
     void destroy(String workspaceId) throws WorkspaceException;
 
     boolean exists(String workspaceId);
+
+    WorkspaceHealthStatus healthStatus(String workspaceId);
 }

@@ -1,11 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import type {
-  HubRequestParams,
-  New,
-  PlanDto,
-  WorkspaceDto,
-} from "@app/api/models";
+import type { HubRequestParams, New, PlanDto } from "@app/api/models";
+import { createWorkspace } from "@app/api/git-api";
 import {
   createChangeRequest,
   createTaskPlan,
@@ -18,7 +14,6 @@ import {
   openTerminal,
   openVSCode,
   patchTaskPlan,
-  patchWorkspace,
   updateTaskPlan,
 } from "@app/api/task-api";
 
@@ -135,25 +130,6 @@ export const useCreateChangeRequestMutation = () => {
   });
 };
 
-export const usePatchWorkspaceMutation = (onSuccess?: () => void) => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({
-      gitId,
-      id,
-      workspace,
-    }: {
-      gitId: number;
-      id: number;
-      workspace: Partial<WorkspaceDto>;
-    }) => patchWorkspace(gitId, id, workspace),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [TASK_QUERY_KEY] });
-      onSuccess?.();
-    },
-  });
-};
-
 export const usePatchTaskPlanMutation = (onSuccess?: () => void) => {
   const queryClient = useQueryClient();
   return useMutation({
@@ -187,6 +163,18 @@ export const useFetchTaskPlan = (taskId: number, enabled = true) => {
         return 2000;
       }
       return false;
+    },
+  });
+};
+
+export const useCreateWorkspaceAndLinkMutation = (onSuccess?: () => void) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ gitId, taskId }: { gitId: number; taskId: number }) =>
+      createWorkspace(gitId, taskId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [TASK_QUERY_KEY] });
+      onSuccess?.();
     },
   });
 };

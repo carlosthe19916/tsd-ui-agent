@@ -1,4 +1,4 @@
-package org.acme.services.workspace.devcontainer;
+package org.acme.services.workspace.kubernetes;
 
 import org.acme.services.workspace.Workspace;
 import org.acme.services.workspace.WorkspaceException;
@@ -14,31 +14,32 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-public class DevcontainerWorkspace implements Workspace {
+public class KubernetesWorkspace implements Workspace {
 
-    private final String containerId;
-    private final String hostWorkspaceFolder;
+    private final String devWorkspaceName;
+    private final String podName;
+    private final String namespace;
+    private final String containerName;
     private final String containerWorkingDir;
-    private final String devcontainerCommand;
+    private final String kubectlCommand;
 
-    public DevcontainerWorkspace(String containerId, String hostWorkspaceFolder, String containerWorkingDir, String devcontainerCommand) {
-        this.containerId = containerId;
-        this.hostWorkspaceFolder = hostWorkspaceFolder;
+    public KubernetesWorkspace(String devWorkspaceName, String podName, String namespace,
+            String containerName, String containerWorkingDir, String kubectlCommand) {
+        this.devWorkspaceName = devWorkspaceName;
+        this.podName = podName;
+        this.namespace = namespace;
+        this.containerName = containerName;
         this.containerWorkingDir = containerWorkingDir;
-        this.devcontainerCommand = devcontainerCommand;
+        this.kubectlCommand = kubectlCommand;
     }
 
     @Override
     public String id() {
-        return containerId + ":" + hostWorkspaceFolder;
+        return devWorkspaceName;
     }
 
-    public String containerId() {
-        return containerId;
-    }
-
-    public String hostWorkspaceFolder() {
-        return hostWorkspaceFolder;
+    public String podName() {
+        return podName;
     }
 
     @Override
@@ -49,8 +50,7 @@ public class DevcontainerWorkspace implements Workspace {
     @Override
     public boolean isAlive() {
         try {
-            ProcessBuilder pb = new ProcessBuilder(
-                    devcontainerCommand, "exec", "--workspace-folder", hostWorkspaceFolder, "true")
+            ProcessBuilder pb = buildExecProcess("true")
                     .redirectErrorStream(true);
             Process process = pb.start();
             boolean finished = process.waitFor(30, TimeUnit.SECONDS);
@@ -211,10 +211,14 @@ public class DevcontainerWorkspace implements Workspace {
 
     private ProcessBuilder buildExecProcess(String... command) {
         List<String> fullCommand = new ArrayList<>();
-        fullCommand.add(devcontainerCommand);
+        fullCommand.add(kubectlCommand);
         fullCommand.add("exec");
-        fullCommand.add("--workspace-folder");
-        fullCommand.add(hostWorkspaceFolder);
+        fullCommand.add(podName);
+        fullCommand.add("-n");
+        fullCommand.add(namespace);
+        fullCommand.add("-c");
+        fullCommand.add(containerName);
+        fullCommand.add("--");
         fullCommand.addAll(Arrays.asList(command));
         return new ProcessBuilder(fullCommand);
     }

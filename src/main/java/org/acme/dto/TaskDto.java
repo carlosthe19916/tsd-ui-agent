@@ -22,4 +22,5 @@ public class TaskDto {
     public List<String> labels;
     public ProjectDto project;
     public PlanDto plan;
+    public WorkspaceDto workspace;
 }

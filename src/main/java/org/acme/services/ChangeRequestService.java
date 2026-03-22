@@ -26,9 +26,6 @@ public class ChangeRequestService {
     private static final Logger LOG = Logger.getLogger(ChangeRequestService.class);
 
     @Inject
-    GitManager gitManager;
-
-    @Inject
     WorkspaceManager workspaceManager;
 
     @Inject
@@ -46,7 +43,7 @@ public class ChangeRequestService {
         requestContext.activate();
         try {
             record ChangeRequestContext(
-                    String workspaceId, String mainClonePath, String gitUrl,
+                    String workspaceId, String gitUrl,
                     String forkUrl, String taskTitle, String requirement,
                     Long planId, String gitToken, String gitBranch,
                     GitVendorType vendorType
@@ -54,16 +51,16 @@ public class ChangeRequestService {
 
             ChangeRequestContext context = QuarkusTransaction.requiringNew().call(() -> {
                 TaskEntity task = TaskEntity.findById(taskId);
-                if (task == null || task.plan == null || task.plan.workspace == null || task.plan.workspace.git == null) {
+                if (task == null || task.plan == null || task.workspace == null || task.workspace.git == null) {
                     LOG.warnf("Task %d, plan, workspace, or git not found during change request", taskId);
                     return null;
                 }
 
                 return new ChangeRequestContext(
-                        task.plan.workspace.workspaceId, task.plan.workspace.localPath, task.plan.workspace.git.url,
-                        task.plan.workspace.git.forkUrl, task.title, task.plan.requirement,
-                        task.plan.id, task.plan.workspace.git.credential != null ? task.plan.workspace.git.credential.token : null,
-                        task.plan.workspace.git.branch, task.plan.workspace.git.vendorType
+                        task.workspace.workspaceId, task.workspace.git.url,
+                        task.workspace.git.forkUrl, task.title, task.plan.requirement,
+                        task.plan.id, task.workspace.git.credential != null ? task.workspace.git.credential.token : null,
+                        task.workspace.git.branch, task.workspace.git.vendorType
                 );
             });
 
@@ -80,9 +77,13 @@ public class ChangeRequestService {
                 LOG.infof("Task %d: No changes to commit, proceeding with push: %s", taskId, e.getMessage());
             }
 
-            String baseBranch = (context.gitBranch() != null && !context.gitBranch().isBlank())
-                    ? context.gitBranch()
-                    : gitManager.getCurrentBranch(context.mainClonePath());
+            String baseBranch;
+            if (context.gitBranch() != null && !context.gitBranch().isBlank()) {
+                baseBranch = context.gitBranch();
+            } else {
+                baseBranch = workspace.exec("git", "symbolic-ref", "refs/remotes/origin/HEAD")
+                        .trim().replace("refs/remotes/origin/", "");
+            }
             String branchName = GitManager.planBranchName(context.planId());
 
             GitVendorType vendorType = context.vendorType();

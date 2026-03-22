@@ -32,7 +32,6 @@ class GitResourceTest {
                 .thenReturn("/tmp/tsd-agent-ui-test/repo/default");
         when(gitManager.addWorktree(anyString(), anyString()))
                 .thenReturn("/tmp/tsd-agent-ui-test/repo/trees/my-worktree");
-        doNothing().when(gitManager).removeWorktree(anyString(), anyString());
         doNothing().when(gitManager).setRemoteUrl(anyString(), anyString());
         doNothing().when(gitManager).addForkRemote(anyString(), anyString());
         doNothing().when(gitManager).setForkRemoteUrl(anyString(), anyString());

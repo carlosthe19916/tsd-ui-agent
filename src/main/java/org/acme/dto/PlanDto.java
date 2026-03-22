@@ -10,8 +10,6 @@ public class PlanDto {
 
     public String requirement;
 
-    public WorkspaceDto workspace;
-
     public boolean isRequirementInProgress;
 
     public String requirementError;
