@@ -1,18 +1,22 @@
 package org.acme.services.git;
 
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
-import org.apache.camel.ProducerTemplate;
+import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.lib.StoredConfig;
+import org.eclipse.jgit.transport.URIish;
+import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.net.URISyntaxException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
@@ -21,9 +25,6 @@ public class GitManager {
 
     private static final Pattern PROTOCOL_PREFIX = Pattern.compile("^(https?|git|ssh)://");
     private static final Pattern SSH_SHORTHAND = Pattern.compile("^([^@]+@)?([^:]+):(.+)$");
-
-    @Inject
-    ProducerTemplate template;
 
     @ConfigProperty(name = "tsd-agent.git.base-dir")
     String baseDir;
@@ -59,51 +60,56 @@ public class GitManager {
 
     public String cloneRepository(String url, String branch) {
         String localPath = Path.of(baseDir, "repositories", UUID.randomUUID().toString(), "default").toString();
-        return cloneRepository(url, branch, localPath);
+        return cloneRepository(url, branch, localPath, null);
     }
 
     public String cloneRepository(String url, String branch, String targetPath) {
-        var headers = new java.util.HashMap<String, Object>();
-        headers.put("localPath", targetPath);
-        headers.put("remotePath", url);
-        if (branch != null && !branch.isBlank()) {
-            headers.put("branch", branch);
-        }
+        return cloneRepository(url, branch, targetPath, null);
+    }
 
+    public String cloneRepository(String url, String branch, String targetPath, String token) {
         try {
-            template.requestBodyAndHeaders("direct:git-clone", null, headers);
-        } catch (GitException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new GitException("Failed to clone repository: " + e.getMessage(), e);
+            var cmd = Git.cloneRepository()
+                    .setURI(url)
+                    .setDirectory(new File(targetPath));
+            if (branch != null && !branch.isBlank()) {
+                cmd.setBranch(branch);
+            }
+            if (token != null && !token.isBlank()) {
+                cmd.setCredentialsProvider(new UsernamePasswordCredentialsProvider("oauth2", token));
+            }
+            cmd.call().close();
+        } catch (GitAPIException e) {
+            throw new GitException("Failed to clone repository: " + redact(e.getMessage()), e);
         }
-
         return targetPath;
     }
 
     public void setRemoteUrl(String localPath, String newUrl) {
-        try {
-            template.requestBodyAndHeaders("direct:git-remote-set-url", null, Map.of(
-                    "workingDir", localPath,
-                    "remotePath", newUrl
-            ));
-        } catch (GitException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new GitException("Failed to set remote URL: " + e.getMessage(), e);
+        try (Git git = Git.open(new File(localPath))) {
+            StoredConfig config = git.getRepository().getConfig();
+            config.setString("remote", "origin", "url", newUrl);
+            config.save();
+        } catch (IOException e) {
+            throw new GitException("Failed to set remote URL: " + redact(e.getMessage()), e);
         }
     }
 
     public void pullRepository(String workingDir, String branchName) {
-        try {
-            template.requestBodyAndHeaders("direct:git-pull", null, Map.of(
-                    "workingDir", workingDir,
-                    "branchName", branchName
-            ));
-        } catch (GitException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new GitException("Failed to pull repository: " + e.getMessage(), e);
+        pullRepository(workingDir, branchName, null);
+    }
+
+    public void pullRepository(String workingDir, String branchName, String token) {
+        try (Git git = Git.open(new File(workingDir))) {
+            var cmd = git.pull()
+                    .setRemote("origin")
+                    .setRemoteBranchName(branchName);
+            if (token != null && !token.isBlank()) {
+                cmd.setCredentialsProvider(new UsernamePasswordCredentialsProvider("oauth2", token));
+            }
+            cmd.call();
+        } catch (GitAPIException | IOException e) {
+            throw new GitException("Failed to pull repository: " + redact(e.getMessage()), e);
         }
     }
 
@@ -112,59 +118,59 @@ public class GitManager {
         String worktreeDir = repoRoot.resolve("trees").resolve(alias).toString();
 
         try {
-            template.requestBodyAndHeaders("direct:git-worktree-add", null, Map.of(
-                    "workingDir", mainClonePath,
-                    "worktreeDir", worktreeDir,
-                    "branchName", alias
-            ));
-        } catch (GitException e) {
-            throw e;
-        } catch (Exception e) {
+            ProcessBuilder pb = new ProcessBuilder(
+                    "git", "worktree", "add", "--relative-paths", "-b", alias, worktreeDir
+            );
+            pb.directory(new File(mainClonePath));
+            pb.redirectErrorStream(true);
+            Process process = pb.start();
+            String output = new String(process.getInputStream().readAllBytes());
+            int exitCode = process.waitFor();
+            if (exitCode != 0) {
+                throw new GitException("Failed to add worktree: " + output.trim());
+            }
+        } catch (IOException e) {
             throw new GitException("Failed to add worktree: " + e.getMessage(), e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new GitException("Worktree creation interrupted", e);
         }
 
         return worktreeDir;
     }
 
-public void addForkRemote(String localPath, String forkUrl) {
-        try {
-            template.requestBodyAndHeaders("direct:git-remote-add-fork", null, Map.of(
-                    "workingDir", localPath,
-                    "remotePath", forkUrl
-            ));
-        } catch (GitException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new GitException("Failed to add fork remote: " + e.getMessage(), e);
+    public void addForkRemote(String localPath, String forkUrl) {
+        try (Git git = Git.open(new File(localPath))) {
+            git.remoteAdd()
+                    .setName("fork")
+                    .setUri(new URIish(forkUrl))
+                    .call();
+        } catch (GitAPIException | IOException | URISyntaxException e) {
+            throw new GitException("Failed to add fork remote: " + redact(e.getMessage()), e);
         }
     }
 
     public void setForkRemoteUrl(String localPath, String forkUrl) {
-        try {
-            template.requestBodyAndHeaders("direct:git-remote-set-url-fork", null, Map.of(
-                    "workingDir", localPath,
-                    "remotePath", forkUrl
-            ));
-        } catch (GitException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new GitException("Failed to set fork remote URL: " + e.getMessage(), e);
+        try (Git git = Git.open(new File(localPath))) {
+            StoredConfig config = git.getRepository().getConfig();
+            config.setString("remote", "fork", "url", forkUrl);
+            config.save();
+        } catch (IOException e) {
+            throw new GitException("Failed to set fork remote URL: " + redact(e.getMessage()), e);
         }
     }
 
     public void removeForkRemote(String localPath) {
-        try {
-            template.requestBodyAndHeaders("direct:git-remote-remove-fork", null, Map.of(
-                    "workingDir", localPath
-            ));
-        } catch (GitException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new GitException("Failed to remove fork remote: " + e.getMessage(), e);
+        try (Git git = Git.open(new File(localPath))) {
+            git.remoteRemove()
+                    .setRemoteName("fork")
+                    .call();
+        } catch (GitAPIException | IOException e) {
+            throw new GitException("Failed to remove fork remote: " + redact(e.getMessage()), e);
         }
     }
 
-public static String planBranchName(Long planId) {
+    public static String planBranchName(Long planId) {
         return "plan-" + planId + "-" + UUID.randomUUID().toString().substring(0, 8);
     }
 
@@ -185,14 +191,9 @@ public static String planBranchName(Long planId) {
     }
 
     public String getCurrentBranch(String workingDir) {
-        try {
-            Object result = template.requestBodyAndHeaders("direct:git-rev-parse", null, Map.of(
-                    "workingDir", workingDir
-            ));
-            return result.toString().trim();
-        } catch (GitException e) {
-            throw e;
-        } catch (Exception e) {
+        try (Git git = Git.open(new File(workingDir))) {
+            return git.getRepository().getBranch();
+        } catch (IOException e) {
             throw new GitException("Failed to get current branch: " + e.getMessage(), e);
         }
     }
@@ -250,4 +251,8 @@ public static String planBranchName(Long planId) {
         }
     }
 
+    private static String redact(String message) {
+        if (message == null) return null;
+        return message.replaceAll("://[^@]+@", "://***@");
+    }
 }
