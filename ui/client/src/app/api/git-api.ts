@@ -17,9 +17,9 @@ export const updateGit = (id: number, git: GitDto) =>
 export const deleteGit = (id: number) =>
   axios.delete<void>(`${BASE_URL}/${id}`);
 
-export const getWorkspaces = (gitId: number) =>
+export const getWorkspaces = (gitId: number, hasTask?: boolean) =>
   axios
-    .get<WorkspaceDto[]>(WORKSPACES_URL, { params: { gitId } })
+    .get<WorkspaceDto[]>(WORKSPACES_URL, { params: { gitId, hasTask } })
     .then((response) => response.data);
 
 export const createWorkspace = (gitId: number, taskId?: number) =>

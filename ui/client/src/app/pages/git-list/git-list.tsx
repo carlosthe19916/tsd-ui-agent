@@ -23,22 +23,23 @@ import {
   SelectOption,
   Title,
   Toolbar,
-  Tooltip,
   ToolbarContent,
   ToolbarGroup,
   ToolbarItem,
+  Tooltip,
+  Truncate,
 } from "@patternfly/react-core";
+import CodeBranchIcon from "@patternfly/react-icons/dist/esm/icons/code-branch-icon";
 import EllipsisVIcon from "@patternfly/react-icons/dist/esm/icons/ellipsis-v-icon";
 import SortAmountDownIcon from "@patternfly/react-icons/dist/esm/icons/sort-amount-down-icon";
 import SortAmountUpIcon from "@patternfly/react-icons/dist/esm/icons/sort-amount-up-icon";
-import CodeBranchIcon from "@patternfly/react-icons/dist/esm/icons/code-branch-icon";
 
 import { TablePersistenceKeyPrefixes } from "@app/Constants";
-import type { GitDto } from "@app/api/models";
+import type { GitDto, WorkspaceDto } from "@app/api/models";
 import { ConfirmDialog } from "@app/components/ConfirmDialog";
 import { ConditionalDataListBody } from "@app/components/DataListControls";
-import { PageDrawerContent } from "@app/components/PageDrawerContext";
 import { FilterToolbar, FilterType } from "@app/components/FilterToolbar";
+import { PageDrawerContent } from "@app/components/PageDrawerContext";
 import { SimplePagination } from "@app/components/SimplePagination";
 import { useLocalTableControls } from "@app/hooks/table-controls";
 import {
@@ -48,7 +49,6 @@ import {
   useFetchGits,
   useFetchWorkspaces,
 } from "@app/queries/gits";
-import type { WorkspaceDto } from "@app/api/models";
 
 import { GitFormModal } from "./components/git-form-modal";
 import {
@@ -58,7 +58,7 @@ import {
 } from "./components/workspace-status";
 
 const GitWorkspaceCell: React.FC<{ gitId: number }> = ({ gitId }) => {
-  const { data: workspaces } = useFetchWorkspaces(gitId);
+  const { data: workspaces } = useFetchWorkspaces(gitId, false);
   const createMutation = useCreateWorkspaceMutation();
   const count = workspaces?.length ?? 0;
 
@@ -87,8 +87,9 @@ const GitWorkspaceCell: React.FC<{ gitId: number }> = ({ gitId }) => {
 };
 
 const GitExpandedContent: React.FC<{ gitId: number }> = ({ gitId }) => {
-  const { data: workspaces } = useFetchWorkspaces(gitId);
+  const { data: workspaces } = useFetchWorkspaces(gitId, false);
   const [wsToDelete, setWsToDelete] = React.useState<WorkspaceDto | null>(null);
+  const [openWsKebabId, setOpenWsKebabId] = React.useState<number | null>(null);
   const deleteMutation = useDeleteWorkspaceMutation(() => setWsToDelete(null));
 
   if (!workspaces || workspaces.length === 0) {
@@ -102,41 +103,37 @@ const GitExpandedContent: React.FC<{ gitId: number }> = ({ gitId }) => {
   return (
     <>
       <DataList aria-label="Workspaces list" isCompact>
-        {workspaces.map((ws) => (
-          <DataListItem key={ws.id} aria-labelledby={`ws-${ws.id}`}>
+        {workspaces.map((ws) => {
+          const { containerId, path } = parseWorkspaceId(
+            ws.workspaceId,
+          );
+          return <DataListItem key={ws.id} aria-labelledby={`ws-${ws.id}`}>
             <DataListItemRow>
               <DataListItemCells
                 dataListCells={[
-                  <DataListCell key="info" width={3}>
-                    {(() => {
-                      const { containerId, path } = parseWorkspaceId(
-                        ws.workspaceId,
-                      );
-                      return (
-                        <Flex
-                          direction={{ default: "column" }}
-                          gap={{ default: "gapXs" }}
-                        >
-                          {containerId && (
-                            <FlexItem id={`ws-${ws.id}`}>
-                              <Tooltip content={containerId}>
-                                <code>{containerId.substring(0, 12)}</code>
-                              </Tooltip>
-                            </FlexItem>
-                          )}
-                          <FlexItem {...(!containerId ? { id: `ws-${ws.id}` } : {})}>
-                            <small>{path ?? "-"}</small>
-                          </FlexItem>
-                          <FlexItem>
-                            <WorkspaceTypeLabel
-                              workspaceId={ws.workspaceId}
-                            />
-                          </FlexItem>
-                        </Flex>
-                      );
-                    })()}
+                  <DataListCell key="info" width={3} isFilled>
+                    <Flex
+                      direction={{ default: "column" }}
+                      gap={{ default: "gapXs" }}
+                    >
+                      {containerId && (
+                        <FlexItem id={`ws-${ws.id}`}>
+                          Container: <Tooltip content={containerId}>
+                            <code>{containerId.substring(0, 12)}</code>
+                          </Tooltip>
+                        </FlexItem>
+                      )}
+                      <FlexItem {...(!containerId ? { id: `ws-${ws.id}` } : {})}>
+                        Path: <Truncate maxCharsDisplayed={40} content={path ?? "-"} />
+                      </FlexItem>
+                      <FlexItem>
+                        <WorkspaceTypeLabel
+                          workspaceId={ws.workspaceId}
+                        />
+                      </FlexItem>
+                    </Flex>
                   </DataListCell>,
-                  <DataListCell key="status" width={2} alignRight>
+                  <DataListCell key="status" alignRight>
                     <WorkspaceStatusLabel ws={ws} />
                   </DataListCell>,
                 ]}
@@ -146,17 +143,42 @@ const GitExpandedContent: React.FC<{ gitId: number }> = ({ gitId }) => {
                 aria-label="Workspace actions"
                 aria-labelledby={`ws-${ws.id} ws-action-${ws.id}`}
               >
-                <Button
-                  variant={ButtonVariant.danger}
-                  size="sm"
-                  onClick={() => setWsToDelete(ws)}
+                <Dropdown
+                  isOpen={openWsKebabId === ws.id}
+                  onSelect={() => setOpenWsKebabId(null)}
+                  onOpenChange={(isOpen) =>
+                    setOpenWsKebabId(isOpen ? (ws.id ?? null) : null)
+                  }
+                  toggle={(toggleRef) => (
+                    <MenuToggle
+                      ref={toggleRef}
+                      aria-label="Workspace kebab toggle"
+                      variant="plain"
+                      onClick={() =>
+                        setOpenWsKebabId(
+                          openWsKebabId === ws.id ? null : (ws.id ?? null),
+                        )
+                      }
+                      isExpanded={openWsKebabId === ws.id}
+                    >
+                      <EllipsisVIcon />
+                    </MenuToggle>
+                  )}
+                  popperProps={{ position: "right" }}
                 >
-                  Delete
-                </Button>
+                  <DropdownList>
+                    <DropdownItem
+                      key="delete"
+                      onClick={() => setWsToDelete(ws)}
+                    >
+                      Delete
+                    </DropdownItem>
+                  </DropdownList>
+                </Dropdown>
               </DataListAction>
             </DataListItemRow>
           </DataListItem>
-        ))}
+        })}
       </DataList>
 
       {wsToDelete && (

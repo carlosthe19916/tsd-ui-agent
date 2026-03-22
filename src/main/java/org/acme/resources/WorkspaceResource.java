@@ -23,7 +23,9 @@ import org.acme.services.WorkspaceService;
 import org.acme.services.workspace.WorkspaceHealthStatus;
 import org.acme.services.workspace.WorkspaceManager;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
@@ -43,13 +45,23 @@ public class WorkspaceResource {
     WorkspaceManager workspaceManager;
 
     @GET
-    public List<WorkspaceDto> list(@QueryParam("gitId") Long gitId) {
+    public List<WorkspaceDto> list(@QueryParam("gitId") Long gitId, @QueryParam("hasTask") Boolean hasTask) {
+        StringBuilder jpql = new StringBuilder("SELECT w FROM WorkspaceEntity w WHERE 1=1");
+        Map<String, Object> params = new HashMap<>();
+
         if (gitId != null) {
-            return WorkspaceEntity.<WorkspaceEntity>list("git.id", gitId).stream()
-                    .map(workspaceMapper::toDto)
-                    .collect(Collectors.toList());
+            jpql.append(" AND w.git.id = :gitId");
+            params.put("gitId", gitId);
         }
-        return WorkspaceEntity.<WorkspaceEntity>findAll().stream()
+        if (hasTask != null) {
+            if (hasTask) {
+                jpql.append(" AND EXISTS (SELECT t FROM TaskEntity t WHERE t.workspace = w)");
+            } else {
+                jpql.append(" AND NOT EXISTS (SELECT t FROM TaskEntity t WHERE t.workspace = w)");
+            }
+        }
+
+        return WorkspaceEntity.<WorkspaceEntity>find(jpql.toString(), params).stream()
                 .map(workspaceMapper::toDto)
                 .collect(Collectors.toList());
     }

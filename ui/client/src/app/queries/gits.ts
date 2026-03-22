@@ -56,10 +56,10 @@ export const useDeleteGitMutation = (onSuccess?: () => void) => {
   });
 };
 
-export const useFetchWorkspaces = (gitId: number) => {
+export const useFetchWorkspaces = (gitId: number, hasTask?: boolean) => {
   return useQuery({
-    queryKey: [WORKSPACES_QUERY_KEY, gitId],
-    queryFn: () => getWorkspaces(gitId),
+    queryKey: [WORKSPACES_QUERY_KEY, gitId, { hasTask }],
+    queryFn: () => getWorkspaces(gitId, hasTask),
     refetchInterval: (query) => {
       const hasInProgress = query.state.data?.some(
         (workspace) => workspace.isProvisioningInProgress,

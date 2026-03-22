@@ -49,7 +49,7 @@ export const WorkspaceTypeLabel: React.FC<{ workspaceId?: string }> = ({
   const type = workspaceType(workspaceId);
   if (!type) return <Label color="grey">-</Label>;
   const { text, color } = typeLabel[type];
-  return <Label color={color}>{text}</Label>;
+  return <Label color={color} isCompact>{text}</Label>;
 };
 
 export const WorkspaceStatusLabel: React.FC<{ ws: WorkspaceDto }> = ({
@@ -74,7 +74,7 @@ export const WorkspaceStatusLabel: React.FC<{ ws: WorkspaceDto }> = ({
   if (ws.provisioningError) {
     return (
       <Tooltip content={ws.provisioningError}>
-        <Label color="red" icon={<ExclamationCircleIcon />}>
+        <Label color="red" icon={<ExclamationCircleIcon />} isCompact>
           Error
         </Label>
       </Tooltip>
