@@ -5,8 +5,9 @@ import jakarta.inject.Inject;
 import jakarta.json.Json;
 import jakarta.json.JsonObject;
 import jakarta.json.JsonObjectBuilder;
-import org.acme.services.git.GitManager;
 import org.acme.services.workspace.*;
+import org.acme.services.workspace.filesystem.FilesystemWorkspaceManager;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import java.io.BufferedReader;
@@ -16,6 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -25,83 +27,87 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
 
     private static final Logger LOG = Logger.getLogger(DevcontainerWorkspaceManager.class);
 
-    @Inject
-    GitManager gitManager;
+    @ConfigProperty(name = "tsd-agent.devcontainer.command")
+    public String command;
+
+    @ConfigProperty(name = "tsd-agent.devcontainer.image")
+    public String image;
+
+    @ConfigProperty(name = "tsd-agent.devcontainer.env-passthrough")
+    public Optional<List<String>> envPassthrough;
 
     @Inject
-    DevcontainerConfig config;
+    @WorkspaceManagerType(type = ExecutionMode.FILESYSTEM)
+    FilesystemWorkspaceManager filesystemManager;
+
+    @ConfigProperty(name = "tsd-agent.git.base-dir")
+    String baseDir;
 
     @Override
     public Workspace provision(WorkspaceRequest request) throws WorkspaceException {
-        String clonePath = gitManager.cloneRepository(request.gitUrl(), request.gitBranch());
-        if (request.forkUrl() != null && !request.forkUrl().isBlank()) {
-            gitManager.addForkRemote(clonePath, request.forkUrl());
-        }
-        String alias = java.util.UUID.randomUUID().toString().substring(0, 8);
-        String worktreePath = gitManager.addWorktree(clonePath, alias);
-        String folderName = Path.of(worktreePath).getFileName().toString();
+        Workspace fsWorkspace = filesystemManager.provision(request);
+        String worktreePath = fsWorkspace.id();
+        String sanitizedUrl = deriveSanitizedUrl(worktreePath);
+        String worktreeAlias = Path.of(worktreePath).getFileName().toString();
 
-        Path overrideConfigPath = generateOverrideConfig(folderName);
+        Path overrideConfigPath = generateOverrideConfig(sanitizedUrl, worktreeAlias);
 
         String output = runDevcontainerUp(worktreePath, overrideConfigPath.toString());
+        String folderName = Path.of(worktreePath).getFileName().toString();
         String remoteWorkspaceFolder = parseRemoteWorkspaceFolder(output, folderName);
 
-        LOG.infof("Devcontainer provisioned for %s, remote workspace: %s", worktreePath, remoteWorkspaceFolder);
-        return new DevcontainerWorkspace(worktreePath, remoteWorkspaceFolder, config.command);
+        String containerId = findContainerId(worktreePath);
+        if (containerId == null || containerId.isBlank()) {
+            containerId = "unknown";
+        }
+
+        LOG.infof("Devcontainer provisioned: container=%s, worktree=%s, remote=%s", containerId, worktreePath, remoteWorkspaceFolder);
+        return new DevcontainerWorkspace(containerId, worktreePath, remoteWorkspaceFolder, command);
     }
 
     @Override
     public Workspace reconnect(String workspaceId) throws WorkspaceException {
-        if (!Files.isDirectory(Path.of(workspaceId))) {
-            throw new WorkspaceException("Workspace directory does not exist: " + workspaceId);
+        String containerId = parseContainerId(workspaceId);
+        String worktreePath = parseWorktreePath(workspaceId);
+
+        if (!Files.isDirectory(Path.of(worktreePath))) {
+            throw new WorkspaceException("Workspace directory does not exist: " + worktreePath);
         }
 
-        String folderName = Path.of(workspaceId).getFileName().toString();
-        String remoteWorkspaceFolder = "/workspaces/" + folderName;
+        String sanitizedUrl = deriveSanitizedUrl(worktreePath);
+        String worktreeAlias = Path.of(worktreePath).getFileName().toString();
+        String remoteWorkspaceFolder = "/workspaces/trees/" + worktreeAlias;
 
-        if (!isContainerRunning(workspaceId)) {
-            LOG.infof("Container not running for %s, starting devcontainer up", workspaceId);
-            Path overrideConfigDir = Path.of(config.overrideConfigDir).resolve(folderName);
-            Path overrideConfigPath = overrideConfigDir.resolve("devcontainer.json");
+        if (!isContainerRunning(worktreePath)) {
+            LOG.infof("Container not running for %s, starting devcontainer up", worktreePath);
+            Path configPath = devcontainerConfigPath(sanitizedUrl, worktreeAlias);
 
-            if (Files.exists(overrideConfigPath)) {
-                String output = runDevcontainerUp(workspaceId, overrideConfigPath.toString());
-                remoteWorkspaceFolder = parseRemoteWorkspaceFolder(output, folderName);
-            } else {
-                generateOverrideConfig(folderName);
-                String output = runDevcontainerUp(workspaceId, overrideConfigDir.resolve("devcontainer.json").toString());
-                remoteWorkspaceFolder = parseRemoteWorkspaceFolder(output, folderName);
+            if (!Files.exists(configPath)) {
+                generateOverrideConfig(sanitizedUrl, worktreeAlias);
+            }
+
+            String output = runDevcontainerUp(worktreePath, configPath.toString());
+            remoteWorkspaceFolder = parseRemoteWorkspaceFolder(output, worktreeAlias);
+
+            containerId = findContainerId(worktreePath);
+            if (containerId == null || containerId.isBlank()) {
+                containerId = "unknown";
             }
         }
 
-        return new DevcontainerWorkspace(workspaceId, remoteWorkspaceFolder, config.command);
+        return new DevcontainerWorkspace(containerId, worktreePath, remoteWorkspaceFolder, command);
     }
 
     @Override
     public void destroy(String workspaceId) throws WorkspaceException {
         try {
-            String containerId = findContainerId(workspaceId);
-            if (containerId != null && !containerId.isBlank()) {
-                LOG.infof("Removing container %s for workspace %s", containerId, workspaceId);
+            String containerId = parseContainerId(workspaceId);
+            if (containerId != null && !containerId.isBlank() && !"unknown".equals(containerId)) {
+                LOG.infof("Removing container %s", containerId);
                 ProcessBuilder pb = new ProcessBuilder("docker", "rm", "-f", containerId)
                         .redirectErrorStream(true);
                 Process process = pb.start();
                 process.waitFor(30, TimeUnit.SECONDS);
-            }
-
-            String folderName = Path.of(workspaceId).getFileName().toString();
-            Path overrideConfigDir = Path.of(config.overrideConfigDir).resolve(folderName);
-            if (Files.isDirectory(overrideConfigDir)) {
-                try (var files = Files.walk(overrideConfigDir)) {
-                    files.sorted(java.util.Comparator.reverseOrder())
-                            .forEach(p -> {
-                                try {
-                                    Files.deleteIfExists(p);
-                                } catch (Exception e) {
-                                    LOG.warnf("Failed to delete %s: %s", p, e.getMessage());
-                                }
-                            });
-                }
             }
         } catch (Exception e) {
             throw new WorkspaceException("Failed to destroy devcontainer workspace: " + workspaceId, e);
@@ -110,16 +116,40 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
 
     @Override
     public boolean exists(String workspaceId) {
-        return Files.isDirectory(Path.of(workspaceId));
+        String worktreePath = parseWorktreePath(workspaceId);
+        return Files.isDirectory(Path.of(worktreePath));
     }
 
-    private Path generateOverrideConfig(String folderName) throws WorkspaceException {
+    private static String parseContainerId(String workspaceId) {
+        int colonIdx = workspaceId.indexOf(':');
+        return colonIdx >= 0 ? workspaceId.substring(0, colonIdx) : workspaceId;
+    }
+
+    private static String parseWorktreePath(String workspaceId) {
+        int colonIdx = workspaceId.indexOf(':');
+        return colonIdx >= 0 ? workspaceId.substring(colonIdx + 1) : workspaceId;
+    }
+
+    private Path devcontainerConfigDir(String sanitizedUrl, String alias) {
+        return Path.of(baseDir, "devcontainers", sanitizedUrl, alias);
+    }
+
+    private Path devcontainerConfigPath(String sanitizedUrl, String alias) {
+        return devcontainerConfigDir(sanitizedUrl, alias).resolve("devcontainer.json");
+    }
+
+    private String deriveSanitizedUrl(String worktreePath) {
+        // Worktree path: {baseDir}/repositories/{sanitizedUrl}/trees/{alias}
+        return Path.of(worktreePath).getParent().getParent().getFileName().toString();
+    }
+
+    private Path generateOverrideConfig(String sanitizedUrl, String worktreeAlias) throws WorkspaceException {
         try {
-            Path configDir = Path.of(config.overrideConfigDir).resolve(folderName);
+            Path configDir = devcontainerConfigDir(sanitizedUrl, worktreeAlias);
             Files.createDirectories(configDir);
 
             JsonObjectBuilder envBuilder = Json.createObjectBuilder();
-            List<String> envVars = config.envPassthrough.orElse(List.of());
+            List<String> envVars = envPassthrough.orElse(List.of());
             for (String envVar : envVars) {
                 String trimmed = envVar.trim();
                 if (!trimmed.isEmpty()) {
@@ -128,7 +158,8 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
             }
 
             JsonObject configJson = Json.createObjectBuilder()
-                    .add("image", config.image)
+                    .add("image", image)
+                    .add("workspaceFolder", "/workspaces/trees/" + worktreeAlias)
                     .add("containerEnv", envBuilder)
                     .build();
 
@@ -144,9 +175,10 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
     private String runDevcontainerUp(String workspaceFolder, String overrideConfigPath) throws WorkspaceException {
         try {
             ProcessBuilder pb = new ProcessBuilder(
-                    config.command, "up",
+                    command, "up",
                     "--workspace-folder", workspaceFolder,
-                    "--override-config", overrideConfigPath)
+                    "--override-config", overrideConfigPath,
+                    "--mount-git-worktree-common-dir")
                     .redirectErrorStream(true);
             Process process = pb.start();
 
@@ -181,8 +213,6 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
 
     private String parseRemoteWorkspaceFolder(String output, String folderName) {
         try {
-            // devcontainer up outputs JSON with remoteWorkspaceFolder
-            // The JSON may be on the last line or mixed with other output
             String[] lines = output.split("\n");
             for (int i = lines.length - 1; i >= 0; i--) {
                 String line = lines[i].trim();
@@ -202,7 +232,7 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
     private boolean isContainerRunning(String workspaceId) {
         try {
             ProcessBuilder pb = new ProcessBuilder(
-                    config.command, "exec", "--workspace-folder", workspaceId, "true")
+                    command, "exec", "--workspace-folder", workspaceId, "true")
                     .redirectErrorStream(true);
             Process process = pb.start();
             boolean finished = process.waitFor(30, TimeUnit.SECONDS);

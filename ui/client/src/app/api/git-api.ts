@@ -28,3 +28,6 @@ export const createWorkspace = (gitId: number, taskId?: number) =>
       taskId ? { task: { id: taskId } } : {},
     )
     .then((response) => response.data);
+
+export const deleteWorkspace = (gitId: number, wsId: number) =>
+  axios.delete<void>(`${BASE_URL}/${gitId}/workspaces/${wsId}`);

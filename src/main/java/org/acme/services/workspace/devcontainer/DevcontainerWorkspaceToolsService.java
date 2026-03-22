@@ -1,7 +1,6 @@
 package org.acme.services.workspace.devcontainer;
 
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.inject.Inject;
 import org.acme.services.workspace.ExecutionMode;
 import org.acme.services.workspace.Workspace;
 import org.acme.services.workspace.WorkspaceToolsService;
@@ -21,8 +20,11 @@ public class DevcontainerWorkspaceToolsService implements WorkspaceToolsService 
 
     private static final Logger LOG = Logger.getLogger(DevcontainerWorkspaceToolsService.class);
 
-    @Inject
-    DevcontainerConfig config;
+    @ConfigProperty(name = "tsd-agent.devcontainer.command")
+    public String command;
+
+    @ConfigProperty(name = "tsd-agent.devcontainer.image")
+    public String image;
 
     @ConfigProperty(name = "tsd-agent.terminal.exec-command")
     String terminalExecCommand;
@@ -33,7 +35,8 @@ public class DevcontainerWorkspaceToolsService implements WorkspaceToolsService 
     @Override
     public void openIDE(Workspace workspace) {
         try {
-            new ProcessBuilder(config.command, "open", "--workspace-folder", workspace.id())
+            String folder = hostFolderOf(workspace);
+            new ProcessBuilder(command, "open", "--workspace-folder", folder)
                     .inheritIO()
                     .start();
         } catch (IOException e) {
@@ -44,11 +47,12 @@ public class DevcontainerWorkspaceToolsService implements WorkspaceToolsService 
     @Override
     public void openTerminal(Workspace workspace) {
         try {
+            String folder = hostFolderOf(workspace);
             Path scriptPath = Files.createTempFile("tsd-devcontainer-term-", ".sh");
             String script = """
                     #!/bin/bash
                     %s exec --workspace-folder %s /bin/bash
-                    """.formatted(config.command, workspace.id());
+                    """.formatted(command, folder);
             Files.writeString(scriptPath, script);
             Files.setPosixFilePermissions(scriptPath, Set.of(
                     PosixFilePermission.OWNER_READ,
@@ -57,7 +61,7 @@ public class DevcontainerWorkspaceToolsService implements WorkspaceToolsService 
             ));
 
             String resolved = terminalExecCommand
-                    .replace("%s", workspace.id())
+                    .replace("%s", folder)
                     .replace("%c", scriptPath.toString());
             String[] parts = resolved.split("\\s+");
             new ProcessBuilder(parts)
@@ -71,12 +75,14 @@ public class DevcontainerWorkspaceToolsService implements WorkspaceToolsService 
     @Override
     public String openClaude(Workspace workspace, Long taskId, String requirement, String planApiUrl, String existingSessionId) {
         try {
+            String folder = hostFolderOf(workspace);
+
             if (existingSessionId != null) {
                 Path resumeScriptPath = Files.createTempFile("tsd-claude-resume-", ".sh");
                 String resumeScript = """
                         #!/bin/bash
                         %s exec --workspace-folder %s %s --resume %s
-                        """.formatted(config.command, workspace.id(), claudeCommand, existingSessionId);
+                        """.formatted(command, folder, claudeCommand, existingSessionId);
                 Files.writeString(resumeScriptPath, resumeScript);
                 Files.setPosixFilePermissions(resumeScriptPath, Set.of(
                         PosixFilePermission.OWNER_READ,
@@ -85,7 +91,7 @@ public class DevcontainerWorkspaceToolsService implements WorkspaceToolsService 
                 ));
 
                 String resolved = terminalExecCommand
-                        .replace("%s", workspace.id())
+                        .replace("%s", folder)
                         .replace("%c", resumeScriptPath.toString());
                 String[] parts = resolved.split("\\s+");
                 new ProcessBuilder(parts)
@@ -117,7 +123,7 @@ public class DevcontainerWorkspaceToolsService implements WorkspaceToolsService 
                     PROMPT_EOF
                     )"
                     fi
-                    """.formatted(planApiUrl, requirement, config.command, workspace.id(), claudeCommand, sessionId, requirement);
+                    """.formatted(planApiUrl, requirement, command, folder, claudeCommand, sessionId, requirement);
 
             Files.writeString(scriptPath, script);
             Files.setPosixFilePermissions(scriptPath, Set.of(
@@ -127,7 +133,7 @@ public class DevcontainerWorkspaceToolsService implements WorkspaceToolsService 
             ));
 
             String resolved = terminalExecCommand
-                    .replace("%s", workspace.id())
+                    .replace("%s", folder)
                     .replace("%c", scriptPath.toString());
             String[] parts = resolved.split("\\s+");
             new ProcessBuilder(parts)
@@ -137,5 +143,12 @@ public class DevcontainerWorkspaceToolsService implements WorkspaceToolsService 
         } catch (IOException e) {
             throw new RuntimeException("Failed to open Claude: " + e.getMessage(), e);
         }
+    }
+
+    private static String hostFolderOf(Workspace workspace) {
+        if (workspace instanceof DevcontainerWorkspace dw) {
+            return dw.hostWorkspaceFolder();
+        }
+        return workspace.id();
     }
 }

@@ -52,9 +52,11 @@ import { useLocalTableControls } from "@app/hooks/table-controls";
 import {
   useCreateWorkspaceMutation,
   useDeleteGitMutation,
+  useDeleteWorkspaceMutation,
   useFetchGits,
   useFetchWorkspaces,
 } from "@app/queries/gits";
+import type { WorkspaceDto } from "@app/api/models";
 
 import { GitFormModal } from "./components/git-form-modal";
 
@@ -86,6 +88,8 @@ const GitWorkspaceCell: React.FC<{ gitId: number }> = ({ gitId }) => {
 
 const GitExpandedContent: React.FC<{ gitId: number }> = ({ gitId }) => {
   const { data: workspaces } = useFetchWorkspaces(gitId);
+  const [wsToDelete, setWsToDelete] = React.useState<WorkspaceDto | null>(null);
+  const deleteMutation = useDeleteWorkspaceMutation(() => setWsToDelete(null));
 
   if (!workspaces || workspaces.length === 0) {
     return (
@@ -96,24 +100,54 @@ const GitExpandedContent: React.FC<{ gitId: number }> = ({ gitId }) => {
   }
 
   return (
-    <Table aria-label="Workspaces table" variant="compact">
-      <Thead>
-        <Tr>
-          <Th>ID</Th>
-          <Th>Workspace ID</Th>
-          <Th>Status</Th>
-        </Tr>
-      </Thead>
-      <Tbody>
-        {workspaces.map((ws) => (
-          <Tr key={ws.id}>
-            <Td>{ws.id}</Td>
-            <Td>{ws.workspaceId ?? "-"}</Td>
-            <Td>{ws.isProvisioningInProgress ? "Provisioning..." : ws.provisioningError ? "Error" : "Ready"}</Td>
+    <>
+      <Table aria-label="Workspaces table" variant="compact">
+        <Thead>
+          <Tr>
+            <Th>ID</Th>
+            <Th>Workspace ID</Th>
+            <Th>Status</Th>
+            <Th />
           </Tr>
-        ))}
-      </Tbody>
-    </Table>
+        </Thead>
+        <Tbody>
+          {workspaces.map((ws) => (
+            <Tr key={ws.id}>
+              <Td>{ws.id}</Td>
+              <Td>{ws.workspaceId ?? "-"}</Td>
+              <Td>{ws.isProvisioningInProgress ? "Provisioning..." : ws.provisioningError ? "Error" : "Ready"}</Td>
+              <Td isActionCell>
+                <Button
+                  variant={ButtonVariant.danger}
+                  size="sm"
+                  onClick={() => setWsToDelete(ws)}
+                >
+                  Delete
+                </Button>
+              </Td>
+            </Tr>
+          ))}
+        </Tbody>
+      </Table>
+
+      {wsToDelete && (
+        <ConfirmDialog
+          isOpen
+          title="Delete workspace"
+          titleIconVariant="warning"
+          message={`Are you sure you want to delete workspace "${wsToDelete.workspaceId ?? wsToDelete.id}"?`}
+          confirmBtnLabel="Delete"
+          cancelBtnLabel="Cancel"
+          confirmBtnVariant={ButtonVariant.danger}
+          onClose={() => setWsToDelete(null)}
+          onConfirm={() =>
+            deleteMutation.mutate({ gitId, wsId: wsToDelete.id as number })
+          }
+          onCancel={() => setWsToDelete(null)}
+          inProgress={deleteMutation.isPending}
+        />
+      )}
+    </>
   );
 };
 
@@ -302,9 +336,9 @@ export const GitList: React.FC = () => {
                           gap={{ default: "gapXs" }}
                         >
                           <FlexItem>{git.url}</FlexItem>
-                          <FlexItem>{git.branch || "Default"}</FlexItem>
+                          <FlexItem>Branch: {git.branch || "Default"}</FlexItem>
                           <FlexItem>
-                            <small>{git.vendorType || "Unknown"}</small>
+                            <small>Type: {git.vendorType || "Unknown"}</small>
                           </FlexItem>
                           <FlexItem>
                             <Icon>

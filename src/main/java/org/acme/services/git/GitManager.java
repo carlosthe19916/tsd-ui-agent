@@ -58,7 +58,7 @@ public class GitManager {
     }
 
     public String cloneRepository(String url, String branch) {
-        String localPath = Path.of(baseDir, UUID.randomUUID().toString(), "default").toString();
+        String localPath = Path.of(baseDir, "repositories", UUID.randomUUID().toString(), "default").toString();
         return cloneRepository(url, branch, localPath);
     }
 

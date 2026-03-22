@@ -16,11 +16,13 @@ import java.util.stream.Collectors;
 
 public class DevcontainerWorkspace implements Workspace {
 
+    private final String containerId;
     private final String hostWorkspaceFolder;
     private final String containerWorkingDir;
     private final String devcontainerCommand;
 
-    public DevcontainerWorkspace(String hostWorkspaceFolder, String containerWorkingDir, String devcontainerCommand) {
+    public DevcontainerWorkspace(String containerId, String hostWorkspaceFolder, String containerWorkingDir, String devcontainerCommand) {
+        this.containerId = containerId;
         this.hostWorkspaceFolder = hostWorkspaceFolder;
         this.containerWorkingDir = containerWorkingDir;
         this.devcontainerCommand = devcontainerCommand;
@@ -28,6 +30,14 @@ public class DevcontainerWorkspace implements Workspace {
 
     @Override
     public String id() {
+        return containerId + ":" + hostWorkspaceFolder;
+    }
+
+    public String containerId() {
+        return containerId;
+    }
+
+    public String hostWorkspaceFolder() {
         return hostWorkspaceFolder;
     }
 

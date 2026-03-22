@@ -23,7 +23,7 @@ public class FilesystemWorkspaceManager implements WorkspaceManager {
     @Override
     public Workspace provision(WorkspaceRequest request) throws WorkspaceException {
         String sanitized = GitManager.sanitizeUrl(request.gitUrl());
-        String cloneDir = Path.of(baseDir, sanitized, "default").toString();
+        String cloneDir = Path.of(baseDir, "repositories", sanitized, "default").toString();
 
         if (!Files.isDirectory(Path.of(cloneDir))) {
             gitManager.cloneRepository(request.gitUrl(), request.gitBranch(), cloneDir);
@@ -31,8 +31,7 @@ public class FilesystemWorkspaceManager implements WorkspaceManager {
                 gitManager.addForkRemote(cloneDir, request.forkUrl());
             }
         } else {
-            String branch = request.gitBranch() != null && !request.gitBranch().isBlank()
-                    ? request.gitBranch() : "HEAD";
+            String branch = request.gitBranch() != null && !request.gitBranch().isBlank() ? request.gitBranch() : "HEAD";
             gitManager.pullRepository(cloneDir, branch);
         }
 
