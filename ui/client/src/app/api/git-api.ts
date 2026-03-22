@@ -3,6 +3,7 @@ import axios from "axios";
 import type { GitDto, New, WorkspaceDto } from "./models";
 
 const BASE_URL = "/api/gits";
+const WORKSPACES_URL = "/api/workspaces";
 
 export const getGits = () =>
   axios.get<GitDto[]>(BASE_URL).then((response) => response.data);
@@ -18,16 +19,16 @@ export const deleteGit = (id: number) =>
 
 export const getWorkspaces = (gitId: number) =>
   axios
-    .get<WorkspaceDto[]>(`${BASE_URL}/${gitId}/workspaces`)
+    .get<WorkspaceDto[]>(WORKSPACES_URL, { params: { gitId } })
     .then((response) => response.data);
 
 export const createWorkspace = (gitId: number, taskId?: number) =>
   axios
-    .post<WorkspaceDto>(
-      `${BASE_URL}/${gitId}/workspaces`,
-      taskId ? { task: { id: taskId } } : {},
-    )
+    .post<WorkspaceDto>(WORKSPACES_URL, {
+      git: { id: gitId },
+      ...(taskId ? { task: { id: taskId } } : {}),
+    })
     .then((response) => response.data);
 
-export const deleteWorkspace = (gitId: number, wsId: number) =>
-  axios.delete<void>(`${BASE_URL}/${gitId}/workspaces/${wsId}`);
+export const deleteWorkspace = (wsId: number) =>
+  axios.delete<void>(`${WORKSPACES_URL}/${wsId}`);

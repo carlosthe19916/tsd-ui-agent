@@ -32,10 +32,4 @@ public class WorkspaceMapper {
         }
         return entity;
     }
-
-    public void patchEntity(WorkspaceDto dto, WorkspaceEntity entity) {
-        if (dto.claudeSessionId != null) {
-            entity.claudeSessionId = dto.claudeSessionId;
-        }
-    }
 }

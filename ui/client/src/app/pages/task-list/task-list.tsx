@@ -39,7 +39,6 @@ import {
   Tooltip,
 } from "@patternfly/react-core";
 import CheckCircleIcon from "@patternfly/react-icons/dist/esm/icons/check-circle-icon";
-import CloseIcon from "@patternfly/react-icons/dist/esm/icons/close-icon";
 import CodeIcon from "@patternfly/react-icons/dist/esm/icons/code-icon";
 import EllipsisVIcon from "@patternfly/react-icons/dist/esm/icons/ellipsis-v-icon";
 import InProgressIcon from "@patternfly/react-icons/dist/esm/icons/in-progress-icon";
@@ -58,7 +57,6 @@ import {
   useCreateTaskPlanMutation,
   useOpenTerminalMutation,
   useOpenVSCodeMutation,
-  usePatchWorkspaceMutation,
 } from "@app/queries/tasks";
 import { formatDateTime } from "@app/utils/utils";
 import { ButtonVariant } from "@patternfly/react-core";
@@ -66,10 +64,7 @@ import { ButtonVariant } from "@patternfly/react-core";
 import { ExecutionOutputModal } from "./components/execution-output-modal";
 import { PlanProgressStepper } from "./components/plan-progress-stepper";
 import { WorkspaceCell } from "./components/workspace-cell";
-import {
-  RequirementModal,
-  PlanModal,
-} from "./components/plan-wizard-modal";
+import { RequirementModal, PlanModal } from "./components/plan-wizard-modal";
 import { TaskSearchContext, TaskSearchProvider } from "./task-context";
 
 const statusIcon = (status: TaskStatus) => {
@@ -105,13 +100,11 @@ const TaskListContent: React.FC = () => {
 
   const [isSortByOpen, setIsSortByOpen] = React.useState(false);
   const [openKebabId, setOpenKebabId] = React.useState<number | null>(null);
-  const [requirementTask, setRequirementTask] =
-    React.useState<TaskDto | null>(null);
-  const [planTask, setPlanTask] = React.useState<TaskDto | null>(null);
-  const [createPlanTask, setCreatePlanTask] = React.useState<TaskDto | null>(
+  const [requirementTask, setRequirementTask] = React.useState<TaskDto | null>(
     null,
   );
-  const [clearClaudeTask, setClearClaudeTask] = React.useState<TaskDto | null>(
+  const [planTask, setPlanTask] = React.useState<TaskDto | null>(null);
+  const [createPlanTask, setCreatePlanTask] = React.useState<TaskDto | null>(
     null,
   );
   const [outputTaskId, setOutputTaskId] = React.useState<number | null>(null);
@@ -122,9 +115,6 @@ const TaskListContent: React.FC = () => {
   const openVSCodeMutation = useOpenVSCodeMutation();
   const openTerminalMutation = useOpenTerminalMutation();
   const changeRequestMutation = useCreateChangeRequestMutation();
-  const patchWorkspaceMutation = usePatchWorkspaceMutation(() =>
-    setClearClaudeTask(null),
-  );
 
   return (
     <>
@@ -262,9 +252,7 @@ const TaskListContent: React.FC = () => {
                               taskId={task.id}
                               plan={task.plan}
                               workspace={task.workspace}
-                              onEditRequirement={() =>
-                                setRequirementTask(task)
-                              }
+                              onEditRequirement={() => setRequirementTask(task)}
                               onEditPlan={() => setPlanTask(task)}
                               onChangeRequest={() =>
                                 changeRequestMutation.mutate(task.id)
@@ -325,19 +313,6 @@ const TaskListContent: React.FC = () => {
                                 </Button>
                               </Tooltip>
                             </FlexItem>
-                            {task.workspace?.claudeSessionId && (
-                              <FlexItem>
-                                <Tooltip content="Clear Claude session">
-                                  <Button
-                                    variant="control"
-                                    size="sm"
-                                    onClick={() => setClearClaudeTask(task)}
-                                    icon={<CloseIcon />}
-                                    aria-label="Clear Claude session"
-                                  ></Button>
-                                </Tooltip>
-                              </FlexItem>
-                            )}
                           </Flex>
                         </FlexItem>
                       )}
@@ -508,31 +483,6 @@ const TaskListContent: React.FC = () => {
         }}
         onClose={() => setCreatePlanTask(null)}
         onCancel={() => setCreatePlanTask(null)}
-      />
-
-      <ConfirmDialog
-        isOpen={clearClaudeTask !== null}
-        title="Clear Claude session"
-        titleIconVariant="warning"
-        message="Are you sure you want to clear the Claude session? This will start a new session next time you open Claude."
-        confirmBtnLabel="Clear"
-        cancelBtnLabel="Cancel"
-        confirmBtnVariant={ButtonVariant.danger}
-        inProgress={patchWorkspaceMutation.isPending}
-        onConfirm={() => {
-          if (
-            clearClaudeTask?.workspace?.id &&
-            clearClaudeTask?.workspace?.git?.id
-          ) {
-            patchWorkspaceMutation.mutate({
-              gitId: clearClaudeTask.workspace.git.id,
-              id: clearClaudeTask.workspace.id,
-              workspace: { claudeSessionId: "" },
-            });
-          }
-        }}
-        onClose={() => setClearClaudeTask(null)}
-        onCancel={() => setClearClaudeTask(null)}
       />
     </>
   );

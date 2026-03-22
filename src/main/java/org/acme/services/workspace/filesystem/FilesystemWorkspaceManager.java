@@ -31,7 +31,7 @@ public class FilesystemWorkspaceManager implements WorkspaceManager {
                 gitManager.addForkRemote(cloneDir, request.forkUrl());
             }
         } else {
-            String branch = request.gitBranch() != null && !request.gitBranch().isBlank() ? request.gitBranch() : "HEAD";
+            String branch = request.gitBranch() != null && !request.gitBranch().isBlank() ? request.gitBranch() : null;
             gitManager.pullRepository(cloneDir, branch, request.gitToken());
         }
 

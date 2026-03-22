@@ -1,5 +1,8 @@
 package org.acme.services.workspace.devcontainer;
 
+import com.github.dockerjava.api.DockerClient;
+import com.github.dockerjava.api.command.InspectContainerResponse;
+import com.github.dockerjava.api.command.InspectImageResponse;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.json.Json;
@@ -37,6 +40,9 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
     public Optional<List<String>> envPassthrough;
 
     @Inject
+    DockerClient dockerClient;
+
+    @Inject
     @WorkspaceManagerType(type = ExecutionMode.FILESYSTEM)
     FilesystemWorkspaceManager filesystemManager;
 
@@ -53,13 +59,9 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
         Path overrideConfigPath = generateOverrideConfig(sanitizedUrl, worktreeAlias);
 
         String output = runDevcontainerUp(worktreePath, overrideConfigPath.toString());
-        String folderName = Path.of(worktreePath).getFileName().toString();
-        String remoteWorkspaceFolder = parseRemoteWorkspaceFolder(output, folderName);
-
-        String containerId = findContainerId(worktreePath);
-        if (containerId == null || containerId.isBlank()) {
-            containerId = "unknown";
-        }
+        DevcontainerUpResult result = parseDevcontainerUpOutput(output, worktreeAlias);
+        String containerId = result.containerId() != null ? result.containerId() : "unknown";
+        String remoteWorkspaceFolder = result.remoteWorkspaceFolder();
 
         LOG.infof("Devcontainer provisioned: container=%s, worktree=%s, remote=%s", containerId, worktreePath, remoteWorkspaceFolder);
         return new DevcontainerWorkspace(containerId, worktreePath, remoteWorkspaceFolder, command);
@@ -87,12 +89,9 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
             }
 
             String output = runDevcontainerUp(worktreePath, configPath.toString());
-            remoteWorkspaceFolder = parseRemoteWorkspaceFolder(output, worktreeAlias);
-
-            containerId = findContainerId(worktreePath);
-            if (containerId == null || containerId.isBlank()) {
-                containerId = "unknown";
-            }
+            DevcontainerUpResult result = parseDevcontainerUpOutput(output, worktreeAlias);
+            containerId = result.containerId() != null ? result.containerId() : "unknown";
+            remoteWorkspaceFolder = result.remoteWorkspaceFolder();
         }
 
         return new DevcontainerWorkspace(containerId, worktreePath, remoteWorkspaceFolder, command);
@@ -102,12 +101,26 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
     public void destroy(String workspaceId) throws WorkspaceException {
         try {
             String containerId = parseContainerId(workspaceId);
-            if (containerId != null && !containerId.isBlank() && !"unknown".equals(containerId)) {
-                LOG.infof("Removing container %s", containerId);
-                ProcessBuilder pb = new ProcessBuilder("docker", "rm", "-f", containerId)
-                        .redirectErrorStream(true);
-                Process process = pb.start();
-                process.waitFor(30, TimeUnit.SECONDS);
+            if (containerId == null || containerId.isBlank() || "unknown".equals(containerId)) {
+                return;
+            }
+
+            // Inspect container to get image info BEFORE removal
+            String imageId = null;
+            try {
+                InspectContainerResponse info = dockerClient.inspectContainerCmd(containerId).exec();
+                imageId = info.getImageId();
+            } catch (Exception e) {
+                LOG.warnf("Failed to inspect container %s: %s", containerId, e.getMessage());
+            }
+
+            // Remove container
+            LOG.infof("Removing container %s", containerId);
+            dockerClient.removeContainerCmd(containerId).withForce(true).exec();
+
+            // Best-effort removal of derived devcontainer image
+            if (imageId != null) {
+                removeDevcontainerImage(imageId);
             }
         } catch (Exception e) {
             throw new WorkspaceException("Failed to destroy devcontainer workspace: " + workspaceId, e);
@@ -211,22 +224,26 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
         }
     }
 
-    private String parseRemoteWorkspaceFolder(String output, String folderName) {
+    private record DevcontainerUpResult(String containerId, String remoteWorkspaceFolder) {}
+
+    private DevcontainerUpResult parseDevcontainerUpOutput(String output, String folderName) {
         try {
             String[] lines = output.split("\n");
             for (int i = lines.length - 1; i >= 0; i--) {
                 String line = lines[i].trim();
                 if (line.startsWith("{")) {
                     JsonObject json = Json.createReader(new StringReader(line)).readObject();
-                    if (json.containsKey("remoteWorkspaceFolder")) {
-                        return json.getString("remoteWorkspaceFolder");
-                    }
+                    String containerId = json.containsKey("containerId") ? json.getString("containerId") : null;
+                    String remoteFolder = json.containsKey("remoteWorkspaceFolder")
+                            ? json.getString("remoteWorkspaceFolder")
+                            : "/workspaces/" + folderName;
+                    return new DevcontainerUpResult(containerId, remoteFolder);
                 }
             }
         } catch (Exception e) {
-            LOG.warnf("Failed to parse remoteWorkspaceFolder from devcontainer up output, using default: %s", e.getMessage());
+            LOG.warnf("Failed to parse devcontainer up output: %s", e.getMessage());
         }
-        return "/workspaces/" + folderName;
+        return new DevcontainerUpResult(null, "/workspaces/" + folderName);
     }
 
     private boolean isContainerRunning(String workspaceId) {
@@ -242,25 +259,19 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
         }
     }
 
-    private String findContainerId(String workspaceId) {
+
+    private void removeDevcontainerImage(String imageId) {
         try {
-            ProcessBuilder pb = new ProcessBuilder(
-                    "docker", "ps", "-aq",
-                    "--filter", "label=devcontainer.local_folder=" + workspaceId)
-                    .redirectErrorStream(true);
-            Process process = pb.start();
-
-            String output;
-            try (BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
-                output = reader.lines().collect(Collectors.joining("\n"));
+            InspectImageResponse imageInfo = dockerClient.inspectImageCmd(imageId).exec();
+            List<String> repoTags = imageInfo.getRepoTags();
+            if (repoTags != null && repoTags.contains(image)) {
+                LOG.debugf("Skipping image cleanup: %s is the configured base image", image);
+                return;
             }
-
-            process.waitFor(30, TimeUnit.SECONDS);
-            return output.trim();
+            LOG.infof("Removing devcontainer image %s", imageId);
+            dockerClient.removeImageCmd(imageId).exec();
         } catch (Exception e) {
-            LOG.warnf("Failed to find container ID for %s: %s", workspaceId, e.getMessage());
-            return null;
+            LOG.warnf("Failed to remove devcontainer image %s: %s", imageId, e.getMessage());
         }
     }
 }

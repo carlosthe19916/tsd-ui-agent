@@ -29,14 +29,7 @@ import {
   ToolbarGroup,
   ToolbarItem,
 } from "@patternfly/react-core";
-import {
-  Table,
-  Tbody,
-  Td,
-  Th,
-  Thead,
-  Tr,
-} from "@patternfly/react-table";
+import { Table, Tbody, Td, Th, Thead, Tr } from "@patternfly/react-table";
 import EllipsisVIcon from "@patternfly/react-icons/dist/esm/icons/ellipsis-v-icon";
 import SortAmountDownIcon from "@patternfly/react-icons/dist/esm/icons/sort-amount-down-icon";
 import SortAmountUpIcon from "@patternfly/react-icons/dist/esm/icons/sort-amount-up-icon";
@@ -66,7 +59,10 @@ const GitWorkspaceCell: React.FC<{ gitId: number }> = ({ gitId }) => {
   const count = workspaces?.length ?? 0;
 
   return (
-    <Flex gap={{ default: "gapMd" }} alignItems={{ default: "alignItemsCenter" }}>
+    <Flex
+      gap={{ default: "gapMd" }}
+      alignItems={{ default: "alignItemsCenter" }}
+    >
       <FlexItem>
         <Badge isRead={count === 0}>{count}</Badge>{" "}
         <small>workspace{count !== 1 ? "s" : ""}</small>
@@ -115,7 +111,13 @@ const GitExpandedContent: React.FC<{ gitId: number }> = ({ gitId }) => {
             <Tr key={ws.id}>
               <Td>{ws.id}</Td>
               <Td>{ws.workspaceId ?? "-"}</Td>
-              <Td>{ws.isProvisioningInProgress ? "Provisioning..." : ws.provisioningError ? "Error" : "Ready"}</Td>
+              <Td>
+                {ws.isProvisioningInProgress
+                  ? "Provisioning..."
+                  : ws.provisioningError
+                    ? "Error"
+                    : "Ready"}
+              </Td>
               <Td isActionCell>
                 <Button
                   variant={ButtonVariant.danger}
@@ -322,9 +324,7 @@ export const GitList: React.FC = () => {
                   <DataListToggle
                     id={`git-toggle-${git.id}`}
                     onClick={() =>
-                      setExpandedGitId(
-                        expandedGitId === git.id ? null : git.id,
-                      )
+                      setExpandedGitId(expandedGitId === git.id ? null : git.id)
                     }
                     isExpanded={expandedGitId === git.id}
                   />

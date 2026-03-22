@@ -60,7 +60,7 @@ export const useFetchWorkspaces = (gitId: number) => {
     queryFn: () => getWorkspaces(gitId),
     refetchInterval: (query) => {
       const hasInProgress = query.state.data?.some(
-        (workspace) => workspace.isProvisioningInProgress
+        (workspace) => workspace.isProvisioningInProgress,
       );
       return hasInProgress ? 3000 : false;
     },
@@ -72,7 +72,9 @@ export const useCreateWorkspaceMutation = (onSuccess?: () => void) => {
   return useMutation({
     mutationFn: (gitId: number) => createWorkspace(gitId),
     onSuccess: (_response, gitId) => {
-      queryClient.invalidateQueries({ queryKey: [WORKSPACES_QUERY_KEY, gitId] });
+      queryClient.invalidateQueries({
+        queryKey: [WORKSPACES_QUERY_KEY, gitId],
+      });
       onSuccess?.();
     },
   });
@@ -82,9 +84,11 @@ export const useDeleteWorkspaceMutation = (onSuccess?: () => void) => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ gitId, wsId }: { gitId: number; wsId: number }) =>
-      deleteWorkspace(gitId, wsId),
+      deleteWorkspace(wsId),
     onSuccess: (_response, { gitId }) => {
-      queryClient.invalidateQueries({ queryKey: [WORKSPACES_QUERY_KEY, gitId] });
+      queryClient.invalidateQueries({
+        queryKey: [WORKSPACES_QUERY_KEY, gitId],
+      });
       onSuccess?.();
     },
   });
