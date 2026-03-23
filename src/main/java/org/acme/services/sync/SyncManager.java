@@ -2,33 +2,30 @@ package org.acme.services.sync;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.apache.camel.ProducerTemplate;
 import org.acme.models.jpa.entity.ProjectEntity;
 import org.acme.models.jpa.entity.SourceType;
 import org.acme.models.jpa.entity.TaskEntity;
+import org.acme.services.sync.github.GitHubSyncClient;
+import org.acme.services.sync.jira.JiraSyncClient;
 
 import java.net.URI;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @ApplicationScoped
 public class SyncManager {
 
     @Inject
-    ProducerTemplate template;
+    JiraSyncClient jiraClient;
 
-    @SuppressWarnings("unchecked")
+    @Inject
+    GitHubSyncClient gitHubClient;
+
     public List<ExternalIssue> fetchIssues(ProjectEntity project) {
-        String routePrefix = project.type.name().toLowerCase();
-        Map<String, Object> headers = Map.of(
-                "apiUrl", project.apiUrl,
-                "token", project.credential.token,
-                "query", project.query != null ? project.query : ""
-        );
-
         try {
-            return (List<ExternalIssue>) template.requestBodyAndHeaders("direct:" + routePrefix + "-fetch-issues", null, headers);
+            return switch (project.type) {
+                case JIRA -> jiraClient.fetchIssues(project.apiUrl, project.query, project.credential.token);
+                case GITHUB -> gitHubClient.fetchIssues(project.apiUrl, project.query, project.credential.token);
+            };
         } catch (SyncException e) {
             throw e;
         } catch (Exception e) {
@@ -37,15 +34,11 @@ public class SyncManager {
     }
 
     public void testQuery(SourceType type, String url, String query, String token) {
-        String routePrefix = type.name().toLowerCase();
-        Map<String, Object> headers = Map.of(
-                "apiUrl", url,
-                "token", token,
-                "query", query != null ? query : ""
-        );
-
         try {
-            template.requestBodyAndHeaders("direct:" + routePrefix + "-test-query", null, headers, Object.class);
+            switch (type) {
+                case JIRA -> jiraClient.testQuery(url, query, token);
+                case GITHUB -> gitHubClient.testQuery(url, query, token);
+            }
         } catch (SyncException e) {
             throw e;
         } catch (Exception e) {
@@ -55,29 +48,24 @@ public class SyncManager {
 
     @SuppressWarnings("unchecked")
     public List<ExternalIssueContext.Comment> fetchComments(TaskEntity task) {
-        String routePrefix = task.type.name().toLowerCase();
-        Map<String, Object> headers = new HashMap<>();
-        headers.put("token", task.project.credential.token);
-
-        if (task.type == SourceType.GITHUB) {
-            // Extract owner/repo/issue from URL like https://github.com/owner/repo/issues/123
-            URI uri = URI.create(task.project.apiUrl);
-            String apiBase = uri.getScheme() + "://" + uri.getAuthority();
-            if (!uri.getAuthority().startsWith("api.")) {
-                apiBase = apiBase.replace("github.com", "api.github.com");
-            }
-            headers.put("apiUrl", apiBase);
-            String[] urlParts = task.url.replaceFirst("https?://[^/]+/", "").split("/");
-            headers.put("owner", urlParts.length > 0 ? urlParts[0] : "");
-            headers.put("repo", urlParts.length > 1 ? urlParts[1] : "");
-            headers.put("issueNumber", task.externalId.replaceAll("[^0-9]", ""));
-        } else if (task.type == SourceType.JIRA) {
-            headers.put("apiUrl", task.project.apiUrl);
-            headers.put("issueKey", task.externalId);
-        }
+        String token = task.project.credential.token;
 
         try {
-            return (List<ExternalIssueContext.Comment>) template.requestBodyAndHeaders("direct:" + routePrefix + "-fetch-comments", null, headers);
+            return switch (task.type) {
+                case GITHUB -> {
+                    URI uri = URI.create(task.project.apiUrl);
+                    String apiBase = uri.getScheme() + "://" + uri.getAuthority();
+                    if (!uri.getAuthority().startsWith("api.")) {
+                        apiBase = apiBase.replace("github.com", "api.github.com");
+                    }
+                    String[] urlParts = task.url.replaceFirst("https?://[^/]+/", "").split("/");
+                    String owner = urlParts.length > 0 ? urlParts[0] : "";
+                    String repo = urlParts.length > 1 ? urlParts[1] : "";
+                    int issueNumber = Integer.parseInt(task.externalId.replaceAll("[^0-9]", ""));
+                    yield gitHubClient.fetchComments(apiBase, owner, repo, issueNumber, token);
+                }
+                case JIRA -> jiraClient.fetchComments(task.project.apiUrl, task.externalId, token);
+            };
         } catch (SyncException e) {
             throw e;
         } catch (Exception e) {
@@ -87,28 +75,24 @@ public class SyncManager {
 
     @SuppressWarnings("unchecked")
     public List<String> fetchLabels(TaskEntity task) {
-        String routePrefix = task.type.name().toLowerCase();
-        Map<String, Object> headers = new HashMap<>();
-        headers.put("token", task.project.credential.token);
-
-        if (task.type == SourceType.GITHUB) {
-            URI uri = URI.create(task.project.apiUrl);
-            String apiBase = uri.getScheme() + "://" + uri.getAuthority();
-            if (!uri.getAuthority().startsWith("api.")) {
-                apiBase = apiBase.replace("github.com", "api.github.com");
-            }
-            headers.put("apiUrl", apiBase);
-            String[] urlParts = task.url.replaceFirst("https?://[^/]+/", "").split("/");
-            headers.put("owner", urlParts.length > 0 ? urlParts[0] : "");
-            headers.put("repo", urlParts.length > 1 ? urlParts[1] : "");
-            headers.put("issueNumber", task.externalId.replaceAll("[^0-9]", ""));
-        } else if (task.type == SourceType.JIRA) {
-            headers.put("apiUrl", task.project.apiUrl);
-            headers.put("issueKey", task.externalId);
-        }
+        String token = task.project.credential.token;
 
         try {
-            return (List<String>) template.requestBodyAndHeaders("direct:" + routePrefix + "-fetch-labels", null, headers);
+            return switch (task.type) {
+                case GITHUB -> {
+                    URI uri = URI.create(task.project.apiUrl);
+                    String apiBase = uri.getScheme() + "://" + uri.getAuthority();
+                    if (!uri.getAuthority().startsWith("api.")) {
+                        apiBase = apiBase.replace("github.com", "api.github.com");
+                    }
+                    String[] urlParts = task.url.replaceFirst("https?://[^/]+/", "").split("/");
+                    String owner = urlParts.length > 0 ? urlParts[0] : "";
+                    String repo = urlParts.length > 1 ? urlParts[1] : "";
+                    int issueNumber = Integer.parseInt(task.externalId.replaceAll("[^0-9]", ""));
+                    yield gitHubClient.fetchLabels(apiBase, owner, repo, issueNumber, token);
+                }
+                case JIRA -> jiraClient.fetchLabels(task.project.apiUrl, task.externalId, token);
+            };
         } catch (SyncException e) {
             throw e;
         } catch (Exception e) {
@@ -117,15 +101,11 @@ public class SyncManager {
     }
 
     public void testConnection(SourceType type, String url, String query, String token) {
-        String routePrefix = type.name().toLowerCase();
-        Map<String, Object> headers = Map.of(
-                "apiUrl", url,
-                "token", token,
-                "query", query != null ? query : ""
-        );
-
         try {
-            template.requestBodyAndHeaders("direct:" + routePrefix + "-test-connection", null, headers, Object.class);
+            switch (type) {
+                case JIRA -> jiraClient.testConnection(url, token);
+                case GITHUB -> gitHubClient.testConnection(url, token);
+            }
         } catch (SyncException e) {
             throw e;
         } catch (Exception e) {

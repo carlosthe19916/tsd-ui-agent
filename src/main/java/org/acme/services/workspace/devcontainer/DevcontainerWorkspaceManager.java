@@ -23,6 +23,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -57,7 +58,7 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
     public Optional<List<String>> envPassthrough;
 
     @ConfigProperty(name = "tsd-agent.devcontainer.mounts")
-    public Optional<List<String>> mounts;
+    public Optional<Map<String, String>> mounts;
 
     @Inject
     DockerClient dockerClient;
@@ -231,7 +232,7 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
                     .toList());
             envVars.add(new EnvVar("DEVCONTAINER", "true"));
 
-            List<String> mountList = new java.util.ArrayList<>(mounts.orElse(List.of()).stream()
+            List<String> mountList = new java.util.ArrayList<>(mounts.orElse(Map.of()).values().stream()
                     .map(String::trim)
                     .filter(s -> !s.isEmpty())
                     .toList());
@@ -247,7 +248,7 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
                     effectiveImage = useProjectImage ? null : image;
                     remoteUser = "vscode";
                     postCreateCommand = "curl -fsSL https://claude.ai/install.sh | bash";
-                    mountList.add("source=claude-data-${devcontainerId},target=/home/vscode/.claude,type=volume");
+//                    mountList.add("source=claude-data-${devcontainerId},target=/home/vscode/.claude,type=volume");
                 }
                 case OPENCODE -> {
                     effectiveImage = useProjectImage ? null : image;
@@ -256,7 +257,7 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
                     int openCodePort = portAllocator.allocate(worktreeAlias);
                     postStartCommand = "/home/vscode/.opencode/bin/opencode serve --port " + openCodePort + " --hostname 0.0.0.0 > /tmp/opencode-server.log 2>&1 & while ! curl -s http://localhost:" + openCodePort + " > /dev/null 2>&1; do sleep 1; done";
                     appPort = List.of(openCodePort);
-                    mountList.add("source=opencode-data-${devcontainerId},target=/home/vscode/.local/share/opencode,type=volume");
+//                    mountList.add("source=opencode-data-${devcontainerId},target=/home/vscode/.local/share/opencode,type=volume");
                 }
                 default -> throw new WorkspaceException("Unsupported coding agent: " + codingAgent);
             }

@@ -1,4 +1,4 @@
-package org.acme.services.sync.camel.processor;
+package org.acme.services.sync.jira;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
