@@ -1,8 +1,5 @@
 package org.acme.services.workspace.devcontainer;
 
-import com.github.dockerjava.api.DockerClient;
-import com.github.dockerjava.api.command.InspectContainerResponse;
-import com.github.dockerjava.api.command.InspectImageResponse;
 import io.quarkus.qute.CheckedTemplate;
 import io.quarkus.qute.TemplateInstance;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -60,8 +57,8 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
     @ConfigProperty(name = "tsd-agent.devcontainer.mounts")
     public Optional<Map<String, String>> mounts;
 
-    @Inject
-    DockerClient dockerClient;
+    @ConfigProperty(name = "tsd-agent.devcontainer.container-runtime")
+    String containerRuntime;
 
     @Inject
     PortAllocator portAllocator;
@@ -138,15 +135,14 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
             // Inspect container to get image info BEFORE removal
             String imageId = null;
             try {
-                InspectContainerResponse info = dockerClient.inspectContainerCmd(containerId).exec();
-                imageId = info.getImageId();
+                imageId = runContainerCommand(containerRuntime, "inspect", "--format", "{{.Image}}", containerId).trim();
             } catch (Exception e) {
                 LOG.warnf("Failed to inspect container %s: %s", containerId, e.getMessage());
             }
 
             // Remove container
             LOG.infof("Removing container %s", containerId);
-            dockerClient.removeContainerCmd(containerId).withForce(true).exec();
+            runContainerCommand(containerRuntime, "rm", "-f", containerId);
 
             // Best-effort removal of derived devcontainer image
             if (imageId != null) {
@@ -170,14 +166,11 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
             return WorkspaceHealthStatus.error("No container ID");
         }
         try {
-            InspectContainerResponse info = dockerClient.inspectContainerCmd(containerId).exec();
-            InspectContainerResponse.ContainerState state = info.getState();
-            if (Boolean.TRUE.equals(state.getRunning())) {
+            String running = runContainerCommand(containerRuntime, "inspect", "--format", "{{.State.Running}}", containerId).trim();
+            if ("true".equals(running)) {
                 return WorkspaceHealthStatus.running();
             }
             return WorkspaceHealthStatus.stopped("Container is stopped");
-        } catch (com.github.dockerjava.api.exception.NotFoundException e) {
-            return WorkspaceHealthStatus.error("Container does not exist");
         } catch (Exception e) {
             return WorkspaceHealthStatus.error(e.getMessage());
         }
@@ -377,16 +370,34 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
 
     private void removeDevcontainerImage(String imageId) {
         try {
-            InspectImageResponse imageInfo = dockerClient.inspectImageCmd(imageId).exec();
-            List<String> repoTags = imageInfo.getRepoTags();
-            if (repoTags != null && repoTags.contains(image)) {
+            String repoTags = runContainerCommand(containerRuntime, "image", "inspect", "--format", "{{.RepoTags}}", imageId).trim();
+            if (repoTags.contains(image)) {
                 LOG.debugf("Skipping image cleanup: %s is the configured base image", image);
                 return;
             }
             LOG.infof("Removing devcontainer image %s", imageId);
-            dockerClient.removeImageCmd(imageId).exec();
+            runContainerCommand(containerRuntime, "rmi", imageId);
         } catch (Exception e) {
             LOG.warnf("Failed to remove devcontainer image %s: %s", imageId, e.getMessage());
         }
+    }
+
+    private static String runContainerCommand(String... args) throws Exception {
+        ProcessBuilder pb = new ProcessBuilder(args).redirectErrorStream(true);
+        Process process = pb.start();
+        String output;
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+            output = reader.lines().collect(Collectors.joining("\n"));
+        }
+        boolean finished = process.waitFor(30, TimeUnit.SECONDS);
+        if (!finished) {
+            process.destroyForcibly();
+            throw new RuntimeException("Command timed out: " + String.join(" ", args));
+        }
+        if (process.exitValue() != 0) {
+            throw new RuntimeException("Command failed (exit " + process.exitValue() + "): " + output);
+        }
+        return output;
     }
 }
