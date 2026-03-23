@@ -28,7 +28,7 @@ public class WorkspaceEntity extends PanacheEntityBase {
     @Column(name = "is_provisioning_in_progress")
     public boolean isProvisioningInProgress;
 
-    @Column(name = "provisioning_error")
+    @Column(name = "provisioning_error", columnDefinition = "TEXT")
     public String provisioningError;
 
     // if filesystem then the path to the git worktree, if container then container id

@@ -29,13 +29,6 @@
             </dependency>
             <dependency>
                 <groupId>io.quarkus.platform</groupId>
-                <artifactId>quarkus-camel-bom</artifactId>
-                <version>${quarkus.platform.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-            <dependency>
-                <groupId>io.quarkus.platform</groupId>
                 <artifactId>quarkus-langchain4j-bom</artifactId>
                 <version>${quarkus.platform.version}</version>
                 <type>pom</type>
@@ -79,20 +72,9 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.apache.camel.quarkus</groupId>
-            <artifactId>camel-quarkus-direct</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.camel.quarkus</groupId>
-            <artifactId>camel-quarkus-http</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.camel.quarkus</groupId>
-            <artifactId>camel-quarkus-jackson</artifactId>
-        </dependency>
-        <dependency>
             <groupId>io.quarkiverse.jgit</groupId>
             <artifactId>quarkus-jgit</artifactId>
+            <version>3.6.1</version>
         </dependency>
         <dependency>
             <groupId>io.quarkiverse.langchain4j</groupId>
@@ -124,11 +106,6 @@
             <groupId>org.awaitility</groupId>
             <artifactId>awaitility</artifactId>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.quarkiverse.docker</groupId>
-            <artifactId>quarkus-docker-client</artifactId>
-            <version>0.0.5</version>
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
