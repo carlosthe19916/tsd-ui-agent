@@ -174,14 +174,47 @@ public class KubernetesWorkspaceManager implements WorkspaceManager {
         try {
             String phase = getDevWorkspacePhase(workspaceId);
             if ("Running".equals(phase)) {
-                return WorkspaceHealthStatus.running();
+                return WorkspaceHealthStatus.running(true);
             }
             if ("Failed".equals(phase)) {
                 return WorkspaceHealthStatus.error("DevWorkspace phase: Failed");
             }
-            return WorkspaceHealthStatus.stopped("DevWorkspace phase: " + phase);
+            return WorkspaceHealthStatus.stopped("DevWorkspace phase: " + phase, true);
         } catch (Exception e) {
             return WorkspaceHealthStatus.error(e.getMessage());
+        }
+    }
+
+    @Override
+    public void start(String workspaceId) throws WorkspaceException {
+        setDevWorkspaceStarted(workspaceId, true);
+    }
+
+    @Override
+    public void stop(String workspaceId) throws WorkspaceException {
+        setDevWorkspaceStarted(workspaceId, false);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void setDevWorkspaceStarted(String workspaceName, boolean started) throws WorkspaceException {
+        try {
+            GenericKubernetesResource resource = client.genericKubernetesResources(DEV_WORKSPACE_CONTEXT)
+                    .inNamespace(namespace)
+                    .withName(workspaceName)
+                    .get();
+            if (resource == null) {
+                throw new WorkspaceException("DevWorkspace " + workspaceName + " not found");
+            }
+            Map<String, Object> spec = (Map<String, Object>) resource.getAdditionalProperties().get("spec");
+            spec.put("started", started);
+            client.genericKubernetesResources(DEV_WORKSPACE_CONTEXT)
+                    .inNamespace(namespace)
+                    .resource(resource)
+                    .serverSideApply();
+        } catch (WorkspaceException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new WorkspaceException("Failed to " + (started ? "start" : "stop") + " DevWorkspace " + workspaceName, e);
         }
     }
 

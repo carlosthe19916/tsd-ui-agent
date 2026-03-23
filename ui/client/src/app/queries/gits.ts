@@ -8,6 +8,8 @@ import {
   getGits,
   getWorkspaceStatus,
   getWorkspaces,
+  startWorkspace,
+  stopWorkspace,
   updateGit,
 } from "@app/api/git-api";
 import type { GitDto, New } from "@app/api/models";
@@ -90,6 +92,30 @@ export const useFetchWorkspaceStatus = (
     queryKey: [WORKSPACE_STATUS_QUERY_KEY, wsId],
     queryFn: () => getWorkspaceStatus(wsId as number),
     enabled: enabled && wsId != null,
+  });
+};
+
+export const useStartWorkspaceMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (wsId: number) => startWorkspace(wsId),
+    onSuccess: (_response, wsId) => {
+      queryClient.invalidateQueries({
+        queryKey: [WORKSPACE_STATUS_QUERY_KEY, wsId],
+      });
+    },
+  });
+};
+
+export const useStopWorkspaceMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (wsId: number) => stopWorkspace(wsId),
+    onSuccess: (_response, wsId) => {
+      queryClient.invalidateQueries({
+        queryKey: [WORKSPACE_STATUS_QUERY_KEY, wsId],
+      });
+    },
   });
 };
 

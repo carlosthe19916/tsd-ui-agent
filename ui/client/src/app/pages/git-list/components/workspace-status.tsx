@@ -1,15 +1,21 @@
 import type React from "react";
 
-import { Label, Tooltip } from "@patternfly/react-core";
+import { Button, Flex, FlexItem, Label, Tooltip } from "@patternfly/react-core";
 import {
   CheckCircleIcon,
   ExclamationCircleIcon,
   InProgressIcon,
   PausedIcon,
+  PlayIcon,
+  StopIcon,
 } from "@patternfly/react-icons";
 
 import type { WorkspaceDto } from "@app/api/models";
-import { useFetchWorkspaceStatus } from "@app/queries/gits";
+import {
+  useFetchWorkspaceStatus,
+  useStartWorkspaceMutation,
+  useStopWorkspaceMutation,
+} from "@app/queries/gits";
 
 export type WorkspaceType = "filesystem" | "docker" | "kubernetes";
 
@@ -67,6 +73,10 @@ export const WorkspaceStatusLabel: React.FC<{ ws: WorkspaceDto }> = ({
     isProvisioned,
   );
 
+  const startMutation = useStartWorkspaceMutation();
+  const stopMutation = useStopWorkspaceMutation();
+  const isMutating = startMutation.isPending || stopMutation.isPending;
+
   if (ws.isProvisioningInProgress) {
     return (
       <Label color="blue" icon={<InProgressIcon />}>
@@ -97,30 +107,66 @@ export const WorkspaceStatusLabel: React.FC<{ ws: WorkspaceDto }> = ({
     );
   }
 
-  switch (health?.status) {
-    case "RUNNING":
-      return (
-        <Label color="green" icon={<CheckCircleIcon />}>
-          Running
-        </Label>
-      );
-    case "STOPPED":
-      return (
-        <Tooltip content={health.reason ?? "Stopped"}>
-          <Label color="gold" icon={<PausedIcon />}>
-            Stopped
+  const statusLabel = (() => {
+    switch (health?.status) {
+      case "RUNNING":
+        return (
+          <Label color="green" icon={<CheckCircleIcon />}>
+            Running
           </Label>
-        </Tooltip>
-      );
-    case "ERROR":
-      return (
-        <Tooltip content={health.reason ?? "Unknown error"}>
-          <Label color="red" icon={<ExclamationCircleIcon />}>
-            Error
-          </Label>
-        </Tooltip>
-      );
-    default:
-      return <Label color="grey">Unknown</Label>;
+        );
+      case "STOPPED":
+        return (
+          <Tooltip content={health.reason ?? "Stopped"}>
+            <Label color="gold" icon={<PausedIcon />}>
+              Stopped
+            </Label>
+          </Tooltip>
+        );
+      case "ERROR":
+        return (
+          <Tooltip content={health.reason ?? "Unknown error"}>
+            <Label color="red" icon={<ExclamationCircleIcon />}>
+              Error
+            </Label>
+          </Tooltip>
+        );
+      default:
+        return <Label color="grey">Unknown</Label>;
+    }
+  })();
+
+  if (!health?.supportsStartStop) {
+    return statusLabel;
   }
+
+  return (
+    <Flex gap={{ default: "gapSm" }} alignItems={{ default: "alignItemsCenter" }}>
+      <FlexItem>{statusLabel}</FlexItem>
+      <FlexItem>
+        {health.status === "RUNNING" && (
+          <Button
+            variant="plain"
+            size="sm"
+            aria-label="Stop workspace"
+            onClick={() => stopMutation.mutate(ws.id as number)}
+            isDisabled={isMutating}
+            isLoading={stopMutation.isPending}
+            icon={<StopIcon />}
+          />
+        )}
+        {health.status === "STOPPED" && (
+          <Button
+            variant="plain"
+            size="sm"
+            aria-label="Start workspace"
+            onClick={() => startMutation.mutate(ws.id as number)}
+            isDisabled={isMutating}
+            isLoading={startMutation.isPending}
+            icon={<PlayIcon />}
+          />
+        )}
+      </FlexItem>
+    </Flex>
+  );
 };

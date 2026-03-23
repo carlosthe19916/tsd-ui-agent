@@ -106,6 +106,30 @@ public class WorkspaceResource {
         return workspaceManager.healthStatus(entity.workspaceId);
     }
 
+    @POST
+    @Path("/{id}/start")
+    public Response start(@PathParam("id") Long id) {
+        WorkspaceEntity entity = (WorkspaceEntity) WorkspaceEntity.findByIdOptional(id)
+                .orElseThrow(NotFoundException::new);
+        if (entity.workspaceId == null) {
+            throw new BadRequestException("Workspace not provisioned");
+        }
+        workspaceManager.start(entity.workspaceId);
+        return Response.noContent().build();
+    }
+
+    @POST
+    @Path("/{id}/stop")
+    public Response stop(@PathParam("id") Long id) {
+        WorkspaceEntity entity = (WorkspaceEntity) WorkspaceEntity.findByIdOptional(id)
+                .orElseThrow(NotFoundException::new);
+        if (entity.workspaceId == null) {
+            throw new BadRequestException("Workspace not provisioned");
+        }
+        workspaceManager.stop(entity.workspaceId);
+        return Response.noContent().build();
+    }
+
     @DELETE
     @Path("/{id}")
     public Response delete(@PathParam("id") Long id) {

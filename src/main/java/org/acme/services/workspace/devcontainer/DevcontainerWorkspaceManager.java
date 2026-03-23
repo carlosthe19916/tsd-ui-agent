@@ -168,9 +168,9 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
         try {
             String running = runContainerCommand(containerRuntime, "inspect", "--format", "{{.State.Running}}", containerId).trim();
             if ("true".equals(running)) {
-                return WorkspaceHealthStatus.running();
+                return WorkspaceHealthStatus.running(true);
             }
-            return WorkspaceHealthStatus.stopped("Container is stopped");
+            return WorkspaceHealthStatus.stopped("Container is stopped", true);
         } catch (Exception e) {
             return WorkspaceHealthStatus.error(e.getMessage());
         }
@@ -367,6 +367,26 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
         }
     }
 
+
+    @Override
+    public void start(String workspaceId) throws WorkspaceException {
+        String containerId = parseContainerId(workspaceId);
+        try {
+            runContainerCommand(containerRuntime, "start", containerId);
+        } catch (Exception e) {
+            throw new WorkspaceException("Failed to start container " + containerId, e);
+        }
+    }
+
+    @Override
+    public void stop(String workspaceId) throws WorkspaceException {
+        String containerId = parseContainerId(workspaceId);
+        try {
+            runContainerCommand(containerRuntime, "stop", containerId);
+        } catch (Exception e) {
+            throw new WorkspaceException("Failed to stop container " + containerId, e);
+        }
+    }
 
     private void removeDevcontainerImage(String imageId) {
         try {
