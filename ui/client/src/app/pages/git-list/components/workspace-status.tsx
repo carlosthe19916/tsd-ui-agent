@@ -1,8 +1,7 @@
-import type React from "react";
+import React from "react";
 
 import {
   Button,
-  ClipboardCopy,
   Flex,
   FlexItem,
   Label,
@@ -11,11 +10,16 @@ import {
 import {
   CheckCircleIcon,
   ExclamationCircleIcon,
+  ExternalLinkAltIcon,
+  FolderIcon,
   InProgressIcon,
   PausedIcon,
   PlayIcon,
   StopIcon,
+  TerminalIcon,
 } from "@patternfly/react-icons";
+
+import { DockerIcon, VscodeIcon } from "./icons";
 
 import type { WorkspaceDto } from "@app/api/models";
 import {
@@ -182,27 +186,53 @@ export const WorkspaceStatusLabel: React.FC<{ ws: WorkspaceDto }> = ({
   );
 };
 
+const commandIcon: Record<string, React.ReactNode> = {
+  NAVIGATE: <FolderIcon />,
+  CONTAINER_EXEC: <DockerIcon />,
+  REMOTE_EXEC: <TerminalIcon />,
+  VSCODE: <VscodeIcon />,
+};
+
 export const WorkspaceCommands: React.FC<{ ws: WorkspaceDto }> = ({ ws }) => {
   const isProvisioned =
     !ws.isProvisioningInProgress && !ws.provisioningError && !!ws.workspaceId;
 
   const { data: commands } = useFetchWorkspaceCommands(ws.id, isProvisioned);
+  const { data: health } = useFetchWorkspaceStatus(ws.id, isProvisioned);
+  const [copiedIndex, setCopiedIndex] = React.useState<number | null>(null);
 
   if (!commands || commands.length === 0) return null;
 
+  const wsType = workspaceType(ws.workspaceId);
+  const disableNonNavigate =
+    wsType === "docker" && health?.status !== "RUNNING";
+
+  const handleCopy = (command: string, index: number) => {
+    navigator.clipboard.writeText(command);
+    setCopiedIndex(index);
+    setTimeout(() => setCopiedIndex(null), 1500);
+  };
+
   return (
-    <Flex direction={{ default: "column" }} gap={{ default: "gapXs" }}>
-      {commands.map((cmd) => (
-        <FlexItem key={cmd.label}>
-          <ClipboardCopy
-            isReadOnly
-            hoverTip={`Copy: ${cmd.label}`}
-            clickTip="Copied"
-          >
-            {cmd.command}
-          </ClipboardCopy>
-        </FlexItem>
-      ))}
+    <Flex gap={{ default: "gapSm" }}>
+      {commands.map((cmd, index) => {
+        const isDisabled = disableNonNavigate && cmd.type !== "NAVIGATE";
+        return (
+          <FlexItem key={cmd.type}>
+            <Tooltip content={copiedIndex === index ? "Copied!" : cmd.command}>
+              <Button
+                variant="control"
+                size="sm"
+                icon={commandIcon[cmd.type]}
+                isDisabled={isDisabled}
+                onClick={() => !isDisabled && handleCopy(cmd.command, index)}
+              >
+                {cmd.label}
+              </Button>
+            </Tooltip>
+          </FlexItem>
+        );
+      })}
     </Flex>
   );
 };

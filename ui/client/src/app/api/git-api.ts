@@ -44,7 +44,7 @@ export const getWorkspaceStatus = (wsId: number) =>
 
 export const getWorkspaceCommands = (wsId: number) =>
   axios
-    .get<{ label: string; command: string }[]>(
+    .get<{ type: string; label: string; command: string }[]>(
       `${WORKSPACES_URL}/${wsId}/commands`,
     )
     .then((response) => response.data);

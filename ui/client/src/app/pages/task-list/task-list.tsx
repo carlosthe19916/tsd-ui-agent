@@ -36,10 +36,8 @@ import {
   ToolbarContent,
   ToolbarGroup,
   ToolbarItem,
-  Tooltip,
 } from "@patternfly/react-core";
 import CheckCircleIcon from "@patternfly/react-icons/dist/esm/icons/check-circle-icon";
-import CodeIcon from "@patternfly/react-icons/dist/esm/icons/code-icon";
 import EllipsisVIcon from "@patternfly/react-icons/dist/esm/icons/ellipsis-v-icon";
 import InProgressIcon from "@patternfly/react-icons/dist/esm/icons/in-progress-icon";
 import PendingIcon from "@patternfly/react-icons/dist/esm/icons/pending-icon";
@@ -55,8 +53,6 @@ import { SimplePagination } from "@app/components/SimplePagination";
 import {
   useCreateChangeRequestMutation,
   useCreateTaskPlanMutation,
-  useOpenTerminalMutation,
-  useOpenVSCodeMutation,
 } from "@app/queries/tasks";
 import { formatDateTime } from "@app/utils/utils";
 import { ButtonVariant } from "@patternfly/react-core";
@@ -112,8 +108,6 @@ const TaskListContent: React.FC = () => {
   const createPlanMutation = useCreateTaskPlanMutation(() =>
     setCreatePlanTask(null),
   );
-  const openVSCodeMutation = useOpenVSCodeMutation();
-  const openTerminalMutation = useOpenTerminalMutation();
   const changeRequestMutation = useCreateChangeRequestMutation();
 
   return (
@@ -275,46 +269,6 @@ const TaskListContent: React.FC = () => {
                         </Flex>
                       ) : (
                         "No plan"
-                      )}
-                    </DataListCell>,
-                    <DataListCell key="outcomes" alignRight>
-                      {task?.workspace && (
-                        <FlexItem>
-                          <Flex gap={{ default: "gapMd" }}>
-                            <FlexItem>
-                              <Tooltip content="Open VSCode">
-                                <Button
-                                  variant="control"
-                                  size="sm"
-                                  onClick={() =>
-                                    openVSCodeMutation.mutate(task.id)
-                                  }
-                                  isLoading={openVSCodeMutation.isPending}
-                                  isDisabled={openVSCodeMutation.isPending}
-                                  icon={<CodeIcon />}
-                                  aria-label="Open VSCode"
-                                >
-                                  VSCode
-                                </Button>
-                              </Tooltip>{" "}
-                              <Tooltip content="Open Terminal">
-                                <Button
-                                  variant="control"
-                                  size="sm"
-                                  onClick={() =>
-                                    openTerminalMutation.mutate(task.id)
-                                  }
-                                  isLoading={openTerminalMutation.isPending}
-                                  isDisabled={openTerminalMutation.isPending}
-                                  icon={<TerminalIcon />}
-                                  aria-label="Open Terminal"
-                                >
-                                  Terminal
-                                </Button>
-                              </Tooltip>
-                            </FlexItem>
-                          </Flex>
-                        </FlexItem>
                       )}
                     </DataListCell>,
                   ]}
