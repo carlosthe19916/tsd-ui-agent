@@ -6,6 +6,7 @@ import {
   deleteGit,
   deleteWorkspace,
   getGits,
+  getWorkspaceCommands,
   getWorkspaceStatus,
   getWorkspaces,
   startWorkspace,
@@ -17,6 +18,7 @@ import type { GitDto, New } from "@app/api/models";
 const GIT_QUERY_KEY = "gits";
 const WORKSPACES_QUERY_KEY = "workspaces";
 const WORKSPACE_STATUS_QUERY_KEY = "workspace-status";
+const WORKSPACE_COMMANDS_QUERY_KEY = "workspace-commands";
 
 export const useFetchGits = () => {
   return useQuery({
@@ -91,6 +93,17 @@ export const useFetchWorkspaceStatus = (
   return useQuery({
     queryKey: [WORKSPACE_STATUS_QUERY_KEY, wsId],
     queryFn: () => getWorkspaceStatus(wsId as number),
+    enabled: enabled && wsId != null,
+  });
+};
+
+export const useFetchWorkspaceCommands = (
+  wsId: number | undefined,
+  enabled: boolean,
+) => {
+  return useQuery({
+    queryKey: [WORKSPACE_COMMANDS_QUERY_KEY, wsId],
+    queryFn: () => getWorkspaceCommands(wsId as number),
     enabled: enabled && wsId != null,
   });
 };

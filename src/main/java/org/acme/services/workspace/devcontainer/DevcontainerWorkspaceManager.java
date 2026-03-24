@@ -60,6 +60,12 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
     @ConfigProperty(name = "tsd-agent.devcontainer.container-runtime")
     String containerRuntime;
 
+    @ConfigProperty(name = "tsd-agent.devcontainer.remote-user")
+    String remoteUserConfig;
+
+    @ConfigProperty(name = "tsd-agent.devcontainer.post-create-command")
+    String postCreateCommandConfig;
+
     @Inject
     PortAllocator portAllocator;
 
@@ -236,21 +242,17 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
             String postStartCommand = null;
             List<Integer> appPort = null;
 
+            effectiveImage = useProjectImage ? null : image;
+            remoteUser = remoteUserConfig;
+            postCreateCommand = postCreateCommandConfig;
+
             switch (codingAgent) {
                 case CLAUDE -> {
-                    effectiveImage = useProjectImage ? null : image;
-                    remoteUser = "vscode";
-                    postCreateCommand = "curl -fsSL https://claude.ai/install.sh | bash";
-//                    mountList.add("source=claude-data-${devcontainerId},target=/home/vscode/.claude,type=volume");
                 }
                 case OPENCODE -> {
-                    effectiveImage = useProjectImage ? null : image;
-                    remoteUser = "vscode";
-                    postCreateCommand = "curl -fsSL https://opencode.ai/install | bash";
                     int openCodePort = portAllocator.allocate(worktreeAlias);
                     postStartCommand = "/home/vscode/.opencode/bin/opencode serve --port " + openCodePort + " --hostname 0.0.0.0 > /tmp/opencode-server.log 2>&1 & while ! curl -s http://localhost:" + openCodePort + " > /dev/null 2>&1; do sleep 1; done";
                     appPort = List.of(openCodePort);
-//                    mountList.add("source=opencode-data-${devcontainerId},target=/home/vscode/.local/share/opencode,type=volume");
                 }
                 default -> throw new WorkspaceException("Unsupported coding agent: " + codingAgent);
             }
@@ -386,6 +388,28 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
         } catch (Exception e) {
             throw new WorkspaceException("Failed to stop container " + containerId, e);
         }
+    }
+
+    @Override
+    public List<WorkspaceCommand> commands(String workspaceId) {
+        String containerId = parseContainerId(workspaceId);
+        String worktreePath = parseWorktreePath(workspaceId);
+        var commands = new java.util.ArrayList<WorkspaceCommand>();
+
+        commands.add(new WorkspaceCommand(WorkspaceCommandType.NAVIGATE, "cd " + worktreePath));
+
+        switch (codingAgent) {
+            case CLAUDE -> commands.add(new WorkspaceCommand(WorkspaceCommandType.CLAUDE_CLI,
+                    containerRuntime + " exec -it " + containerId + " claude"));
+            case OPENCODE -> {
+                String worktreeAlias = Path.of(worktreePath).getFileName().toString();
+                int port = portAllocator.allocate(worktreeAlias);
+                commands.add(new WorkspaceCommand(WorkspaceCommandType.OPENCODE,
+                        "opencode attach http://localhost:" + port));
+            }
+        }
+
+        return commands;
     }
 
     private void removeDevcontainerImage(String imageId) {

@@ -1,6 +1,6 @@
 import type React from "react";
 
-import { Button, Flex, FlexItem, Label, Tooltip } from "@patternfly/react-core";
+import { Button, ClipboardCopy, Flex, FlexItem, Label, Tooltip } from "@patternfly/react-core";
 import {
   CheckCircleIcon,
   ExclamationCircleIcon,
@@ -12,6 +12,7 @@ import {
 
 import type { WorkspaceDto } from "@app/api/models";
 import {
+  useFetchWorkspaceCommands,
   useFetchWorkspaceStatus,
   useStartWorkspaceMutation,
   useStopWorkspaceMutation,
@@ -167,6 +168,27 @@ export const WorkspaceStatusLabel: React.FC<{ ws: WorkspaceDto }> = ({
           />
         )}
       </FlexItem>
+    </Flex>
+  );
+};
+
+export const WorkspaceCommands: React.FC<{ ws: WorkspaceDto }> = ({ ws }) => {
+  const isProvisioned =
+    !ws.isProvisioningInProgress && !ws.provisioningError && !!ws.workspaceId;
+
+  const { data: commands } = useFetchWorkspaceCommands(ws.id, isProvisioned);
+
+  if (!commands || commands.length === 0) return null;
+
+  return (
+    <Flex direction={{ default: "column" }} gap={{ default: "gapXs" }}>
+      {commands.map((cmd) => (
+        <FlexItem key={cmd.label}>
+          <ClipboardCopy isReadOnly hoverTip={`Copy: ${cmd.label}`} clickTip="Copied">
+            {cmd.command}
+          </ClipboardCopy>
+        </FlexItem>
+      ))}
     </Flex>
   );
 };

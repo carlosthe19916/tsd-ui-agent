@@ -11,8 +11,11 @@ import io.quarkus.qute.CheckedTemplate;
 import io.quarkus.qute.TemplateInstance;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import org.acme.services.agent.CodingAgent;
 import org.acme.services.workspace.ExecutionMode;
 import org.acme.services.workspace.Workspace;
+import org.acme.services.workspace.WorkspaceCommand;
+import org.acme.services.workspace.WorkspaceCommandType;
 import org.acme.services.workspace.WorkspaceException;
 import org.acme.services.workspace.WorkspaceHealthStatus;
 import org.acme.services.workspace.WorkspaceManager;
@@ -91,6 +94,9 @@ public class KubernetesWorkspaceManager implements WorkspaceManager {
 
     @ConfigProperty(name = "tsd-agent.kubernetes.che-url")
     public Optional<String> cheUrl;
+
+    @ConfigProperty(name = "tsd-agent.coding-agent")
+    CodingAgent codingAgent;
 
     @Inject
     KubernetesClient client;
@@ -193,6 +199,23 @@ public class KubernetesWorkspaceManager implements WorkspaceManager {
     @Override
     public void stop(String workspaceId) throws WorkspaceException {
         setDevWorkspaceStarted(workspaceId, false);
+    }
+
+    @Override
+    public List<WorkspaceCommand> commands(String workspaceId) {
+        var commands = new ArrayList<WorkspaceCommand>();
+        try {
+            String podName = getDevWorkspacePodName(workspaceId);
+            switch (codingAgent) {
+                case CLAUDE -> commands.add(new WorkspaceCommand(WorkspaceCommandType.CLAUDE_CLI,
+                        "kubectl exec -it " + podName + " -n " + namespace + " -c " + CONTAINER_NAME + " -- claude"));
+                case OPENCODE -> commands.add(new WorkspaceCommand(WorkspaceCommandType.OPENCODE,
+                        "kubectl exec -it " + podName + " -n " + namespace + " -c " + CONTAINER_NAME + " -- opencode"));
+            }
+        } catch (Exception e) {
+            LOG.warnf("Failed to resolve pod for commands: %s", e.getMessage());
+        }
+        return commands;
     }
 
     @SuppressWarnings("unchecked")

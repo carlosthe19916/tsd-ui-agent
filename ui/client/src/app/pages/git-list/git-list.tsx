@@ -53,6 +53,7 @@ import {
 import { GitFormModal } from "./components/git-form-modal";
 import {
   parseWorkspaceId,
+  WorkspaceCommands,
   WorkspaceStatusLabel,
   WorkspaceTypeLabel,
 } from "./components/workspace-status";
@@ -136,6 +137,9 @@ const GitExpandedContent: React.FC<{ gitId: number }> = ({ gitId }) => {
                           <WorkspaceTypeLabel workspaceId={ws.workspaceId} />
                         </FlexItem>
                       </Flex>
+                    </DataListCell>,
+                    <DataListCell key="commands" width={3}>
+                      <WorkspaceCommands ws={ws} />
                     </DataListCell>,
                     <DataListCell key="status" alignRight>
                       <WorkspaceStatusLabel ws={ws} />

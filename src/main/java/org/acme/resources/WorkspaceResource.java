@@ -20,6 +20,7 @@ import org.acme.mapper.WorkspaceMapper;
 import org.acme.models.jpa.entity.TaskEntity;
 import org.acme.models.jpa.entity.WorkspaceEntity;
 import org.acme.services.WorkspaceService;
+import org.acme.services.workspace.WorkspaceCommand;
 import org.acme.services.workspace.WorkspaceHealthStatus;
 import org.acme.services.workspace.WorkspaceManager;
 
@@ -104,6 +105,17 @@ public class WorkspaceResource {
             return WorkspaceHealthStatus.stopped("not provisioned");
         }
         return workspaceManager.healthStatus(entity.workspaceId);
+    }
+
+    @GET
+    @Path("/{id}/commands")
+    public java.util.List<WorkspaceCommand> commands(@PathParam("id") Long id) {
+        WorkspaceEntity entity = (WorkspaceEntity) WorkspaceEntity.findByIdOptional(id)
+                .orElseThrow(NotFoundException::new);
+        if (entity.workspaceId == null) {
+            return java.util.List.of();
+        }
+        return workspaceManager.commands(entity.workspaceId);
     }
 
     @POST
