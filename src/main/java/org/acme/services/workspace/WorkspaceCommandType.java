@@ -2,8 +2,8 @@ package org.acme.services.workspace;
 
 public enum WorkspaceCommandType {
     NAVIGATE("Navigate"),
-    CLAUDE_CLI("Claude CLI"),
-    OPENCODE("OpenCode");
+    CONTAINER_EXEC("Container Exec"),
+    REMOTE_EXEC("Remote");
 
     public final String label;
 

@@ -207,9 +207,9 @@ public class KubernetesWorkspaceManager implements WorkspaceManager {
         try {
             String podName = getDevWorkspacePodName(workspaceId);
             switch (codingAgent) {
-                case CLAUDE -> commands.add(new WorkspaceCommand(WorkspaceCommandType.CLAUDE_CLI,
+                case CLAUDE -> commands.add(new WorkspaceCommand(WorkspaceCommandType.CONTAINER_EXEC,
                         "kubectl exec -it " + podName + " -n " + namespace + " -c " + CONTAINER_NAME + " -- claude"));
-                case OPENCODE -> commands.add(new WorkspaceCommand(WorkspaceCommandType.OPENCODE,
+                case OPENCODE -> commands.add(new WorkspaceCommand(WorkspaceCommandType.CONTAINER_EXEC,
                         "kubectl exec -it " + podName + " -n " + namespace + " -c " + CONTAINER_NAME + " -- opencode"));
             }
         } catch (Exception e) {

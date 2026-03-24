@@ -73,6 +73,9 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
     @ConfigProperty(name = "tsd-agent.devcontainer.opencode.env-passthrough")
     Optional<List<String>> opencodeEnvPassthrough;
 
+    @ConfigProperty(name = "tsd-agent.devcontainer.opencode.mounts")
+    Optional<Map<String, String>> opencodeMounts;
+
     @Inject
     PortAllocator portAllocator;
 
@@ -248,7 +251,7 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
                 case OPENCODE -> {
                     postCreateCommand = opencodePostCreateCommand.orElseThrow();
                     envPassthroughNames = opencodeEnvPassthrough;
-                    agentMounts = Optional.empty();
+                    agentMounts = opencodeMounts;
                     int openCodePort = portAllocator.allocate(worktreeAlias);
                     postStartCommand = "/home/vscode/.opencode/bin/opencode serve --port " + openCodePort + " --hostname 0.0.0.0 > /tmp/opencode-server.log 2>&1 & while ! curl -s http://localhost:" + openCodePort + " > /dev/null 2>&1; do sleep 1; done";
                     appPort = List.of(openCodePort);
@@ -413,14 +416,17 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
         switch (codingAgent) {
             case CLAUDE -> {
                 String worktreeAlias = Path.of(worktreePath).getFileName().toString();
-                commands.add(new WorkspaceCommand(WorkspaceCommandType.CLAUDE_CLI,
+                commands.add(new WorkspaceCommand(WorkspaceCommandType.CONTAINER_EXEC,
                         "%s exec -it --user %s -w /workspaces/trees/%s %s claude".formatted(containerRuntime, remoteUserConfig, worktreeAlias, containerId)
                 ));
             }
             case OPENCODE -> {
                 String worktreeAlias = Path.of(worktreePath).getFileName().toString();
                 int port = portAllocator.allocate(worktreeAlias);
-                commands.add(new WorkspaceCommand(WorkspaceCommandType.OPENCODE,
+                commands.add(new WorkspaceCommand(WorkspaceCommandType.CONTAINER_EXEC,
+                        "%s exec -it --user %s -w /workspaces/trees/%s %s opencode attach http://localhost:%s".formatted(containerRuntime, remoteUserConfig, worktreeAlias, containerId, port)
+                ));
+                commands.add(new WorkspaceCommand(WorkspaceCommandType.REMOTE_EXEC,
                         "opencode attach http://localhost:%d".formatted(port)
                 ));
             }
