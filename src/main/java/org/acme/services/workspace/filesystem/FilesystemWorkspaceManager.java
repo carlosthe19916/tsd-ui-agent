@@ -8,6 +8,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.UUID;
 
 @WorkspaceManagerType(type = ExecutionMode.FILESYSTEM)
@@ -71,5 +72,13 @@ public class FilesystemWorkspaceManager implements WorkspaceManager {
             return WorkspaceHealthStatus.running();
         }
         return WorkspaceHealthStatus.error("Directory does not exist: " + workspaceId);
+    }
+
+    @Override
+    public List<WorkspaceCommand> commands(String workspaceId) {
+        return List.of(
+                new WorkspaceCommand(WorkspaceCommandType.NAVIGATE, "cd " + workspaceId),
+                new WorkspaceCommand(WorkspaceCommandType.VSCODE, "code " + workspaceId)
+        );
     }
 }

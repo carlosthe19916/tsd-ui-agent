@@ -35,7 +35,22 @@ export const deleteWorkspace = (wsId: number) =>
 
 export const getWorkspaceStatus = (wsId: number) =>
   axios
-    .get<{ status: "RUNNING" | "STOPPED" | "ERROR"; reason?: string }>(
-      `${WORKSPACES_URL}/${wsId}/status`,
+    .get<{
+      status: "RUNNING" | "STOPPED" | "ERROR";
+      reason?: string;
+      supportsStartStop: boolean;
+    }>(`${WORKSPACES_URL}/${wsId}/status`)
+    .then((response) => response.data);
+
+export const getWorkspaceCommands = (wsId: number) =>
+  axios
+    .get<{ label: string; command: string }[]>(
+      `${WORKSPACES_URL}/${wsId}/commands`,
     )
     .then((response) => response.data);
+
+export const startWorkspace = (wsId: number) =>
+  axios.post<void>(`${WORKSPACES_URL}/${wsId}/start`);
+
+export const stopWorkspace = (wsId: number) =>
+  axios.post<void>(`${WORKSPACES_URL}/${wsId}/stop`);

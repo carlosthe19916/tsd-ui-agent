@@ -7,9 +7,11 @@ import {
   DataList,
   DataListAction,
   DataListCell,
+  DataListContent,
   DataListItem,
   DataListItemCells,
   DataListItemRow,
+  DataListToggle,
   Dropdown,
   DropdownItem,
   DropdownList,
@@ -27,7 +29,6 @@ import {
   ToolbarGroup,
   ToolbarItem,
   Tooltip,
-  Truncate,
 } from "@patternfly/react-core";
 import CodeBranchIcon from "@patternfly/react-icons/dist/esm/icons/code-branch-icon";
 import EllipsisVIcon from "@patternfly/react-icons/dist/esm/icons/ellipsis-v-icon";
@@ -39,7 +40,6 @@ import type { GitDto, WorkspaceDto } from "@app/api/models";
 import { ConfirmDialog } from "@app/components/ConfirmDialog";
 import { ConditionalDataListBody } from "@app/components/DataListControls";
 import { FilterToolbar, FilterType } from "@app/components/FilterToolbar";
-import { PageDrawerContent } from "@app/components/PageDrawerContext";
 import { SimplePagination } from "@app/components/SimplePagination";
 import { useLocalTableControls } from "@app/hooks/table-controls";
 import {
@@ -53,6 +53,7 @@ import {
 import { GitFormModal } from "./components/git-form-modal";
 import {
   parseWorkspaceId,
+  WorkspaceCommands,
   WorkspaceStatusLabel,
   WorkspaceTypeLabel,
 } from "./components/workspace-status";
@@ -126,16 +127,15 @@ const GitExpandedContent: React.FC<{ gitId: number }> = ({ gitId }) => {
                         <FlexItem
                           {...(!containerId ? { id: `ws-${ws.id}` } : {})}
                         >
-                          Path:{" "}
-                          <Truncate
-                            maxCharsDisplayed={40}
-                            content={path ?? "-"}
-                          />
+                          Path: {path ?? "-"}
                         </FlexItem>
                         <FlexItem>
                           <WorkspaceTypeLabel workspaceId={ws.workspaceId} />
                         </FlexItem>
                       </Flex>
+                    </DataListCell>,
+                    <DataListCell key="commands" width={3}>
+                      <WorkspaceCommands ws={ws} />
                     </DataListCell>,
                     <DataListCell key="status" alignRight>
                       <WorkspaceStatusLabel ws={ws} />
@@ -219,7 +219,6 @@ export const GitList: React.FC = () => {
   const [gitToDelete, setGitToDelete] = React.useState<GitDto | null>(null);
   const [isSortByOpen, setIsSortByOpen] = React.useState(false);
   const [openKebabId, setOpenKebabId] = React.useState<number | null>(null);
-  const [selectedGit, setSelectedGit] = React.useState<GitDto | null>(null);
 
   const { data: gits, isFetching } = useFetchGits();
   const deleteMutation = useDeleteGitMutation(() => setGitToDelete(null));
@@ -259,11 +258,13 @@ export const GitList: React.FC = () => {
         getItemValue: (item) => item.url || "",
       },
     ],
-    isExpansionEnabled: false,
+    isExpansionEnabled: true,
+    expandableVariant: "single",
   });
 
   const {
     currentPageItems,
+    expansionDerivedState,
     sortableColumns,
     columnNames,
     sortState: { activeSort, setActiveSort },
@@ -363,47 +364,29 @@ export const GitList: React.FC = () => {
           </ToolbarContent>
         </Toolbar>
 
-        <PageDrawerContent
-          isExpanded={selectedGit !== null}
-          onCloseClick={() => setSelectedGit(null)}
-          header={
-            <>
-              <Title headingLevel="h3" size="lg">
-                Workspaces
-              </Title>
-              <small>{selectedGit?.url}</small>
-            </>
-          }
-          pageKey="git-list"
-          focusKey={selectedGit?.id}
-        >
-          {selectedGit && <GitExpandedContent gitId={selectedGit.id} />}
-        </PageDrawerContent>
-
         <ConditionalDataListBody
           isLoading={isFetching}
           isNoData={(gits ?? []).length === 0}
         >
-          <DataList
-            aria-label="Git repositories list"
-            selectedDataListItemId={
-              selectedGit ? `git-${selectedGit.id}` : undefined
-            }
-            onSelectDataListItem={(_event, id) => {
-              const gitId = Number(id.replace("git-", ""));
-              const git = currentPageItems?.find((g) => g.id === gitId);
-              if (git) {
-                setSelectedGit(selectedGit?.id === git.id ? null : git);
-              }
-            }}
-          >
+          <DataList aria-label="Git repositories list">
             {currentPageItems?.map((git) => (
               <DataListItem
                 key={git.id}
                 id={`git-${git.id}`}
                 aria-labelledby={`git-label-${git.id}`}
+                isExpanded={expansionDerivedState.isCellExpanded(git)}
               >
                 <DataListItemRow>
+                  <DataListToggle
+                    id={`git-toggle-${git.id}`}
+                    onClick={() =>
+                      expansionDerivedState.setCellExpanded({
+                        item: git,
+                        isExpanding: !expansionDerivedState.isCellExpanded(git),
+                      })
+                    }
+                    isExpanded={expansionDerivedState.isCellExpanded(git)}
+                  />
                   <DataListItemCells
                     dataListCells={[
                       <DataListCell key="url" width={3}>
@@ -476,6 +459,12 @@ export const GitList: React.FC = () => {
                     </Dropdown>
                   </DataListAction>
                 </DataListItemRow>
+                <DataListContent
+                  aria-label={`Workspaces for ${git.url}`}
+                  isHidden={!expansionDerivedState.isCellExpanded(git)}
+                >
+                  <GitExpandedContent gitId={git.id} />
+                </DataListContent>
               </DataListItem>
             ))}
           </DataList>

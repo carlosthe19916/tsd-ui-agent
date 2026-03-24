@@ -18,7 +18,6 @@ import org.acme.services.sync.SyncManager;
 
 import org.acme.services.ChangeRequestService;
 import org.acme.services.workspace.WorkspaceManager;
-import org.acme.services.workspace.WorkspaceToolsService;
 import org.acme.services.workspace.filesystem.FilesystemWorkspace;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -52,9 +51,6 @@ class TaskResourceTest {
     RequirementSummarizerService aiService;
 
     @InjectMock
-    WorkspaceToolsService workspaceToolsService;
-
-    @InjectMock
     WorkspaceManager workspaceManager;
 
     @InjectMock
@@ -78,10 +74,6 @@ class TaskResourceTest {
         when(workspaceManager.reconnect(anyString()))
                 .thenAnswer(invocation -> new FilesystemWorkspace(invocation.getArgument(0)));
         when(workspaceManager.exists(anyString())).thenReturn(true);
-        doNothing().when(workspaceToolsService).openIDE(any());
-        doNothing().when(workspaceToolsService).openTerminal(any());
-        when(workspaceToolsService.openClaude(any(), any(), anyString(), anyString(), any()))
-                .thenReturn("test-session-id");
         when(gitManager.getCurrentBranch(anyString())).thenReturn("main");
         doNothing().when(changeRequestService).triggerChangeRequest(any());
         doNothing().when(gitManager).deleteClonedDirectory(anyString());
@@ -769,170 +761,6 @@ class TaskResourceTest {
                 .body("isRequirementInProgress", is(false));
     }
 
-    // Worktree / Open VSCode / Open Terminal tests
-
-    @Test
-    void testOpenVSCodeWithoutPlan() {
-        int taskId = createTaskAndReturnId();
-
-        given()
-                .contentType(ContentType.JSON)
-                .when().post("/tasks/{taskId}/plan/open-vscode", taskId)
-                .then()
-                .statusCode(404);
-    }
-
-    @Test
-    void testOpenVSCodeWithoutWorkspace() {
-        int taskId = createTaskAndReturnId();
-
-        given()
-                .contentType(ContentType.JSON)
-                .body(planDto("# Plan"))
-                .when().post("/tasks/{taskId}/plan", taskId)
-                .then()
-                .statusCode(201);
-
-        given()
-                .contentType(ContentType.JSON)
-                .when().post("/tasks/{taskId}/plan/open-vscode", taskId)
-                .then()
-                .statusCode(400);
-    }
-
-    @Test
-    void testOpenVSCodeSuccess() {
-        int taskId = createTaskAndReturnId();
-        int gitId = createGit("https://github.com/test/worktree-vscode");
-        int wsId = createWorkspace(gitId);
-
-        setTaskWorkspace(taskId, wsId);
-
-        given()
-                .contentType(ContentType.JSON)
-                .body(planDto("# Plan", null))
-                .when().post("/tasks/{taskId}/plan", taskId)
-                .then()
-                .statusCode(201);
-
-        given()
-                .contentType(ContentType.JSON)
-                .when().post("/tasks/{taskId}/plan/open-vscode", taskId)
-                .then()
-                .statusCode(204);
-    }
-
-    @Test
-    void testOpenTerminalWithoutPlan() {
-        int taskId = createTaskAndReturnId();
-
-        given()
-                .contentType(ContentType.JSON)
-                .when().post("/tasks/{taskId}/plan/open-terminal", taskId)
-                .then()
-                .statusCode(404);
-    }
-
-    @Test
-    void testOpenTerminalWithoutWorkspace() {
-        int taskId = createTaskAndReturnId();
-
-        given()
-                .contentType(ContentType.JSON)
-                .body(planDto("# Plan"))
-                .when().post("/tasks/{taskId}/plan", taskId)
-                .then()
-                .statusCode(201);
-
-        given()
-                .contentType(ContentType.JSON)
-                .when().post("/tasks/{taskId}/plan/open-terminal", taskId)
-                .then()
-                .statusCode(400);
-    }
-
-    @Test
-    void testOpenTerminalSuccess() {
-        int taskId = createTaskAndReturnId();
-        int gitId = createGit("https://github.com/test/worktree-terminal");
-        int wsId = createWorkspace(gitId);
-
-        setTaskWorkspace(taskId, wsId);
-
-        given()
-                .contentType(ContentType.JSON)
-                .body(planDto("# Plan", null))
-                .when().post("/tasks/{taskId}/plan", taskId)
-                .then()
-                .statusCode(201);
-
-        given()
-                .contentType(ContentType.JSON)
-                .when().post("/tasks/{taskId}/plan/open-terminal", taskId)
-                .then()
-                .statusCode(204);
-    }
-
-    @Test
-    void testOpenClaudeWithoutPlan() {
-        int taskId = createTaskAndReturnId();
-
-        given()
-                .contentType(ContentType.JSON)
-                .when().post("/tasks/{taskId}/plan/open-claude", taskId)
-                .then()
-                .statusCode(404);
-    }
-
-    @Test
-    void testOpenClaudeWithoutWorkspace() {
-        int taskId = createTaskAndReturnId();
-
-        given()
-                .contentType(ContentType.JSON)
-                .body(planDto("# Plan"))
-                .when().post("/tasks/{taskId}/plan", taskId)
-                .then()
-                .statusCode(201);
-
-        given()
-                .contentType(ContentType.JSON)
-                .when().post("/tasks/{taskId}/plan/open-claude", taskId)
-                .then()
-                .statusCode(400);
-    }
-
-    @Test
-    void testOpenClaudeSuccess() {
-        int taskId = createTaskAndReturnId();
-        int gitId = createGit("https://github.com/test/worktree-claude");
-        int wsId = createWorkspace(gitId);
-
-        setTaskWorkspace(taskId, wsId);
-
-        given()
-                .contentType(ContentType.JSON)
-                .body(planDto("# Plan", null))
-                .when().post("/tasks/{taskId}/plan", taskId)
-                .then()
-                .statusCode(201);
-
-        given()
-                .contentType(ContentType.JSON)
-                .when().post("/tasks/{taskId}/plan/open-claude", taskId)
-                .then()
-                .statusCode(204);
-    }
-
-    @Test
-    void testOpenVSCodeForNonExistentTask() {
-        given()
-                .contentType(ContentType.JSON)
-                .when().post("/tasks/{taskId}/plan/open-vscode", 999999)
-                .then()
-                .statusCode(404);
-    }
-
     @Test
     void testUpdatePlanClearsWorkspaceOnChange() {
         int taskId = createTaskAndReturnId();
@@ -1038,40 +866,6 @@ class TaskResourceTest {
                 .when().patch("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(404);
-    }
-
-    @Test
-    void testOpenClaudeGeneratesSessionId() {
-        int taskId = createTaskAndReturnId();
-        int gitId = createGit("https://github.com/test/claude-session");
-        int wsId = createWorkspace(gitId);
-
-        setTaskWorkspace(taskId, wsId);
-
-        given()
-                .contentType(ContentType.JSON)
-                .body(planDto("# Plan", null))
-                .when().post("/tasks/{taskId}/plan", taskId)
-                .then()
-                .statusCode(201);
-
-        given()
-                .when().get("/tasks/{taskId}", taskId)
-                .then()
-                .statusCode(200)
-                .body("workspace.claudeSessionId", nullValue());
-
-        given()
-                .contentType(ContentType.JSON)
-                .when().post("/tasks/{taskId}/plan/open-claude", taskId)
-                .then()
-                .statusCode(204);
-
-        given()
-                .when().get("/tasks/{taskId}", taskId)
-                .then()
-                .statusCode(200)
-                .body("workspace.claudeSessionId", is("test-session-id"));
     }
 
     // Change Request endpoint tests

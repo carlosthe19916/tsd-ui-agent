@@ -11,8 +11,11 @@ import io.quarkus.qute.CheckedTemplate;
 import io.quarkus.qute.TemplateInstance;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import org.acme.services.agent.CodingAgent;
 import org.acme.services.workspace.ExecutionMode;
 import org.acme.services.workspace.Workspace;
+import org.acme.services.workspace.WorkspaceCommand;
+import org.acme.services.workspace.WorkspaceCommandType;
 import org.acme.services.workspace.WorkspaceException;
 import org.acme.services.workspace.WorkspaceHealthStatus;
 import org.acme.services.workspace.WorkspaceManager;
@@ -91,6 +94,9 @@ public class KubernetesWorkspaceManager implements WorkspaceManager {
 
     @ConfigProperty(name = "tsd-agent.kubernetes.che-url")
     public Optional<String> cheUrl;
+
+    @ConfigProperty(name = "tsd-agent.coding-agent")
+    CodingAgent codingAgent;
 
     @Inject
     KubernetesClient client;
@@ -174,14 +180,64 @@ public class KubernetesWorkspaceManager implements WorkspaceManager {
         try {
             String phase = getDevWorkspacePhase(workspaceId);
             if ("Running".equals(phase)) {
-                return WorkspaceHealthStatus.running();
+                return WorkspaceHealthStatus.running(true);
             }
             if ("Failed".equals(phase)) {
                 return WorkspaceHealthStatus.error("DevWorkspace phase: Failed");
             }
-            return WorkspaceHealthStatus.stopped("DevWorkspace phase: " + phase);
+            return WorkspaceHealthStatus.stopped("DevWorkspace phase: " + phase, true);
         } catch (Exception e) {
             return WorkspaceHealthStatus.error(e.getMessage());
+        }
+    }
+
+    @Override
+    public void start(String workspaceId) throws WorkspaceException {
+        setDevWorkspaceStarted(workspaceId, true);
+    }
+
+    @Override
+    public void stop(String workspaceId) throws WorkspaceException {
+        setDevWorkspaceStarted(workspaceId, false);
+    }
+
+    @Override
+    public List<WorkspaceCommand> commands(String workspaceId) {
+        var commands = new ArrayList<WorkspaceCommand>();
+        try {
+            String podName = getDevWorkspacePodName(workspaceId);
+            switch (codingAgent) {
+                case CLAUDE -> commands.add(new WorkspaceCommand(WorkspaceCommandType.CONTAINER_EXEC,
+                        "kubectl exec -it " + podName + " -n " + namespace + " -c " + CONTAINER_NAME + " -- claude"));
+                case OPENCODE -> commands.add(new WorkspaceCommand(WorkspaceCommandType.CONTAINER_EXEC,
+                        "kubectl exec -it " + podName + " -n " + namespace + " -c " + CONTAINER_NAME + " -- opencode"));
+            }
+        } catch (Exception e) {
+            LOG.warnf("Failed to resolve pod for commands: %s", e.getMessage());
+        }
+        return commands;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void setDevWorkspaceStarted(String workspaceName, boolean started) throws WorkspaceException {
+        try {
+            GenericKubernetesResource resource = client.genericKubernetesResources(DEV_WORKSPACE_CONTEXT)
+                    .inNamespace(namespace)
+                    .withName(workspaceName)
+                    .get();
+            if (resource == null) {
+                throw new WorkspaceException("DevWorkspace " + workspaceName + " not found");
+            }
+            Map<String, Object> spec = (Map<String, Object>) resource.getAdditionalProperties().get("spec");
+            spec.put("started", started);
+            client.genericKubernetesResources(DEV_WORKSPACE_CONTEXT)
+                    .inNamespace(namespace)
+                    .resource(resource)
+                    .serverSideApply();
+        } catch (WorkspaceException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new WorkspaceException("Failed to " + (started ? "start" : "stop") + " DevWorkspace " + workspaceName, e);
         }
     }
 

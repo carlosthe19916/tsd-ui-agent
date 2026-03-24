@@ -24,9 +24,7 @@ import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
-import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.Response;
-import jakarta.ws.rs.core.UriInfo;
 import org.acme.dto.PlanDto;
 import org.acme.dto.SearchResultDto;
 import org.acme.dto.TaskDto;
@@ -39,10 +37,6 @@ import org.acme.models.jpa.entity.WorkspaceEntity;
 import org.acme.services.ChangeRequestService;
 import org.acme.services.ExecutionOutputBroadcaster;
 import org.acme.services.PlanService;
-import org.acme.services.workspace.Workspace;
-import org.acme.services.workspace.WorkspaceManager;
-import org.acme.services.workspace.WorkspaceRequest;
-import org.acme.services.workspace.WorkspaceToolsService;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.resteasy.reactive.RestStreamElementType;
 
@@ -75,19 +69,10 @@ public class TaskResource {
     ChangeRequestService changeRequestService;
 
     @Inject
-    WorkspaceManager workspaceManager;
-
-    @Inject
-    WorkspaceToolsService workspaceToolsService;
-
-    @Inject
     ExecutionOutputBroadcaster broadcaster;
 
     @Inject
     TransactionManager transactionManager;
-
-    @Context
-    UriInfo uriInfo;
 
     @ConfigProperty(name = "tsd-agent.discovery.ai.enabled")
     boolean aiDiscoveryEnabled;
@@ -317,42 +302,6 @@ public class TaskResource {
     }
 
     @POST
-    @Path("/{taskId}/plan/open-vscode")
-    public Response openVSCode(@PathParam("taskId") Long taskId) {
-        TaskEntity task = (TaskEntity) TaskEntity.findByIdOptional(taskId)
-                .orElseThrow(NotFoundException::new);
-        if (task.plan == null) {
-            throw new NotFoundException("Task has no plan");
-        }
-        if (task.workspace == null) {
-            throw new BadRequestException("Task has no workspace configuration");
-        }
-
-        Workspace workspace = ensureWorkspace(task);
-        workspaceToolsService.openIDE(workspace);
-
-        return Response.noContent().build();
-    }
-
-    @POST
-    @Path("/{taskId}/plan/open-terminal")
-    public Response openTerminal(@PathParam("taskId") Long taskId) {
-        TaskEntity task = (TaskEntity) TaskEntity.findByIdOptional(taskId)
-                .orElseThrow(NotFoundException::new);
-        if (task.plan == null) {
-            throw new NotFoundException("Task has no plan");
-        }
-        if (task.workspace == null) {
-            throw new BadRequestException("Task has no workspace configuration");
-        }
-
-        Workspace workspace = ensureWorkspace(task);
-        workspaceToolsService.openTerminal(workspace);
-
-        return Response.noContent().build();
-    }
-
-    @POST
     @Path("/{taskId}/plan/generate-plan")
     public Response generatePlan(@PathParam("taskId") Long taskId) {
         TaskEntity task = (TaskEntity) TaskEntity.findByIdOptional(taskId)
@@ -504,28 +453,6 @@ public class TaskResource {
                 .build();
     }
 
-    @POST
-    @Path("/{taskId}/plan/open-claude")
-    public Response openClaude(@PathParam("taskId") Long taskId) {
-        TaskEntity task = (TaskEntity) TaskEntity.findByIdOptional(taskId)
-                .orElseThrow(NotFoundException::new);
-        if (task.plan == null) {
-            throw new NotFoundException("Task has no plan");
-        }
-        if (task.workspace == null) {
-            throw new BadRequestException("Task has no workspace configuration");
-        }
-
-        Workspace workspace = ensureWorkspace(task);
-        String planApiUrl = uriInfo.getBaseUri() + "tasks/" + taskId + "/plan";
-        String sessionId = workspaceToolsService.openClaude(workspace, taskId, task.plan.requirement, planApiUrl, task.workspace.claudeSessionId);
-        if (task.workspace.claudeSessionId == null) {
-            task.workspace.claudeSessionId = sessionId;
-        }
-
-        return Response.noContent().build();
-    }
-
     @GET
     @Path("/{taskId}/plan/output")
     @Produces(MediaType.SERVER_SENT_EVENTS)
@@ -543,19 +470,4 @@ public class TaskResource {
                 .onItem().transformToMulti(id -> broadcaster.subscribe(id));
     }
 
-    private Workspace ensureWorkspace(TaskEntity task) {
-        if (task.workspace.workspaceId != null && workspaceManager.exists(task.workspace.workspaceId)) {
-            return workspaceManager.reconnect(task.workspace.workspaceId);
-        }
-
-        WorkspaceRequest request = new WorkspaceRequest(
-                task.workspace.git != null ? task.workspace.git.url : null,
-                task.workspace.git != null ? task.workspace.git.branch : null,
-                task.workspace.git != null && task.workspace.git.credential != null ? task.workspace.git.credential.token : null,
-                task.workspace.git != null ? task.workspace.git.forkUrl : null);
-        Workspace ws = workspaceManager.provision(request);
-        task.workspace.workspaceId = ws.id();
-        task.workspace.persist();
-        return ws;
-    }
 }
