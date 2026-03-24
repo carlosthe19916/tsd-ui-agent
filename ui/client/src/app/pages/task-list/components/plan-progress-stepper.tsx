@@ -13,7 +13,6 @@ import {
   useEnrichRequirementMutation,
   useExecutePlanMutation,
   useGeneratePlanMutation,
-  useOpenClaudeMutation,
 } from "@app/queries/tasks";
 
 interface PlanProgressStepperProps {
@@ -115,7 +114,6 @@ export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
   const enrichMutation = useEnrichRequirementMutation();
   const generatePlanMutation = useGeneratePlanMutation();
   const executePlanMutation = useExecutePlanMutation();
-  const openClaudeMutation = useOpenClaudeMutation();
   const reqVariant = getRequirementStepVariant(plan);
   const planVariant = getPlanStepVariant(plan);
 
@@ -232,34 +230,19 @@ export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
               )
             }
             footerContent={
-              <div style={{ display: "flex", gap: 16 }}>
-                <Button
-                  variant="link"
-                  isInline
-                  onClick={() => openClaudeMutation.mutate(taskId)}
-                  isDisabled={
-                    !workspace?.git ||
-                    !plan.plan?.trim() ||
-                    openClaudeMutation.isPending
-                  }
-                  isLoading={openClaudeMutation.isPending}
-                >
-                  Execute manually
-                </Button>
-                <Button
-                  variant="link"
-                  isInline
-                  onClick={() => executePlanMutation.mutate(taskId)}
-                  isDisabled={
-                    !workspace?.git ||
-                    !plan.plan?.trim() ||
-                    plan.isExecutionPlanInProgress
-                  }
-                  isLoading={executePlanMutation.isPending}
-                >
-                  Execute with AI
-                </Button>
-              </div>
+              <Button
+                variant="link"
+                isInline
+                onClick={() => executePlanMutation.mutate(taskId)}
+                isDisabled={
+                  !workspace?.git ||
+                  !plan.plan?.trim() ||
+                  plan.isExecutionPlanInProgress
+                }
+                isLoading={executePlanMutation.isPending}
+              >
+                Execute with AI
+              </Button>
             }
             triggerRef={stepRef}
           />

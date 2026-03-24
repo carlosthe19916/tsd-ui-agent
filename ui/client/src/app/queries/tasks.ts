@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type { HubRequestParams, New, PlanDto } from "@app/api/models";
-import { createWorkspace } from "@app/api/git-api";
+import { createWorkspace, deleteWorkspace } from "@app/api/git-api";
 import {
   createChangeRequest,
   createTaskPlan,
@@ -10,7 +10,6 @@ import {
   generatePlan,
   getTaskPlan,
   getTasks,
-  openClaude,
   openTerminal,
   openVSCode,
   patchTaskPlan,
@@ -26,6 +25,7 @@ export const useFetchTasks = (params: HubRequestParams) => {
     refetchInterval: (query) => {
       const hasInProgress = query.state.data?.data?.some(
         (task) =>
+          task.workspace?.isProvisioningInProgress ||
           task.plan?.isRequirementInProgress ||
           task.plan?.isPlanGenerationInProgress ||
           task.plan?.isExecutionPlanInProgress ||
@@ -74,16 +74,6 @@ export const useOpenTerminalMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (taskId: number) => openTerminal(taskId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [TASK_QUERY_KEY] });
-    },
-  });
-};
-
-export const useOpenClaudeMutation = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (taskId: number) => openClaude(taskId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [TASK_QUERY_KEY] });
     },
@@ -163,6 +153,17 @@ export const useFetchTaskPlan = (taskId: number, enabled = true) => {
         return 2000;
       }
       return false;
+    },
+  });
+};
+
+export const useDeleteWorkspaceForTaskMutation = (onSuccess?: () => void) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (wsId: number) => deleteWorkspace(wsId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [TASK_QUERY_KEY] });
+      onSuccess?.();
     },
   });
 };

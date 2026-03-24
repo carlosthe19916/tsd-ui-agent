@@ -2,18 +2,31 @@ import React from "react";
 
 import {
   Button,
+  ButtonVariant,
   Flex,
   FlexItem,
   MenuToggle,
   Select,
   SelectList,
   SelectOption,
+  Tooltip,
 } from "@patternfly/react-core";
+import TrashIcon from "@patternfly/react-icons/dist/esm/icons/trash-icon";
 
 import type { GitDto, TaskDto } from "@app/api/models";
+import { ConfirmDialog } from "@app/components/ConfirmDialog";
+import {
+  WorkspaceCommands,
+  WorkspaceStatusLabel,
+  WorkspaceTypeLabel,
+  parseWorkspaceId,
+} from "@app/pages/git-list/components/workspace-status";
 import { useFetchGits } from "@app/queries/gits";
 import { useFetchMappings } from "@app/queries/project-git-mappings";
-import { useCreateWorkspaceAndLinkMutation } from "@app/queries/tasks";
+import {
+  useCreateWorkspaceAndLinkMutation,
+  useDeleteWorkspaceForTaskMutation,
+} from "@app/queries/tasks";
 
 interface WorkspaceCellProps {
   task: TaskDto;
@@ -57,6 +70,11 @@ export const WorkspaceCell: React.FC<WorkspaceCellProps> = ({ task }) => {
   const { data: mappings } = useFetchMappings(task.project.id);
   const createMutation = useCreateWorkspaceAndLinkMutation();
 
+  const [confirmDelete, setConfirmDelete] = React.useState(false);
+  const deleteMutation = useDeleteWorkspaceForTaskMutation(() =>
+    setConfirmDelete(false),
+  );
+
   const defaultGitId = React.useMemo(
     () => resolveGitId(task, gits, mappings),
     [task, gits, mappings],
@@ -71,18 +89,77 @@ export const WorkspaceCell: React.FC<WorkspaceCellProps> = ({ task }) => {
     }
   }, [defaultGitId, selectedGitId]);
 
-  if (task.workspace?.git) {
+  if (task.workspace) {
+    const ws = task.workspace;
+    const { containerId, path: _path } = parseWorkspaceId(ws.workspaceId);
+
     return (
-      <Flex direction={{ default: "column" }} gap={{ default: "gapXs" }}>
-        <FlexItem>
-          <small>{task.workspace.git.url}</small>
-        </FlexItem>
-        {task.workspace.git.branch && (
+      <>
+        <Flex direction={{ default: "column" }} gap={{ default: "gapXs" }}>
           <FlexItem>
-            <small>Branch: {task.workspace.git.branch}</small>
+            <Flex
+              alignItems={{ default: "alignItemsCenter" }}
+              gap={{ default: "gapSm" }}
+            >
+              <FlexItem>
+                <WorkspaceStatusLabel ws={ws} />
+              </FlexItem>
+              <FlexItem>
+                <Tooltip content="Delete workspace">
+                  <Button
+                    variant="plain"
+                    size="sm"
+                    isDanger
+                    aria-label="Delete workspace"
+                    icon={<TrashIcon />}
+                    onClick={() => setConfirmDelete(true)}
+                  />
+                </Tooltip>
+              </FlexItem>
+            </Flex>
           </FlexItem>
+          <FlexItem>
+            <WorkspaceCommands ws={ws} />
+          </FlexItem>
+          <FlexItem>
+            <small>{ws.git?.url}</small>
+          </FlexItem>
+          {ws.git?.branch && (
+            <FlexItem>
+              <small>Branch: {ws.git.branch}</small>
+            </FlexItem>
+          )}
+          {containerId && (
+            <FlexItem>
+              <small>
+                Container:{" "}
+                <Tooltip content={containerId}>
+                  <code>{containerId.substring(0, 12)}</code>
+                </Tooltip>
+              </small>
+            </FlexItem>
+          )}
+          <FlexItem>
+            <WorkspaceTypeLabel workspaceId={ws.workspaceId} />
+          </FlexItem>
+        </Flex>
+
+        {confirmDelete && (
+          <ConfirmDialog
+            isOpen
+            title="Delete workspace"
+            titleIconVariant="warning"
+            message={`Are you sure you want to delete workspace "${ws.workspaceId ?? ws.id}"?`}
+            confirmBtnLabel="Delete"
+            cancelBtnLabel="Cancel"
+            confirmBtnVariant={ButtonVariant.danger}
+            onClose={() => setConfirmDelete(false)}
+            onConfirm={() => deleteMutation.mutate(ws.id as number)}
+            onCancel={() => setConfirmDelete(false)}
+            inProgress={deleteMutation.isPending}
+          />
         )}
-      </Flex>
+      </>
     );
   }
 

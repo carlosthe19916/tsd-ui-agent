@@ -11,6 +11,7 @@ import jakarta.transaction.Transactional;
 import jakarta.ws.rs.NotFoundException;
 import org.acme.dto.WorkspaceDto;
 import org.acme.mapper.WorkspaceMapper;
+import org.acme.models.jpa.entity.TaskEntity;
 import org.acme.models.jpa.entity.WorkspaceEntity;
 import org.acme.services.workspace.Workspace;
 import org.acme.services.workspace.WorkspaceManager;
@@ -125,6 +126,7 @@ public class WorkspaceService {
             }
         }
 
+        TaskEntity.update("workspace = null where workspace = ?1", entity);
         entity.delete();
     }
 }
