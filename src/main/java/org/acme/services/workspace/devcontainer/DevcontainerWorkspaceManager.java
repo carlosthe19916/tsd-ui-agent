@@ -51,20 +51,26 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
     @ConfigProperty(name = "tsd-agent.devcontainer.image")
     public String image;
 
-    @ConfigProperty(name = "tsd-agent.devcontainer.env-passthrough")
-    public Optional<List<String>> envPassthrough;
-
-    @ConfigProperty(name = "tsd-agent.devcontainer.mounts")
-    public Optional<Map<String, String>> mounts;
-
     @ConfigProperty(name = "tsd-agent.devcontainer.container-runtime")
     String containerRuntime;
 
     @ConfigProperty(name = "tsd-agent.devcontainer.remote-user")
     String remoteUserConfig;
 
-    @ConfigProperty(name = "tsd-agent.devcontainer.post-create-command")
-    String postCreateCommandConfig;
+    @ConfigProperty(name = "tsd-agent.devcontainer.claude.post-create-command")
+    Optional<String> claudePostCreateCommand;
+
+    @ConfigProperty(name = "tsd-agent.devcontainer.claude.env-passthrough")
+    Optional<List<String>> claudeEnvPassthrough;
+
+    @ConfigProperty(name = "tsd-agent.devcontainer.claude.mounts")
+    Optional<Map<String, String>> claudeMounts;
+
+    @ConfigProperty(name = "tsd-agent.devcontainer.opencode.post-create-command")
+    Optional<String> opencodePostCreateCommand;
+
+    @ConfigProperty(name = "tsd-agent.devcontainer.opencode.env-passthrough")
+    Optional<List<String>> opencodeEnvPassthrough;
 
     @Inject
     PortAllocator portAllocator;
@@ -224,38 +230,42 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
                 LOG.infof("Project uses docker-compose devcontainer, generating config from scratch");
             }
 
-            List<EnvVar> envVars = new java.util.ArrayList<>(envPassthrough.orElse(List.of()).stream()
-                    .map(String::trim)
-                    .filter(s -> !s.isEmpty())
-                    .map(name -> new EnvVar(name, "${localEnv:" + name + "}"))
-                    .toList());
-            envVars.add(new EnvVar("DEVCONTAINER", "true"));
-
-            List<String> mountList = new java.util.ArrayList<>(mounts.orElse(Map.of()).values().stream()
-                    .map(String::trim)
-                    .filter(s -> !s.isEmpty())
-                    .toList());
-
-            String effectiveImage;
-            String remoteUser;
+            String effectiveImage = useProjectImage ? null : image;
+            String remoteUser = remoteUserConfig;
             String postCreateCommand;
             String postStartCommand = null;
             List<Integer> appPort = null;
-
-            effectiveImage = useProjectImage ? null : image;
-            remoteUser = remoteUserConfig;
-            postCreateCommand = postCreateCommandConfig;
+            Optional<List<String>> envPassthroughNames;
+            Optional<Map<String, String>> agentMounts;
 
             switch (codingAgent) {
                 case CLAUDE -> {
+                    postCreateCommand = claudePostCreateCommand.orElseThrow();
+                    envPassthroughNames = claudeEnvPassthrough;
+                    agentMounts = claudeMounts;
                 }
                 case OPENCODE -> {
+                    postCreateCommand = opencodePostCreateCommand.orElseThrow();
+                    envPassthroughNames = opencodeEnvPassthrough;
+                    agentMounts = Optional.empty();
                     int openCodePort = portAllocator.allocate(worktreeAlias);
                     postStartCommand = "/home/vscode/.opencode/bin/opencode serve --port " + openCodePort + " --hostname 0.0.0.0 > /tmp/opencode-server.log 2>&1 & while ! curl -s http://localhost:" + openCodePort + " > /dev/null 2>&1; do sleep 1; done";
                     appPort = List.of(openCodePort);
                 }
                 default -> throw new WorkspaceException("Unsupported coding agent: " + codingAgent);
             }
+
+            List<EnvVar> envVars = new java.util.ArrayList<>(envPassthroughNames.orElse(List.of()).stream()
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .map(name -> new EnvVar(name, "${localEnv:" + name + "}"))
+                    .toList());
+            envVars.add(new EnvVar("DEVCONTAINER", "true"));
+
+            List<String> mountList = new java.util.ArrayList<>(agentMounts.orElse(Map.of()).values().stream()
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .toList());
 
             String configContent = Templates.devcontainer(
                     effectiveImage, remoteUser, "/workspaces/trees/" + worktreeAlias,
@@ -399,8 +409,7 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
         commands.add(new WorkspaceCommand(WorkspaceCommandType.NAVIGATE, "cd " + worktreePath));
 
         switch (codingAgent) {
-            case CLAUDE -> commands.add(new WorkspaceCommand(WorkspaceCommandType.CLAUDE_CLI,
-                    containerRuntime + " exec -it " + containerId + " claude"));
+            case CLAUDE -> commands.add(new WorkspaceCommand(WorkspaceCommandType.CLAUDE_CLI, containerRuntime + " exec -it --user " + remoteUserConfig + " " + containerId + " claude"));
             case OPENCODE -> {
                 String worktreeAlias = Path.of(worktreePath).getFileName().toString();
                 int port = portAllocator.allocate(worktreeAlias);
