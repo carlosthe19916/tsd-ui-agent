@@ -302,14 +302,6 @@ const TaskListContent: React.FC = () => {
                     popperProps={{ position: "right" }}
                   >
                     <DropdownList>
-                      <DropdownItem
-                        key="view"
-                        onClick={() =>
-                          window.open(task.url, "_blank", "noopener,noreferrer")
-                        }
-                      >
-                        View
-                      </DropdownItem>
                       {!task.plan && (
                         <DropdownItem
                           key="create-plan"

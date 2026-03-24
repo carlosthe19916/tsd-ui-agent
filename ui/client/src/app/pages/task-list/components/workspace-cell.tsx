@@ -91,7 +91,7 @@ export const WorkspaceCell: React.FC<WorkspaceCellProps> = ({ task }) => {
 
   if (task.workspace) {
     const ws = task.workspace;
-    const { containerId, path } = parseWorkspaceId(ws.workspaceId);
+    const { containerId, path: _path } = parseWorkspaceId(ws.workspaceId);
 
     return (
       <>

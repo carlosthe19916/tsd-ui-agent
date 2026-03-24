@@ -1,16 +1,9 @@
 import React from "react";
 
-import {
-  Button,
-  Flex,
-  FlexItem,
-  Label,
-  Tooltip,
-} from "@patternfly/react-core";
+import { Button, Flex, FlexItem, Label, Tooltip } from "@patternfly/react-core";
 import {
   CheckCircleIcon,
   ExclamationCircleIcon,
-  ExternalLinkAltIcon,
   FolderIcon,
   InProgressIcon,
   PausedIcon,
