@@ -76,6 +76,9 @@ public class FilesystemWorkspaceManager implements WorkspaceManager {
 
     @Override
     public List<WorkspaceCommand> commands(String workspaceId) {
-        return List.of(new WorkspaceCommand(WorkspaceCommandType.NAVIGATE, "cd " + workspaceId));
+        return List.of(
+                new WorkspaceCommand(WorkspaceCommandType.NAVIGATE, "cd " + workspaceId),
+                new WorkspaceCommand(WorkspaceCommandType.VSCODE, "code " + workspaceId)
+        );
     }
 }

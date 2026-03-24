@@ -413,15 +413,20 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
 
         commands.add(new WorkspaceCommand(WorkspaceCommandType.NAVIGATE, "cd " + worktreePath));
 
+        String worktreeAlias = Path.of(worktreePath).getFileName().toString();
+        String shortId = containerId.length() > 12 ? containerId.substring(0, 12) : containerId;
+        String hexConfig = java.util.HexFormat.of().formatHex(shortId.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        commands.add(new WorkspaceCommand(WorkspaceCommandType.VSCODE,
+                "code --folder-uri \"vscode-remote://attached-container+%s/workspaces/trees/%s\"".formatted(hexConfig, worktreeAlias)
+        ));
+
         switch (codingAgent) {
             case CLAUDE -> {
-                String worktreeAlias = Path.of(worktreePath).getFileName().toString();
                 commands.add(new WorkspaceCommand(WorkspaceCommandType.CONTAINER_EXEC,
                         "%s exec -it --user %s -w /workspaces/trees/%s %s claude".formatted(containerRuntime, remoteUserConfig, worktreeAlias, containerId)
                 ));
             }
             case OPENCODE -> {
-                String worktreeAlias = Path.of(worktreePath).getFileName().toString();
                 int port = portAllocator.allocate(worktreeAlias);
                 commands.add(new WorkspaceCommand(WorkspaceCommandType.CONTAINER_EXEC,
                         "%s exec -it --user %s -w /workspaces/trees/%s %s opencode attach http://localhost:%s".formatted(containerRuntime, remoteUserConfig, worktreeAlias, containerId, port)
