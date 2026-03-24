@@ -1,6 +1,13 @@
 import type React from "react";
 
-import { Button, ClipboardCopy, Flex, FlexItem, Label, Tooltip } from "@patternfly/react-core";
+import {
+  Button,
+  ClipboardCopy,
+  Flex,
+  FlexItem,
+  Label,
+  Tooltip,
+} from "@patternfly/react-core";
 import {
   CheckCircleIcon,
   ExclamationCircleIcon,
@@ -142,7 +149,10 @@ export const WorkspaceStatusLabel: React.FC<{ ws: WorkspaceDto }> = ({
   }
 
   return (
-    <Flex gap={{ default: "gapSm" }} alignItems={{ default: "alignItemsCenter" }}>
+    <Flex
+      gap={{ default: "gapSm" }}
+      alignItems={{ default: "alignItemsCenter" }}
+    >
       <FlexItem>{statusLabel}</FlexItem>
       <FlexItem>
         {health.status === "RUNNING" && (
@@ -184,7 +194,11 @@ export const WorkspaceCommands: React.FC<{ ws: WorkspaceDto }> = ({ ws }) => {
     <Flex direction={{ default: "column" }} gap={{ default: "gapXs" }}>
       {commands.map((cmd) => (
         <FlexItem key={cmd.label}>
-          <ClipboardCopy isReadOnly hoverTip={`Copy: ${cmd.label}`} clickTip="Copied">
+          <ClipboardCopy
+            isReadOnly
+            hoverTip={`Copy: ${cmd.label}`}
+            clickTip="Copied"
+          >
             {cmd.command}
           </ClipboardCopy>
         </FlexItem>

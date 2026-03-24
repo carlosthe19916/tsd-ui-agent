@@ -40,7 +40,8 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
                 List<Integer> appPort);
     }
 
-    public record EnvVar(String name, String value) {}
+    public record EnvVar(String name, String value) {
+    }
 
     @ConfigProperty(name = "tsd-agent.coding-agent")
     CodingAgent codingAgent;
@@ -344,7 +345,8 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
         }
     }
 
-    private record DevcontainerUpResult(String containerId, String remoteWorkspaceFolder) {}
+    private record DevcontainerUpResult(String containerId, String remoteWorkspaceFolder) {
+    }
 
     private DevcontainerUpResult parseDevcontainerUpOutput(String output, String folderName) {
         try {
@@ -409,12 +411,18 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
         commands.add(new WorkspaceCommand(WorkspaceCommandType.NAVIGATE, "cd " + worktreePath));
 
         switch (codingAgent) {
-            case CLAUDE -> commands.add(new WorkspaceCommand(WorkspaceCommandType.CLAUDE_CLI, containerRuntime + " exec -it --user " + remoteUserConfig + " " + containerId + " claude"));
+            case CLAUDE -> {
+                String worktreeAlias = Path.of(worktreePath).getFileName().toString();
+                commands.add(new WorkspaceCommand(WorkspaceCommandType.CLAUDE_CLI,
+                        "%s exec -it --user %s -w /workspaces/trees/%s %s claude".formatted(containerRuntime, remoteUserConfig, worktreeAlias, containerId)
+                ));
+            }
             case OPENCODE -> {
                 String worktreeAlias = Path.of(worktreePath).getFileName().toString();
                 int port = portAllocator.allocate(worktreeAlias);
                 commands.add(new WorkspaceCommand(WorkspaceCommandType.OPENCODE,
-                        "opencode attach http://localhost:" + port));
+                        "opencode attach http://localhost:%d".formatted(port)
+                ));
             }
         }
 
