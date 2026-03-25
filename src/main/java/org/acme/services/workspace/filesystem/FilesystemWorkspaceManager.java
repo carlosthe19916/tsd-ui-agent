@@ -8,7 +8,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @WorkspaceManagerType(type = ExecutionMode.FILESYSTEM)
@@ -42,11 +42,11 @@ public class FilesystemWorkspaceManager implements WorkspaceManager {
     }
 
     @Override
-    public Workspace reconnect(String workspaceId) throws WorkspaceException {
+    public Optional<Workspace> getWorkspace(String workspaceId) {
         if (!Files.isDirectory(Path.of(workspaceId))) {
-            throw new WorkspaceException("Workspace directory does not exist: " + workspaceId);
+            return Optional.empty();
         }
-        return new FilesystemWorkspace(workspaceId);
+        return Optional.of(new FilesystemWorkspace(workspaceId));
     }
 
     @Override
@@ -59,26 +59,5 @@ public class FilesystemWorkspaceManager implements WorkspaceManager {
         } catch (Exception e) {
             throw new WorkspaceException("Failed to clean up workspace: " + workspaceId, e);
         }
-    }
-
-    @Override
-    public boolean exists(String workspaceId) {
-        return Files.isDirectory(Path.of(workspaceId));
-    }
-
-    @Override
-    public WorkspaceHealthStatus healthStatus(String workspaceId) {
-        if (Files.isDirectory(Path.of(workspaceId))) {
-            return WorkspaceHealthStatus.running();
-        }
-        return WorkspaceHealthStatus.error("Directory does not exist: " + workspaceId);
-    }
-
-    @Override
-    public List<WorkspaceCommand> commands(String workspaceId) {
-        return List.of(
-                new WorkspaceCommand(WorkspaceCommandType.NAVIGATE, "cd " + workspaceId),
-                new WorkspaceCommand(WorkspaceCommandType.VSCODE, "code " + workspaceId)
-        );
     }
 }

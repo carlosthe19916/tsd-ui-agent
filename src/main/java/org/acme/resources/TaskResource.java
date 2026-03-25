@@ -315,6 +315,15 @@ public class TaskResource {
         if (task.workspace == null) {
             throw new BadRequestException("Task has no workspace configuration");
         }
+        if (task.workspace.isProvisioningInProgress) {
+            throw new BadRequestException("Workspace provisioning is still in progress");
+        }
+        if (task.workspace.provisioningError != null) {
+            throw new BadRequestException("Workspace provisioning failed: " + task.workspace.provisioningError);
+        }
+        if (task.workspace.workspaceId == null) {
+            throw new BadRequestException("Workspace has not been provisioned");
+        }
         if (task.plan.requirement == null || task.plan.requirement.isBlank()) {
             throw new BadRequestException("Plan has no requirement");
         }

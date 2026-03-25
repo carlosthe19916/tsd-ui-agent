@@ -11,13 +11,10 @@ import io.quarkus.qute.CheckedTemplate;
 import io.quarkus.qute.TemplateInstance;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.acme.services.agent.CodingAgent;
+import org.acme.services.codeagent.CodingAgentType;
 import org.acme.services.workspace.ExecutionMode;
 import org.acme.services.workspace.Workspace;
-import org.acme.services.workspace.WorkspaceCommand;
-import org.acme.services.workspace.WorkspaceCommandType;
 import org.acme.services.workspace.WorkspaceException;
-import org.acme.services.workspace.WorkspaceHealthStatus;
 import org.acme.services.workspace.WorkspaceManager;
 import org.acme.services.workspace.WorkspaceManagerType;
 import org.acme.services.workspace.WorkspaceRequest;
@@ -32,14 +29,6 @@ public class KubernetesWorkspaceManager implements WorkspaceManager {
 
     private static final Logger LOG = Logger.getLogger(KubernetesWorkspaceManager.class);
     private static final String CONTAINER_NAME = "tools";
-
-    private static final CustomResourceDefinitionContext DEV_WORKSPACE_CONTEXT =
-            new CustomResourceDefinitionContext.Builder()
-                    .withGroup("workspace.devfile.io")
-                    .withVersion("v1alpha2")
-                    .withPlural("devworkspaces")
-                    .withScope("Namespaced")
-                    .build();
 
     private static final CustomResourceDefinitionContext DEV_WORKSPACE_TEMPLATE_CONTEXT =
             new CustomResourceDefinitionContext.Builder()
@@ -96,7 +85,7 @@ public class KubernetesWorkspaceManager implements WorkspaceManager {
     public Optional<String> cheUrl;
 
     @ConfigProperty(name = "tsd-agent.coding-agent")
-    CodingAgent codingAgent;
+    CodingAgentType codingAgentType;
 
     @Inject
     KubernetesClient client;
@@ -115,7 +104,7 @@ public class KubernetesWorkspaceManager implements WorkspaceManager {
                 .serverSideApply();
 
         GenericKubernetesResource devWorkspace = renderDevWorkspace(workspaceName, editorTemplateName, request);
-        client.genericKubernetesResources(DEV_WORKSPACE_CONTEXT)
+        client.genericKubernetesResources(KubernetesWorkspace.DEV_WORKSPACE_CONTEXT)
                 .inNamespace(namespace)
                 .resource(devWorkspace)
                 .serverSideApply();
@@ -127,24 +116,31 @@ public class KubernetesWorkspaceManager implements WorkspaceManager {
                 workspaceName, podName, namespace);
 
         return new KubernetesWorkspace(workspaceName, podName, namespace,
-                CONTAINER_NAME, workingDir, client);
+                CONTAINER_NAME, workingDir, client, codingAgentType);
     }
 
     @Override
-    public Workspace reconnect(String workspaceId) throws WorkspaceException {
-        String phase = getDevWorkspacePhase(workspaceId);
-        if (!"Running".equals(phase)) {
-            throw new WorkspaceException("DevWorkspace " + workspaceId + " is not running (phase: " + phase + ")");
+    public Optional<Workspace> getWorkspace(String workspaceId) {
+        try {
+            GenericKubernetesResource resource = client.genericKubernetesResources(KubernetesWorkspace.DEV_WORKSPACE_CONTEXT)
+                    .inNamespace(namespace)
+                    .withName(workspaceId)
+                    .get();
+            if (resource == null) {
+                return Optional.empty();
+            }
+            String podName = getDevWorkspacePodName(workspaceId);
+            return Optional.of(new KubernetesWorkspace(workspaceId, podName, namespace,
+                    CONTAINER_NAME, workingDir, client, codingAgentType));
+        } catch (Exception e) {
+            return Optional.empty();
         }
-        String podName = getDevWorkspacePodName(workspaceId);
-        return new KubernetesWorkspace(workspaceId, podName, namespace,
-                CONTAINER_NAME, workingDir, client);
     }
 
     @Override
     public void destroy(String workspaceId) throws WorkspaceException {
         try {
-            client.genericKubernetesResources(DEV_WORKSPACE_CONTEXT)
+            client.genericKubernetesResources(KubernetesWorkspace.DEV_WORKSPACE_CONTEXT)
                     .inNamespace(namespace)
                     .withName(workspaceId)
                     .delete();
@@ -159,85 +155,6 @@ public class KubernetesWorkspaceManager implements WorkspaceManager {
                     .delete();
         } catch (Exception e) {
             LOG.warnf("Failed to delete editor template for %s: %s", workspaceId, e.getMessage());
-        }
-    }
-
-    @Override
-    public boolean exists(String workspaceId) {
-        try {
-            GenericKubernetesResource resource = client.genericKubernetesResources(DEV_WORKSPACE_CONTEXT)
-                    .inNamespace(namespace)
-                    .withName(workspaceId)
-                    .get();
-            return resource != null;
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    @Override
-    public WorkspaceHealthStatus healthStatus(String workspaceId) {
-        try {
-            String phase = getDevWorkspacePhase(workspaceId);
-            if ("Running".equals(phase)) {
-                return WorkspaceHealthStatus.running(true);
-            }
-            if ("Failed".equals(phase)) {
-                return WorkspaceHealthStatus.error("DevWorkspace phase: Failed");
-            }
-            return WorkspaceHealthStatus.stopped("DevWorkspace phase: " + phase, true);
-        } catch (Exception e) {
-            return WorkspaceHealthStatus.error(e.getMessage());
-        }
-    }
-
-    @Override
-    public void start(String workspaceId) throws WorkspaceException {
-        setDevWorkspaceStarted(workspaceId, true);
-    }
-
-    @Override
-    public void stop(String workspaceId) throws WorkspaceException {
-        setDevWorkspaceStarted(workspaceId, false);
-    }
-
-    @Override
-    public List<WorkspaceCommand> commands(String workspaceId) {
-        var commands = new ArrayList<WorkspaceCommand>();
-        try {
-            String podName = getDevWorkspacePodName(workspaceId);
-            switch (codingAgent) {
-                case CLAUDE -> commands.add(new WorkspaceCommand(WorkspaceCommandType.CONTAINER_EXEC,
-                        "kubectl exec -it " + podName + " -n " + namespace + " -c " + CONTAINER_NAME + " -- claude"));
-                case OPENCODE -> commands.add(new WorkspaceCommand(WorkspaceCommandType.CONTAINER_EXEC,
-                        "kubectl exec -it " + podName + " -n " + namespace + " -c " + CONTAINER_NAME + " -- opencode"));
-            }
-        } catch (Exception e) {
-            LOG.warnf("Failed to resolve pod for commands: %s", e.getMessage());
-        }
-        return commands;
-    }
-
-    @SuppressWarnings("unchecked")
-    private void setDevWorkspaceStarted(String workspaceName, boolean started) throws WorkspaceException {
-        try {
-            GenericKubernetesResource resource = client.genericKubernetesResources(DEV_WORKSPACE_CONTEXT)
-                    .inNamespace(namespace)
-                    .withName(workspaceName)
-                    .get();
-            if (resource == null) {
-                throw new WorkspaceException("DevWorkspace " + workspaceName + " not found");
-            }
-            Map<String, Object> spec = (Map<String, Object>) resource.getAdditionalProperties().get("spec");
-            spec.put("started", started);
-            client.genericKubernetesResources(DEV_WORKSPACE_CONTEXT)
-                    .inNamespace(namespace)
-                    .resource(resource)
-                    .serverSideApply();
-        } catch (WorkspaceException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new WorkspaceException("Failed to " + (started ? "start" : "stop") + " DevWorkspace " + workspaceName, e);
         }
     }
 
@@ -304,16 +221,26 @@ public class KubernetesWorkspaceManager implements WorkspaceManager {
         return envVars;
     }
 
+    @SuppressWarnings("unchecked")
     private void waitForDevWorkspaceRunning(String workspaceName) throws WorkspaceException {
         long deadline = System.currentTimeMillis() + 300_000;
         while (System.currentTimeMillis() < deadline) {
-            String phase = getDevWorkspacePhase(workspaceName);
+            GenericKubernetesResource resource = client.genericKubernetesResources(KubernetesWorkspace.DEV_WORKSPACE_CONTEXT)
+                    .inNamespace(namespace)
+                    .withName(workspaceName)
+                    .get();
+            if (resource == null) {
+                throw new WorkspaceException("DevWorkspace " + workspaceName + " not found");
+            }
+            Map<String, Object> status = (Map<String, Object>) resource.getAdditionalProperties().get("status");
+            String phase = status != null && status.get("phase") != null ? status.get("phase").toString() : "Unknown";
             if ("Running".equals(phase)) {
                 return;
             }
             if ("Failed".equals(phase)) {
-                String message = getDevWorkspaceStatusMessage(workspaceName);
-                throw new WorkspaceException("DevWorkspace " + workspaceName + " failed to start: " + message);
+                Object message = status.get("message");
+                throw new WorkspaceException("DevWorkspace " + workspaceName + " failed to start: " +
+                        (message != null ? message.toString() : "no message available"));
             }
             try {
                 Thread.sleep(5000);
@@ -323,40 +250,6 @@ public class KubernetesWorkspaceManager implements WorkspaceManager {
             }
         }
         throw new WorkspaceException("Timed out waiting for DevWorkspace " + workspaceName + " to become Running");
-    }
-
-    @SuppressWarnings("unchecked")
-    private String getDevWorkspacePhase(String workspaceName) throws WorkspaceException {
-        GenericKubernetesResource resource = client.genericKubernetesResources(DEV_WORKSPACE_CONTEXT)
-                .inNamespace(namespace)
-                .withName(workspaceName)
-                .get();
-        if (resource == null) {
-            throw new WorkspaceException("DevWorkspace " + workspaceName + " not found");
-        }
-        Map<String, Object> status = (Map<String, Object>) resource.getAdditionalProperties().get("status");
-        if (status == null) {
-            return "Unknown";
-        }
-        Object phase = status.get("phase");
-        return phase != null ? phase.toString() : "Unknown";
-    }
-
-    @SuppressWarnings("unchecked")
-    private String getDevWorkspaceStatusMessage(String workspaceName) {
-        try {
-            GenericKubernetesResource resource = client.genericKubernetesResources(DEV_WORKSPACE_CONTEXT)
-                    .inNamespace(namespace)
-                    .withName(workspaceName)
-                    .get();
-            if (resource == null) return "DevWorkspace not found";
-            Map<String, Object> status = (Map<String, Object>) resource.getAdditionalProperties().get("status");
-            if (status == null) return "no status available";
-            Object message = status.get("message");
-            return message != null ? message.toString() : "no message available";
-        } catch (Exception e) {
-            return "could not retrieve status: " + e.getMessage();
-        }
     }
 
     private String getDevWorkspacePodName(String workspaceName) throws WorkspaceException {

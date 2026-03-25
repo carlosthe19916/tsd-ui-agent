@@ -18,7 +18,6 @@ public class WorkspaceMapper {
         dto.isProvisioningInProgress = entity.isProvisioningInProgress;
         dto.provisioningError = entity.provisioningError;
         dto.workspaceId = entity.workspaceId;
-        dto.claudeSessionId = entity.claudeSessionId;
         if (entity.git != null) {
             dto.git = gitMapper.toDto(entity.git);
         }

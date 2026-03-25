@@ -11,10 +11,12 @@ import {
   SelectOption,
   Tooltip,
 } from "@patternfly/react-core";
+import TerminalIcon from "@patternfly/react-icons/dist/esm/icons/terminal-icon";
 import TrashIcon from "@patternfly/react-icons/dist/esm/icons/trash-icon";
 
 import type { GitDto, TaskDto } from "@app/api/models";
 import { ConfirmDialog } from "@app/components/ConfirmDialog";
+import { ProvisioningOutputModal } from "./provisioning-output-modal";
 import {
   WorkspaceCommands,
   WorkspaceStatusLabel,
@@ -71,6 +73,7 @@ export const WorkspaceCell: React.FC<WorkspaceCellProps> = ({ task }) => {
   const createMutation = useCreateWorkspaceAndLinkMutation();
 
   const [confirmDelete, setConfirmDelete] = React.useState(false);
+  const [showProvisionLog, setShowProvisionLog] = React.useState(false);
   const deleteMutation = useDeleteWorkspaceForTaskMutation(() =>
     setConfirmDelete(false),
   );
@@ -104,6 +107,18 @@ export const WorkspaceCell: React.FC<WorkspaceCellProps> = ({ task }) => {
               <FlexItem>
                 <WorkspaceStatusLabel ws={ws} />
               </FlexItem>
+              {ws.isProvisioningInProgress && (
+                <FlexItem>
+                  <Button
+                    variant="link"
+                    size="sm"
+                    icon={<TerminalIcon />}
+                    onClick={() => setShowProvisionLog(true)}
+                  >
+                    View Log
+                  </Button>
+                </FlexItem>
+              )}
               <FlexItem>
                 <Tooltip content="Delete workspace">
                   <Button
@@ -159,6 +174,12 @@ export const WorkspaceCell: React.FC<WorkspaceCellProps> = ({ task }) => {
             inProgress={deleteMutation.isPending}
           />
         )}
+
+        <ProvisioningOutputModal
+          wsId={ws.id ?? null}
+          isOpen={showProvisionLog}
+          onClose={() => setShowProvisionLog(false)}
+        />
       </>
     );
   }

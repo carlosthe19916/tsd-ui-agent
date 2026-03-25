@@ -1,10 +1,12 @@
 package org.acme.resources;
 
+import io.smallrye.mutiny.Multi;
+import io.smallrye.mutiny.Uni;
+import io.smallrye.mutiny.infrastructure.Infrastructure;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.BadRequestException;
-import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.NotFoundException;
@@ -19,10 +21,13 @@ import org.acme.dto.WorkspaceDto;
 import org.acme.mapper.WorkspaceMapper;
 import org.acme.models.jpa.entity.TaskEntity;
 import org.acme.models.jpa.entity.WorkspaceEntity;
+import org.acme.services.ExecutionOutputBroadcaster;
 import org.acme.services.WorkspaceService;
+import org.acme.services.workspace.Workspace;
 import org.acme.services.workspace.WorkspaceCommand;
 import org.acme.services.workspace.WorkspaceHealthStatus;
 import org.acme.services.workspace.WorkspaceManager;
+import org.jboss.resteasy.reactive.RestStreamElementType;
 
 import java.util.HashMap;
 import java.util.List;
@@ -31,7 +36,6 @@ import java.util.stream.Collectors;
 
 @ApplicationScoped
 @Path("/workspaces")
-@Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
 @Transactional
 public class WorkspaceResource {
@@ -44,6 +48,9 @@ public class WorkspaceResource {
 
     @Inject
     WorkspaceManager workspaceManager;
+
+    @Inject
+    ExecutionOutputBroadcaster broadcaster;
 
     @GET
     public List<WorkspaceDto> list(@QueryParam("gitId") Long gitId, @QueryParam("hasTask") Boolean hasTask) {
@@ -104,18 +111,22 @@ public class WorkspaceResource {
         if (entity.workspaceId == null) {
             return WorkspaceHealthStatus.stopped("not provisioned");
         }
-        return workspaceManager.healthStatus(entity.workspaceId);
+        Workspace workspace = workspaceManager.getWorkspace(entity.workspaceId)
+                .orElseThrow(NotFoundException::new);
+        return workspace.healthStatus();
     }
 
     @GET
     @Path("/{id}/commands")
-    public java.util.List<WorkspaceCommand> commands(@PathParam("id") Long id) {
+    public List<WorkspaceCommand> commands(@PathParam("id") Long id) {
         WorkspaceEntity entity = (WorkspaceEntity) WorkspaceEntity.findByIdOptional(id)
                 .orElseThrow(NotFoundException::new);
         if (entity.workspaceId == null) {
-            return java.util.List.of();
+            return List.of();
         }
-        return workspaceManager.commands(entity.workspaceId);
+        return workspaceManager.getWorkspace(entity.workspaceId)
+                .map(Workspace::commands)
+                .orElse(List.of());
     }
 
     @POST
@@ -126,7 +137,9 @@ public class WorkspaceResource {
         if (entity.workspaceId == null) {
             throw new BadRequestException("Workspace not provisioned");
         }
-        workspaceManager.start(entity.workspaceId);
+        Workspace workspace = workspaceManager.getWorkspace(entity.workspaceId)
+                .orElseThrow(NotFoundException::new);
+        workspace.start();
         return Response.noContent().build();
     }
 
@@ -138,7 +151,9 @@ public class WorkspaceResource {
         if (entity.workspaceId == null) {
             throw new BadRequestException("Workspace not provisioned");
         }
-        workspaceManager.stop(entity.workspaceId);
+        Workspace workspace = workspaceManager.getWorkspace(entity.workspaceId)
+                .orElseThrow(NotFoundException::new);
+        workspace.stop();
         return Response.noContent().build();
     }
 
@@ -149,5 +164,20 @@ public class WorkspaceResource {
                 .orElseThrow(NotFoundException::new);
         workspaceService.delete(entity);
         return Response.noContent().build();
+    }
+
+    @GET
+    @Path("/{id}/output")
+    @Produces(MediaType.SERVER_SENT_EVENTS)
+    @RestStreamElementType(MediaType.TEXT_PLAIN)
+    public Multi<String> streamProvisionOutput(@PathParam("id") Long id) {
+        return Uni.createFrom().item(() -> {
+                    WorkspaceEntity entity = (WorkspaceEntity) WorkspaceEntity.findByIdOptional(id)
+                            .orElseThrow(NotFoundException::new);
+                    return entity.isProvisioningInProgress ? id : null;
+                })
+                .runSubscriptionOn(Infrastructure.getDefaultWorkerPool())
+                .onItem().transformToMulti(wsId ->
+                        wsId != null ? broadcaster.subscribe(wsId) : Multi.createFrom().empty());
     }
 }

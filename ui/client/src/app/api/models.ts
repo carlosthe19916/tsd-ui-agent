@@ -61,7 +61,6 @@ export interface WorkspaceDto {
   isProvisioningInProgress?: boolean;
   provisioningError?: string;
   workspaceId?: string;
-  claudeSessionId?: string;
   task?: { id: number };
 }
 

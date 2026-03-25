@@ -32,6 +32,9 @@ public class WorkspaceService {
     @Inject
     TransactionManager transactionManager;
 
+    @Inject
+    ExecutionOutputBroadcaster broadcaster;
+
     @Transactional
     public WorkspaceEntity create(WorkspaceDto dto) {
         WorkspaceEntity entity = workspaceMapper.toEntity(dto);
@@ -43,6 +46,7 @@ public class WorkspaceService {
         entity.persist();
 
         Long workspaceEntityId = entity.id;
+        broadcaster.start(workspaceEntityId);
         try {
             transactionManager.getTransaction().registerSynchronization(new Synchronization() {
                 @Override
@@ -87,7 +91,7 @@ public class WorkspaceService {
             }
 
             WorkspaceRequest request = new WorkspaceRequest(context.gitUrl(), context.gitBranch(), context.gitToken(), context.forkUrl());
-            Workspace ws = workspaceManager.provision(request);
+            Workspace ws = workspaceManager.provision(request, line -> broadcaster.publish(workspaceEntityId, line));
 
             QuarkusTransaction.requiringNew().run(() -> {
                 WorkspaceEntity entity = WorkspaceEntity.findById(workspaceEntityId);
@@ -112,6 +116,7 @@ public class WorkspaceService {
                 LOG.errorf(inner, "Failed to record provisioning error for workspace %d", workspaceEntityId);
             }
         } finally {
+            broadcaster.complete(workspaceEntityId);
             requestContext.terminate();
         }
     }

@@ -35,9 +35,6 @@ public class WorkspaceEntity extends PanacheEntityBase {
     @Column(name = "workspace_id")
     public String workspaceId;
 
-    @Column(name = "claude_session_id")
-    public String claudeSessionId;
-
     @Version
     public int version;
 

@@ -1,6 +1,14 @@
 import React from "react";
 
-import { Button, Flex, FlexItem, Label, Tooltip } from "@patternfly/react-core";
+import {
+  Banner,
+  Button,
+  Flex,
+  FlexItem,
+  Label,
+  Spinner,
+  Tooltip,
+} from "@patternfly/react-core";
 import {
   CheckCircleIcon,
   ExclamationCircleIcon,
@@ -11,10 +19,13 @@ import {
   StopIcon,
   TerminalIcon,
 } from "@patternfly/react-icons";
+import { LogViewer } from "@patternfly/react-log-viewer";
 
 import { DockerIcon, VscodeIcon } from "./icons";
 
+import { streamWorkspaceOutput } from "@app/api/git-api";
 import type { WorkspaceDto } from "@app/api/models";
+import { ThemeContext } from "@app/components/ThemeContext";
 import {
   useFetchWorkspaceCommands,
   useFetchWorkspaceStatus,
@@ -227,5 +238,78 @@ export const WorkspaceCommands: React.FC<{ ws: WorkspaceDto }> = ({ ws }) => {
         );
       })}
     </Flex>
+  );
+};
+
+export const ProvisioningOutputPanel: React.FC<{ wsId: number }> = ({
+  wsId,
+}) => {
+  const { isDark } = React.useContext(ThemeContext);
+  const [logLines, setLogLines] = React.useState<string[]>([]);
+  const [isStreaming, setIsStreaming] = React.useState(false);
+  const linesRef = React.useRef<string[]>([]);
+  const rafRef = React.useRef<number>();
+
+  React.useEffect(() => {
+    const abortController = new AbortController();
+    setIsStreaming(true);
+    setLogLines([]);
+    linesRef.current = [];
+
+    (async () => {
+      try {
+        for await (const line of streamWorkspaceOutput(
+          wsId,
+          abortController.signal,
+        )) {
+          linesRef.current = [...linesRef.current, line];
+          if (rafRef.current == null) {
+            rafRef.current = requestAnimationFrame(() => {
+              rafRef.current = undefined;
+              setLogLines([...linesRef.current]);
+            });
+          }
+        }
+      } catch (e) {
+        if (e instanceof DOMException && e.name === "AbortError") return;
+      } finally {
+        setLogLines([...linesRef.current]);
+        setIsStreaming(false);
+      }
+    })();
+
+    return () => {
+      abortController.abort();
+      if (rafRef.current != null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = undefined;
+      }
+    };
+  }, [wsId]);
+
+  const data = logLines.length > 0 ? logLines.join("\n") : " ";
+
+  return (
+    <div style={{ marginTop: "var(--pf-t--global--spacer--sm)" }}>
+      <LogViewer
+        data={data}
+        hasLineNumbers
+        height={300}
+        isTextWrapped={false}
+        scrollToRow={logLines.length}
+        theme={isDark ? "dark" : "light"}
+        header={
+          <Banner variant={isStreaming ? "blue" : "green"}>
+            {isStreaming ? (
+              <>
+                <Spinner size="sm" /> Provisioning... ({logLines.length} lines)
+              </>
+            ) : (
+              <>Completed ({logLines.length} lines)</>
+            )}
+          </Banner>
+        }
+      />
+    </div>
   );
 };

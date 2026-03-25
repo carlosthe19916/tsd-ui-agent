@@ -54,3 +54,31 @@ export const startWorkspace = (wsId: number) =>
 
 export const stopWorkspace = (wsId: number) =>
   axios.post<void>(`${WORKSPACES_URL}/${wsId}/stop`);
+
+export const streamWorkspaceOutput = async function* (
+  wsId: number,
+  signal?: AbortSignal,
+): AsyncGenerator<string> {
+  const response = await fetch(`${WORKSPACES_URL}/${wsId}/output`, { signal });
+  if (!response.ok) throw new Error(`Stream failed: ${response.status}`);
+  const reader = response.body?.getReader();
+  if (!reader) return;
+  const decoder = new TextDecoder();
+  let buffer = "";
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+      for (const line of lines) {
+        if (line.startsWith("data:")) {
+          yield line.slice(5);
+        }
+      }
+    }
+  } finally {
+    reader.cancel();
+  }
+};
