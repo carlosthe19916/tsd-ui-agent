@@ -6,6 +6,7 @@ import io.smallrye.mutiny.infrastructure.Infrastructure;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
+import jakarta.transaction.Transactional.TxType;
 import jakarta.ws.rs.BadRequestException;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
@@ -170,6 +171,7 @@ public class WorkspaceResource {
     @Path("/{id}/output")
     @Produces(MediaType.SERVER_SENT_EVENTS)
     @RestStreamElementType(MediaType.TEXT_PLAIN)
+    @Transactional(TxType.NOT_SUPPORTED)
     public Multi<String> streamProvisionOutput(@PathParam("id") Long id) {
         return Uni.createFrom().item(() -> {
                     WorkspaceEntity entity = (WorkspaceEntity) WorkspaceEntity.findByIdOptional(id)

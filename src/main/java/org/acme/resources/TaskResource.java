@@ -9,6 +9,7 @@ import jakarta.inject.Inject;
 import jakarta.transaction.Synchronization;
 import jakarta.transaction.TransactionManager;
 import jakarta.transaction.Transactional;
+import jakarta.transaction.Transactional.TxType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.ws.rs.BadRequestException;
@@ -466,6 +467,7 @@ public class TaskResource {
     @Path("/{taskId}/plan/output")
     @Produces(MediaType.SERVER_SENT_EVENTS)
     @RestStreamElementType(MediaType.TEXT_PLAIN)
+    @Transactional(TxType.NOT_SUPPORTED)
     public Multi<String> streamOutput(@PathParam("taskId") Long taskId) {
         return Uni.createFrom().item(() -> {
                     TaskEntity task = (TaskEntity) TaskEntity.findByIdOptional(taskId)
