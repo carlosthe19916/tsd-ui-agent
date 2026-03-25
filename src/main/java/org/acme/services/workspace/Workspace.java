@@ -9,8 +9,6 @@ public interface Workspace {
 
     String workingDirectory();
 
-    boolean isAlive();
-
     String exec(String... command) throws WorkspaceException;
 
     void execStreaming(Consumer<String> lineConsumer, String... command) throws WorkspaceException;
@@ -20,10 +18,7 @@ public interface Workspace {
     void execWithStdinStreaming(byte[] stdin, Consumer<String> lineConsumer, String... command) throws WorkspaceException;
 
     default WorkspaceHealthStatus healthStatus() {
-        if (isAlive()) {
-            return WorkspaceHealthStatus.running();
-        }
-        return WorkspaceHealthStatus.error("Workspace is not alive");
+        return WorkspaceHealthStatus.error("Not implemented");
     }
 
     default void start() throws WorkspaceException {

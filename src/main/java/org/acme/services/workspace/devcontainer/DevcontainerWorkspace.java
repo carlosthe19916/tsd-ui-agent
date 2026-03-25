@@ -62,20 +62,6 @@ public class DevcontainerWorkspace implements Workspace {
     }
 
     @Override
-    public boolean isAlive() {
-        try {
-            ProcessBuilder pb = new ProcessBuilder(
-                    devcontainerCommand, "exec", "--workspace-folder", hostWorkspaceFolder, "true")
-                    .redirectErrorStream(true);
-            Process process = pb.start();
-            boolean finished = process.waitFor(30, TimeUnit.SECONDS);
-            return finished && process.exitValue() == 0;
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    @Override
     public WorkspaceHealthStatus healthStatus() {
         if (containerId == null || containerId.isBlank() || "unknown".equals(containerId)) {
             return WorkspaceHealthStatus.error("No container ID");

@@ -12,6 +12,7 @@ import org.acme.services.sync.ExternalIssueContext;
 import org.acme.services.sync.SyncManager;
 import org.acme.services.workspace.Workspace;
 import org.acme.services.workspace.WorkspaceException;
+import org.acme.services.workspace.WorkspaceHealthStatus;
 import org.acme.services.workspace.WorkspaceManager;
 import org.jboss.logging.Logger;
 
@@ -82,6 +83,9 @@ public class PlanService {
             // Phase 2: Call coding agent outside of any transaction
             Workspace workspace = workspaceManager.getWorkspace(ctx.workspaceId())
                     .orElseThrow(() -> new WorkspaceException("Workspace not found: " + ctx.workspaceId()));
+            if (workspace.healthStatus().status() != WorkspaceHealthStatus.Status.RUNNING) {
+                throw new WorkspaceException("Workspace is not running");
+            }
             String result = codingAgentService.generatePlan(workspace, ctx.requirement(), taskId);
 
             // Phase 3: Store result in a short transaction
@@ -142,6 +146,9 @@ public class PlanService {
             // Phase 2: Delegate to coding agent outside of any transaction
             Workspace workspace = workspaceManager.getWorkspace(ctx.workspaceId())
                     .orElseThrow(() -> new WorkspaceException("Workspace not found: " + ctx.workspaceId()));
+            if (workspace.healthStatus().status() != WorkspaceHealthStatus.Status.RUNNING) {
+                throw new WorkspaceException("Workspace is not running");
+            }
             codingAgentService.executePlan(workspace, ctx.planText(), taskId);
 
             // Phase 3: Store success in a short transaction

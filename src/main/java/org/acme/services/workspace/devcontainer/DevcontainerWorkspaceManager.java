@@ -124,13 +124,6 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
 
         DevcontainerWorkspace workspace = createWorkspace(containerId, worktreePath, remoteWorkspaceFolder);
 
-        // Start container if stopped
-        try {
-            workspace.start();
-        } catch (WorkspaceException e) {
-            LOG.warnf("Failed to start container for workspace %s: %s", workspaceId, e.getMessage());
-        }
-
         return Optional.of(workspace);
     }
 

@@ -14,6 +14,7 @@ import org.acme.services.changerequest.ChangeRequestResult;
 import org.acme.services.git.GitManager;
 import org.acme.services.workspace.Workspace;
 import org.acme.services.workspace.WorkspaceException;
+import org.acme.services.workspace.WorkspaceHealthStatus;
 import org.acme.services.workspace.WorkspaceGitOperations;
 import org.acme.services.workspace.WorkspaceManager;
 import org.jboss.logging.Logger;
@@ -70,6 +71,9 @@ public class ChangeRequestService {
 
             Workspace workspace = workspaceManager.getWorkspace(context.workspaceId())
                     .orElseThrow(() -> new WorkspaceException("Workspace not found: " + context.workspaceId()));
+            if (workspace.healthStatus().status() != WorkspaceHealthStatus.Status.RUNNING) {
+                throw new WorkspaceException("Workspace is not running");
+            }
 
             try {
                 workspaceGit.addAll(workspace);
