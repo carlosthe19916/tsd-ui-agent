@@ -34,6 +34,7 @@ import CodeBranchIcon from "@patternfly/react-icons/dist/esm/icons/code-branch-i
 import EllipsisVIcon from "@patternfly/react-icons/dist/esm/icons/ellipsis-v-icon";
 import SortAmountDownIcon from "@patternfly/react-icons/dist/esm/icons/sort-amount-down-icon";
 import SortAmountUpIcon from "@patternfly/react-icons/dist/esm/icons/sort-amount-up-icon";
+import TerminalIcon from "@patternfly/react-icons/dist/esm/icons/terminal-icon";
 
 import { TablePersistenceKeyPrefixes } from "@app/Constants";
 import type { GitDto, WorkspaceDto } from "@app/api/models";
@@ -57,6 +58,7 @@ import {
   WorkspaceStatusLabel,
   WorkspaceTypeLabel,
 } from "./components/workspace-status";
+import { ProvisioningOutputModal } from "../task-list/components/provisioning-output-modal";
 
 const GitWorkspaceCell: React.FC<{ gitId: number }> = ({ gitId }) => {
   const { data: workspaces } = useFetchWorkspaces(gitId, false);
@@ -91,6 +93,9 @@ const GitExpandedContent: React.FC<{ gitId: number }> = ({ gitId }) => {
   const { data: workspaces } = useFetchWorkspaces(gitId, false);
   const [wsToDelete, setWsToDelete] = React.useState<WorkspaceDto | null>(null);
   const [openWsKebabId, setOpenWsKebabId] = React.useState<number | null>(null);
+  const [provisionLogWsId, setProvisionLogWsId] = React.useState<number | null>(
+    null,
+  );
   const deleteMutation = useDeleteWorkspaceMutation(() => setWsToDelete(null));
 
   if (!workspaces || workspaces.length === 0) {
@@ -138,7 +143,26 @@ const GitExpandedContent: React.FC<{ gitId: number }> = ({ gitId }) => {
                       <WorkspaceCommands ws={ws} />
                     </DataListCell>,
                     <DataListCell key="status" alignRight>
-                      <WorkspaceStatusLabel ws={ws} />
+                      <Flex
+                        alignItems={{ default: "alignItemsCenter" }}
+                        gap={{ default: "gapSm" }}
+                      >
+                        <FlexItem>
+                          <WorkspaceStatusLabel ws={ws} />
+                        </FlexItem>
+                        {ws.isProvisioningInProgress && ws.id != null && (
+                          <FlexItem>
+                            <Button
+                              variant="link"
+                              size="sm"
+                              icon={<TerminalIcon />}
+                              onClick={() => setProvisionLogWsId(ws.id ?? null)}
+                            >
+                              View Log
+                            </Button>
+                          </FlexItem>
+                        )}
+                      </Flex>
                     </DataListCell>,
                   ]}
                 />
@@ -203,6 +227,12 @@ const GitExpandedContent: React.FC<{ gitId: number }> = ({ gitId }) => {
           inProgress={deleteMutation.isPending}
         />
       )}
+
+      <ProvisioningOutputModal
+        wsId={provisionLogWsId}
+        isOpen={provisionLogWsId !== null}
+        onClose={() => setProvisionLogWsId(null)}
+      />
     </>
   );
 };
@@ -459,12 +489,11 @@ export const GitList: React.FC = () => {
                     </Dropdown>
                   </DataListAction>
                 </DataListItemRow>
-                <DataListContent
-                  aria-label={`Workspaces for ${git.url}`}
-                  isHidden={!expansionDerivedState.isCellExpanded(git)}
-                >
-                  <GitExpandedContent gitId={git.id} />
-                </DataListContent>
+                {expansionDerivedState.isCellExpanded(git) && (
+                  <DataListContent aria-label={`Workspaces for ${git.url}`}>
+                    <GitExpandedContent gitId={git.id} />
+                  </DataListContent>
+                )}
               </DataListItem>
             ))}
           </DataList>

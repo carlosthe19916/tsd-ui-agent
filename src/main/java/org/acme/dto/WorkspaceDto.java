@@ -12,7 +12,5 @@ public class WorkspaceDto {
 
     public String workspaceId;
 
-    public String claudeSessionId;
-
     public TaskDto task;
 }

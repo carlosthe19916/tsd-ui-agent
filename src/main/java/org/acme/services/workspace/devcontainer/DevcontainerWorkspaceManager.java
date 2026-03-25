@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 @WorkspaceManagerType(type = ExecutionMode.DOCKER)
@@ -88,6 +89,11 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
 
     @Override
     public Workspace provision(WorkspaceRequest request) throws WorkspaceException {
+        return provision(request, line -> {});
+    }
+
+    @Override
+    public Workspace provision(WorkspaceRequest request, Consumer<String> outputConsumer) throws WorkspaceException {
         Workspace fsWorkspace = filesystemManager.provision(request);
         String worktreePath = fsWorkspace.id();
         String sanitizedUrl = deriveSanitizedUrl(worktreePath);
@@ -95,7 +101,7 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
 
         Path overrideConfigPath = generateOverrideConfig(sanitizedUrl, worktreeAlias);
 
-        String output = runDevcontainerUp(worktreePath, overrideConfigPath.toString());
+        String output = runDevcontainerUp(worktreePath, overrideConfigPath.toString(), outputConsumer);
         DevcontainerUpResult result = parseDevcontainerUpOutput(output, worktreeAlias);
         String containerId = result.containerId() != null ? result.containerId() : "unknown";
         String remoteWorkspaceFolder = result.remoteWorkspaceFolder();
@@ -157,6 +163,15 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
             // Best-effort removal of derived devcontainer image
             if (imageId != null) {
                 removeDevcontainerImage(imageId);
+            }
+
+            // Best-effort removal of per-workspace config volume
+            String volumeName = "code-agent-config-" + worktreeAlias;
+            try {
+                DevcontainerWorkspace.runContainerCommand(containerRuntime, "volume", "rm", volumeName);
+                LOG.infof("Removed volume %s", volumeName);
+            } catch (Exception e) {
+                LOG.warnf("Failed to remove volume %s: %s", volumeName, e.getMessage());
             }
         } catch (Exception e) {
             throw new WorkspaceException("Failed to destroy devcontainer workspace: " + workspaceId, e);
@@ -247,6 +262,8 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
                     .filter(s -> !s.isEmpty())
                     .toList());
 
+            mountList.add("source=code-agent-config-" + worktreeAlias + ",target=/home/" + remoteUser + "/" + codingAgentType.configDir + ",type=volume");
+
             String configContent = Templates.devcontainer(
                     effectiveImage, remoteUser, "/workspaces/trees/" + worktreeAlias,
                     envVars, mountList.isEmpty() ? null : mountList,
@@ -284,7 +301,7 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
         return false;
     }
 
-    private String runDevcontainerUp(String workspaceFolder, String overrideConfigPath) throws WorkspaceException {
+    private String runDevcontainerUp(String workspaceFolder, String overrideConfigPath, Consumer<String> outputConsumer) throws WorkspaceException {
         try {
             ProcessBuilder pb = new ProcessBuilder(
                     command, "up",
@@ -295,10 +312,14 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
                     .redirectErrorStream(true);
             Process process = pb.start();
 
-            String output;
+            StringBuilder output = new StringBuilder();
             try (BufferedReader reader = new BufferedReader(
                     new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
-                output = reader.lines().collect(Collectors.joining("\n"));
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    output.append(line).append("\n");
+                    outputConsumer.accept(line);
+                }
             }
 
             boolean finished = process.waitFor(5, TimeUnit.MINUTES);
@@ -308,12 +329,13 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
             }
 
             int exitCode = process.exitValue();
+            String result = output.toString();
             if (exitCode != 0) {
-                throw new WorkspaceException("devcontainer up failed (exit " + exitCode + "): " + output);
+                throw new WorkspaceException("devcontainer up failed (exit " + exitCode + "): " + result);
             }
 
-            LOG.debugf("devcontainer up output: %s", output);
-            return output;
+            LOG.debugf("devcontainer up output: %s", result);
+            return result;
         } catch (WorkspaceException e) {
             throw e;
         } catch (InterruptedException e) {
