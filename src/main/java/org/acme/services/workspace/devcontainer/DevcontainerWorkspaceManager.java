@@ -249,6 +249,9 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
                     .map(name -> new EnvVar(name, "${localEnv:" + name + "}"))
                     .toList());
             envVars.add(new EnvVar("DEVCONTAINER", "true"));
+            if (codingAgentType == CodingAgentType.OPENCODE) {
+                envVars.add(new EnvVar("OPENCODE_PERMISSION", "{\"tools\":{\"*\":{\"allow\":true}}}"));
+            }
 
             List<String> mountList = new java.util.ArrayList<>(agentMounts.orElse(Map.of()).values().stream()
                     .map(String::trim)

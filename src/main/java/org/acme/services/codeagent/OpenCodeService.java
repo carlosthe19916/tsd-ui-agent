@@ -44,7 +44,6 @@ public class OpenCodeService implements CodingAgentService {
                         broadcaster.publish(taskId, line);
                         result.append(line).append("\n");
                     },
-                    "env", "OPENCODE_PERMISSION={\"tools\":{\"*\":{\"allow\":true}}}",
                     opencodeCommand, "run",
                     "--attach", "http://localhost:" + port,
                     prompt
@@ -78,7 +77,6 @@ public class OpenCodeService implements CodingAgentService {
                         LOG.infof("Task %d: opencode> %s", taskId, line);
                         broadcaster.publish(taskId, line);
                     },
-                    "env", "OPENCODE_PERMISSION={\"tools\":{\"*\":{\"allow\":true}}}",
                     opencodeCommand, "run",
                     "--attach", "http://localhost:" + port,
                     planText

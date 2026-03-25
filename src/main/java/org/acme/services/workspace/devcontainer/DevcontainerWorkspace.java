@@ -134,6 +134,7 @@ public class DevcontainerWorkspace implements Workspace {
             ProcessBuilder pb = buildExecProcess(command)
                     .redirectErrorStream(true);
             Process process = pb.start();
+            process.getOutputStream().close();
 
             String output;
             try (BufferedReader reader = new BufferedReader(
@@ -169,6 +170,7 @@ public class DevcontainerWorkspace implements Workspace {
             ProcessBuilder pb = buildExecProcess(command)
                     .redirectErrorStream(true);
             Process process = pb.start();
+            process.getOutputStream().close();
 
             try (BufferedReader reader = new BufferedReader(
                     new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
