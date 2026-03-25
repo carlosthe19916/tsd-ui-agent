@@ -26,6 +26,9 @@ public class OpenCodeService implements CodingAgentService {
     @ConfigProperty(name = "tsd-agent.opencode.command")
     String opencodeCommand;
 
+    @ConfigProperty(name = "tsd-agent.opencode.model")
+    String model;
+
     @Override
     public String generatePlan(Workspace workspace, String requirement, Long taskId) {
         String prompt = PLAN_GENERATION_PROMPT.formatted(requirement);
@@ -45,6 +48,7 @@ public class OpenCodeService implements CodingAgentService {
                         result.append(line).append("\n");
                     },
                     opencodeCommand, "run",
+                    "--model", model,
                     "--attach", "http://localhost:" + port,
                     prompt
             );
@@ -78,6 +82,7 @@ public class OpenCodeService implements CodingAgentService {
                         broadcaster.publish(taskId, line);
                     },
                     opencodeCommand, "run",
+                    "--model", model,
                     "--attach", "http://localhost:" + port,
                     planText
             );
