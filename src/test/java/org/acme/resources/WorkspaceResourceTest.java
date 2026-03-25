@@ -31,6 +31,8 @@ class WorkspaceResourceTest {
     void setup() {
         when(workspaceManager.provision(any()))
                 .thenAnswer(invocation -> new FilesystemWorkspace("/tmp/tsd-agent-ui-test/repo/trees/ws-test"));
+        when(workspaceManager.provision(any(), any()))
+                .thenAnswer(invocation -> new FilesystemWorkspace("/tmp/tsd-agent-ui-test/repo/trees/ws-test"));
     }
 
     private int createGit(String url) {
@@ -115,6 +117,8 @@ class WorkspaceResourceTest {
     @Test
     void testCreateWorkspaceProvisioningError() {
         when(workspaceManager.provision(any()))
+                .thenThrow(new RuntimeException("provision failed"));
+        when(workspaceManager.provision(any(), any()))
                 .thenThrow(new RuntimeException("provision failed"));
 
         int gitId = createGit("https://github.com/ws/provision-error.git");
