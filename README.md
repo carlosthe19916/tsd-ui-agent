@@ -80,3 +80,7 @@ You can run your application in dev mode that enables live coding using:
 ```shell script
 ./mvnw quarkus:dev
 ```
+
+## License
+
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
