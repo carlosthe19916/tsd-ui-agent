@@ -1,11 +1,14 @@
 package org.acme.services.changerequest;
 
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.ws.rs.core.Response;
 import org.acme.models.jpa.entity.GitVendorType;
 import org.acme.services.changerequest.github.CreatePullRequest;
 import org.acme.services.changerequest.github.GitHubApi;
 import org.acme.services.changerequest.github.PullRequestResponse;
 import org.acme.services.git.GitManager;
+import org.jboss.logging.Logger;
+import org.jboss.resteasy.reactive.ClientWebApplicationException;
 import io.quarkus.rest.client.reactive.QuarkusRestClientBuilder;
 
 import java.net.URI;
@@ -13,6 +16,8 @@ import java.util.List;
 
 @ApplicationScoped
 public class GitHubChangeRequestProvider implements ChangeRequestProvider {
+
+    private static final Logger LOG = Logger.getLogger(GitHubChangeRequestProvider.class);
 
     @Override
     public boolean supports(GitVendorType vendorType) {
@@ -35,9 +40,16 @@ public class GitHubChangeRequestProvider implements ChangeRequestProvider {
 
         String head = computeHead(params);
 
-        PullRequestResponse pr = api.createPullRequest(owner, repo,
-                new CreatePullRequest(params.title(), head, params.baseBranch(), params.description()));
-        return new ChangeRequestResult(pr.htmlUrl());
+        try {
+            PullRequestResponse pr = api.createPullRequest(owner, repo,
+                    new CreatePullRequest(params.title(), head, params.baseBranch(), params.description()));
+            return new ChangeRequestResult(pr.htmlUrl());
+        } catch (ClientWebApplicationException e) {
+            Response response = e.getResponse();
+            String body = response != null ? response.readEntity(String.class) : "no response body";
+            LOG.errorf("GitHub API error creating PR (head=%s, base=%s): %d — %s", head, params.baseBranch(), e.getResponse().getStatus(), body);
+            throw e;
+        }
     }
 
     @Override

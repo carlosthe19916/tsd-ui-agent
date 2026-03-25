@@ -75,7 +75,10 @@ public class ChangeRequestService {
                 workspaceGit.addAll(workspace);
                 workspaceGit.commit(workspace, context.taskTitle());
             } catch (WorkspaceException e) {
-                LOG.infof("Task %d: No changes to commit, proceeding with push: %s", taskId, e.getMessage());
+                if (e.getMessage() != null && e.getMessage().contains("nothing to commit")) {
+                    LOG.infof("Task %d: No changes to commit, proceeding with push: %s", taskId, e.getMessage());
+                }
+                throw e;
             }
 
             String baseBranch;
@@ -89,7 +92,13 @@ public class ChangeRequestService {
                         .findFirst()
                         .orElse("main");
             }
-            String branchName = GitManager.planBranchName(context.planId());
+            String branchName = workspaceGit.getCurrentBranch(workspace);
+
+            String commitLog = workspace.exec("git", "log", "origin/" + baseBranch + "..HEAD", "--oneline");
+            if (commitLog.isBlank()) {
+                throw new WorkspaceException("No commits ahead of " + baseBranch + " — nothing to create a change request for");
+            }
+            LOG.infof("Task %d: Commits to push:\n%s", taskId, commitLog);
 
             GitVendorType vendorType = context.vendorType();
             if (vendorType == null) {

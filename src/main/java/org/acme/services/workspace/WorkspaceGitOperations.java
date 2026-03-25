@@ -17,7 +17,7 @@ public class WorkspaceGitOperations {
     }
 
     public void commit(Workspace workspace, String message) {
-        workspace.exec("git", "-c", "user.name=" + gitUserName, "-c", "user.email=" + gitUserEmail, "commit", "-m", message);
+        workspace.exec("git", "-c", "user.name=" + gitUserName, "-c", "user.email=" + gitUserEmail, "-c", "commit.gpgsign=false", "commit", "-m", message);
     }
 
     public void push(Workspace workspace, String remoteName, String branchName) {
