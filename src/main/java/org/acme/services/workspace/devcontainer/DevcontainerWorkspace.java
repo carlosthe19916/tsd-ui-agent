@@ -62,20 +62,6 @@ public class DevcontainerWorkspace implements Workspace {
     }
 
     @Override
-    public boolean isAlive() {
-        try {
-            ProcessBuilder pb = new ProcessBuilder(
-                    devcontainerCommand, "exec", "--workspace-folder", hostWorkspaceFolder, "true")
-                    .redirectErrorStream(true);
-            Process process = pb.start();
-            boolean finished = process.waitFor(30, TimeUnit.SECONDS);
-            return finished && process.exitValue() == 0;
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    @Override
     public WorkspaceHealthStatus healthStatus() {
         if (containerId == null || containerId.isBlank() || "unknown".equals(containerId)) {
             return WorkspaceHealthStatus.error("No container ID");
@@ -148,6 +134,7 @@ public class DevcontainerWorkspace implements Workspace {
             ProcessBuilder pb = buildExecProcess(command)
                     .redirectErrorStream(true);
             Process process = pb.start();
+            process.getOutputStream().close();
 
             String output;
             try (BufferedReader reader = new BufferedReader(
@@ -183,6 +170,7 @@ public class DevcontainerWorkspace implements Workspace {
             ProcessBuilder pb = buildExecProcess(command)
                     .redirectErrorStream(true);
             Process process = pb.start();
+            process.getOutputStream().close();
 
             try (BufferedReader reader = new BufferedReader(
                     new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {

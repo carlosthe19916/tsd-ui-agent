@@ -35,11 +35,6 @@ public class FilesystemWorkspace implements Workspace {
     }
 
     @Override
-    public boolean isAlive() {
-        return Files.isDirectory(Path.of(directory));
-    }
-
-    @Override
     public String exec(String... command) throws WorkspaceException {
         try {
             ProcessBuilder pb = new ProcessBuilder(command)
@@ -153,7 +148,7 @@ public class FilesystemWorkspace implements Workspace {
 
     @Override
     public WorkspaceHealthStatus healthStatus() {
-        if (isAlive()) {
+        if (Files.isDirectory(Path.of(directory))) {
             return WorkspaceHealthStatus.running();
         }
         return WorkspaceHealthStatus.error("Directory does not exist: " + directory);

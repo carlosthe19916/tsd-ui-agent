@@ -124,13 +124,6 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
 
         DevcontainerWorkspace workspace = createWorkspace(containerId, worktreePath, remoteWorkspaceFolder);
 
-        // Start container if stopped
-        try {
-            workspace.start();
-        } catch (WorkspaceException e) {
-            LOG.warnf("Failed to start container for workspace %s: %s", workspaceId, e.getMessage());
-        }
-
         return Optional.of(workspace);
     }
 
@@ -256,6 +249,9 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
                     .map(name -> new EnvVar(name, "${localEnv:" + name + "}"))
                     .toList());
             envVars.add(new EnvVar("DEVCONTAINER", "true"));
+            if (codingAgentType == CodingAgentType.OPENCODE) {
+                envVars.add(new EnvVar("OPENCODE_PERMISSION", "{\"tools\":{\"*\":{\"allow\":true}}}"));
+            }
 
             List<String> mountList = new java.util.ArrayList<>(agentMounts.orElse(Map.of()).values().stream()
                     .map(String::trim)

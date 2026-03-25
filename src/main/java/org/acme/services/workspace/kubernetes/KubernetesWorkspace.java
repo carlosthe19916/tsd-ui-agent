@@ -71,24 +71,6 @@ public class KubernetesWorkspace implements Workspace {
     }
 
     @Override
-    public boolean isAlive() {
-        try {
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            CompletableFuture<Integer> exitCode = new CompletableFuture<>();
-            try (ExecWatch watch = client.pods()
-                    .inNamespace(namespace).withName(podName).inContainer(containerName)
-                    .writingOutput(out).writingError(out)
-                    .usingListener(exitCodeListener(exitCode))
-                    .exec("true")) {
-                Integer code = exitCode.get(30, TimeUnit.SECONDS);
-                return code == 0;
-            }
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    @Override
     public WorkspaceHealthStatus healthStatus() {
         try {
             String phase = getDevWorkspacePhase();
