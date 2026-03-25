@@ -222,6 +222,69 @@ public class TaskResource {
     }
 
     @POST
+    @Path("/{taskId}/plan/run-all")
+    public Response runAllPhases(@PathParam("taskId") Long taskId) {
+        TaskEntity task = (TaskEntity) TaskEntity.findByIdOptional(taskId)
+                .orElseThrow(NotFoundException::new);
+        if (!aiDiscoveryEnabled) {
+            throw new BadRequestException("AI discovery is not enabled");
+        }
+        if (task.workspace == null) {
+            throw new BadRequestException("Task has no workspace configuration");
+        }
+        if (task.workspace.isProvisioningInProgress) {
+            throw new BadRequestException("Workspace provisioning is still in progress");
+        }
+        if (task.workspace.provisioningError != null) {
+            throw new BadRequestException("Workspace provisioning failed: " + task.workspace.provisioningError);
+        }
+        if (task.workspace.workspaceId == null) {
+            throw new BadRequestException("Workspace has not been provisioned");
+        }
+
+        // Create plan if it does not exist
+        if (task.plan == null) {
+            PlanEntity plan = new PlanEntity();
+            plan.requirement = (task.description != null && !task.description.isBlank()) ? task.description : task.title;
+            plan.createdAt = java.time.Instant.now();
+            plan.updatedAt = plan.createdAt;
+            plan.persist();
+            task.plan = plan;
+        }
+
+        // Concurrency guard: if any phase is already in progress, return current state
+        if (task.plan.isRequirementInProgress || task.plan.isPlanGenerationInProgress
+                || task.plan.isExecutionPlanInProgress || task.plan.isChangeRequestInProgress) {
+            return Response.status(Response.Status.ACCEPTED)
+                    .entity(planMapper.toDto(task.plan))
+                    .build();
+        }
+
+        task.plan.isRequirementInProgress = true;
+        task.plan.requirementError = null;
+
+        try {
+            transactionManager.getTransaction().registerSynchronization(new Synchronization() {
+                @Override
+                public void beforeCompletion() {}
+
+                @Override
+                public void afterCompletion(int status) {
+                    if (status == jakarta.transaction.Status.STATUS_COMMITTED) {
+                        planService.triggerFullPipeline(taskId);
+                    }
+                }
+            });
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to register full pipeline", e);
+        }
+
+        return Response.status(Response.Status.ACCEPTED)
+                .entity(planMapper.toDto(task.plan))
+                .build();
+    }
+
+    @POST
     @Path("/{taskId}/plan/enrich-requirement")
     public Response enrichRequirement(@PathParam("taskId") Long taskId) {
         TaskEntity task = (TaskEntity) TaskEntity.findByIdOptional(taskId)

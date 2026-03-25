@@ -13,6 +13,7 @@ import {
   openTerminal,
   openVSCode,
   patchTaskPlan,
+  runAllPlanPhases,
   updateTaskPlan,
 } from "@app/api/task-api";
 
@@ -106,6 +107,17 @@ export const useExecutePlanMutation = () => {
     mutationFn: (taskId: number) => executePlan(taskId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [TASK_QUERY_KEY] });
+    },
+  });
+};
+
+export const useRunAllPlanPhasesMutation = (onSuccess?: () => void) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (taskId: number) => runAllPlanPhases(taskId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [TASK_QUERY_KEY] });
+      onSuccess?.();
     },
   });
 };

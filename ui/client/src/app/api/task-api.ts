@@ -103,6 +103,11 @@ export const generatePlan = (taskId: number) =>
     .post<PlanDto>(`${BASE_URL}/${taskId}/plan/generate-plan`)
     .then((response) => response.data);
 
+export const runAllPlanPhases = (taskId: number) =>
+  axios
+    .post<PlanDto>(`${BASE_URL}/${taskId}/plan/run-all`)
+    .then((response) => response.data);
+
 export const enrichRequirement = (taskId: number) =>
   axios
     .post<PlanDto>(`${BASE_URL}/${taskId}/plan/enrich-requirement`)

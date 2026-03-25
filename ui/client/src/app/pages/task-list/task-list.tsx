@@ -53,6 +53,7 @@ import { SimplePagination } from "@app/components/SimplePagination";
 import {
   useCreateChangeRequestMutation,
   useCreateTaskPlanMutation,
+  useRunAllPlanPhasesMutation,
 } from "@app/queries/tasks";
 import { formatDateTime } from "@app/utils/utils";
 import { ButtonVariant } from "@patternfly/react-core";
@@ -104,11 +105,13 @@ const TaskListContent: React.FC = () => {
     null,
   );
   const [outputTaskId, setOutputTaskId] = React.useState<number | null>(null);
+  const [runAllTask, setRunAllTask] = React.useState<TaskDto | null>(null);
 
   const createPlanMutation = useCreateTaskPlanMutation(() =>
     setCreatePlanTask(null),
   );
   const changeRequestMutation = useCreateChangeRequestMutation();
+  const runAllMutation = useRunAllPlanPhasesMutation(() => setRunAllTask(null));
 
   return (
     <>
@@ -310,6 +313,14 @@ const TaskListContent: React.FC = () => {
                           Create plan
                         </DropdownItem>
                       )}
+                      {task.workspace?.workspaceId && (
+                        <DropdownItem
+                          key="run-all"
+                          onClick={() => setRunAllTask(task)}
+                        >
+                          Create plan and run
+                        </DropdownItem>
+                      )}
                       {task.plan && (
                         <DropdownItem
                           key="edit-requirement"
@@ -406,6 +417,24 @@ const TaskListContent: React.FC = () => {
         task={planTask}
         isOpen={planTask !== null}
         onClose={() => setPlanTask(null)}
+      />
+
+      <ConfirmDialog
+        isOpen={runAllTask !== null}
+        title="Create plan and run"
+        titleIconVariant="warning"
+        message={`This will create a plan and run all phases (requirement enrichment, plan generation, execution, and change request) for "${runAllTask?.title}". This operation can take a long time.`}
+        confirmBtnLabel="Run all"
+        cancelBtnLabel="Cancel"
+        confirmBtnVariant={ButtonVariant.primary}
+        inProgress={runAllMutation.isPending}
+        onConfirm={() => {
+          if (runAllTask) {
+            runAllMutation.mutate(runAllTask.id);
+          }
+        }}
+        onClose={() => setRunAllTask(null)}
+        onCancel={() => setRunAllTask(null)}
       />
 
       <ConfirmDialog

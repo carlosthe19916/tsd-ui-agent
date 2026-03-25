@@ -36,6 +36,13 @@ public class PlanService {
     @Inject
     WorkspaceManager workspaceManager;
 
+    @Inject
+    ChangeRequestService changeRequestService;
+
+    public void triggerFullPipeline(Long taskId) {
+        Thread.startVirtualThread(() -> doFullPipeline(taskId));
+    }
+
     public void triggerRequirementEnrichment(Long taskId) {
         Thread.startVirtualThread(() -> doRequirementEnrichment(taskId));
     }
@@ -165,6 +172,62 @@ public class PlanService {
             }
         } finally {
             requestContext.terminate();
+        }
+    }
+
+    void doFullPipeline(Long taskId) {
+        // Phase 1: Requirement enrichment (flag already set by endpoint)
+        doRequirementEnrichment(taskId);
+        if (!transitionToNextPhase(taskId, "requirement")) return;
+
+        // Phase 2: Plan generation
+        doPlanGeneration(taskId);
+        if (!transitionToNextPhase(taskId, "planGeneration")) return;
+
+        // Phase 3: Plan execution
+        doPlanExecution(taskId);
+        if (!transitionToNextPhase(taskId, "execution")) return;
+
+        // Phase 4: Change request
+        changeRequestService.doChangeRequest(taskId);
+    }
+
+    private boolean transitionToNextPhase(Long taskId, String completedPhase) {
+        ManagedContext ctx = Arc.container().requestContext();
+        ctx.activate();
+        try {
+            return QuarkusTransaction.requiringNew().call(() -> {
+                TaskEntity task = TaskEntity.findById(taskId);
+                if (task == null || task.plan == null) return false;
+
+                switch (completedPhase) {
+                    case "requirement":
+                        if (task.plan.requirementError != null) return false;
+                        task.plan.isPlanGenerationInProgress = true;
+                        task.plan.planGenerationError = null;
+                        break;
+                    case "planGeneration":
+                        if (task.plan.planGenerationError != null) return false;
+                        task.plan.isExecutionPlanInProgress = true;
+                        task.plan.executionPlanError = null;
+                        break;
+                    case "execution":
+                        if (task.plan.executionPlanError != null) return false;
+                        task.plan.isChangeRequestInProgress = true;
+                        task.plan.changeRequestError = null;
+                        break;
+                    default:
+                        return false;
+                }
+                task.plan.updatedAt = Instant.now();
+                task.plan.persist();
+                return true;
+            });
+        } catch (Exception e) {
+            LOG.errorf(e, "Failed to transition to next phase after '%s' for task %d", completedPhase, taskId);
+            return false;
+        } finally {
+            ctx.terminate();
         }
     }
 
