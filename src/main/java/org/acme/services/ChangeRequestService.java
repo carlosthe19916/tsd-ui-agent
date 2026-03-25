@@ -68,7 +68,8 @@ public class ChangeRequestService {
                 return;
             }
 
-            Workspace workspace = workspaceManager.reconnect(context.workspaceId());
+            Workspace workspace = workspaceManager.getWorkspace(context.workspaceId())
+                    .orElseThrow(() -> new WorkspaceException("Workspace not found: " + context.workspaceId()));
 
             try {
                 workspaceGit.addAll(workspace);
@@ -81,8 +82,12 @@ public class ChangeRequestService {
             if (context.gitBranch() != null && !context.gitBranch().isBlank()) {
                 baseBranch = context.gitBranch();
             } else {
-                baseBranch = workspace.exec("git", "symbolic-ref", "refs/remotes/origin/HEAD")
-                        .trim().replace("refs/remotes/origin/", "");
+                String remoteInfo = workspace.exec("git", "remote", "show", "origin");
+                baseBranch = remoteInfo.lines()
+                        .filter(l -> l.contains("HEAD branch:"))
+                        .map(l -> l.split(":\\s*")[1].trim())
+                        .findFirst()
+                        .orElse("main");
             }
             String branchName = GitManager.planBranchName(context.planId());
 

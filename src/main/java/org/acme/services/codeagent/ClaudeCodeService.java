@@ -1,4 +1,4 @@
-package org.acme.services.agent;
+package org.acme.services.codeagent;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -14,6 +14,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
 
 @ApplicationScoped
+@CodingAgentQualifier(CodingAgentType.CLAUDE)
 public class ClaudeCodeService implements CodingAgentService {
 
     private static final Logger LOG = Logger.getLogger(ClaudeCodeService.class);
@@ -26,15 +27,7 @@ public class ClaudeCodeService implements CodingAgentService {
 
     @Override
     public String generatePlan(Workspace workspace, String requirement, Long taskId) {
-        String prompt = """
-                Analyze this codebase and generate a detailed implementation plan in Markdown format \
-                for the following requirement:
-
-                %s
-
-                Output ONLY the plan in Markdown. Include: Overview, affected files and components, \
-                step-by-step implementation instructions, and testing approach.
-                """.formatted(requirement);
+        String prompt = PLAN_GENERATION_PROMPT.formatted(requirement);
 
         LOG.infof("Starting Claude CLI for plan generation in %s", workspace.workingDirectory());
 
@@ -59,10 +52,9 @@ public class ClaudeCodeService implements CodingAgentService {
                         }
                     },
                     claudeCommand, "-p",
-                    "--permission-mode", "bypassPermissions",
+                    "--dangerously-skip-permissions",
                     "--verbose",
-                    "--output-format", "stream-json",
-                    "--tools", "Read,Glob,Grep"
+                    "--output-format", "stream-json"
             );
 
             String resultText = resultHolder[0];
@@ -95,7 +87,7 @@ public class ClaudeCodeService implements CodingAgentService {
                         output.append(line).append("\n");
                     },
                     claudeCommand, "-p",
-                    "--permission-mode", "bypassPermissions",
+                    "--dangerously-skip-permissions",
                     "--verbose",
                     "--output-format", "stream-json"
             );

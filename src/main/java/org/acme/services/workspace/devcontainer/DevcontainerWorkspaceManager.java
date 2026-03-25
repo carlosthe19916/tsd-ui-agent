@@ -6,7 +6,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.json.Json;
 import jakarta.json.JsonObject;
-import org.acme.services.agent.CodingAgent;
+import org.acme.services.codeagent.CodingAgentType;
 
 import org.acme.services.workspace.*;
 import org.acme.services.workspace.filesystem.FilesystemWorkspaceManager;
@@ -44,7 +44,7 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
     }
 
     @ConfigProperty(name = "tsd-agent.coding-agent")
-    CodingAgent codingAgent;
+    CodingAgentType codingAgentType;
 
     @ConfigProperty(name = "tsd-agent.devcontainer.command")
     public String command;
@@ -101,37 +101,31 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
         String remoteWorkspaceFolder = result.remoteWorkspaceFolder();
 
         LOG.infof("Devcontainer provisioned: container=%s, worktree=%s, remote=%s", containerId, worktreePath, remoteWorkspaceFolder);
-        return new DevcontainerWorkspace(containerId, worktreePath, remoteWorkspaceFolder, command);
+        return createWorkspace(containerId, worktreePath, remoteWorkspaceFolder);
     }
 
     @Override
-    public Workspace reconnect(String workspaceId) throws WorkspaceException {
+    public Optional<Workspace> getWorkspace(String workspaceId) {
         String containerId = parseContainerId(workspaceId);
         String worktreePath = parseWorktreePath(workspaceId);
 
         if (!Files.isDirectory(Path.of(worktreePath))) {
-            throw new WorkspaceException("Workspace directory does not exist: " + worktreePath);
+            return Optional.empty();
         }
 
-        String sanitizedUrl = deriveSanitizedUrl(worktreePath);
         String worktreeAlias = Path.of(worktreePath).getFileName().toString();
         String remoteWorkspaceFolder = "/workspaces/trees/" + worktreeAlias;
 
-        if (!isContainerRunning(worktreePath)) {
-            LOG.infof("Container not running for %s, starting devcontainer up", worktreePath);
-            Path configPath = devcontainerConfigPath(sanitizedUrl, worktreeAlias);
+        DevcontainerWorkspace workspace = createWorkspace(containerId, worktreePath, remoteWorkspaceFolder);
 
-            if (!Files.exists(configPath)) {
-                generateOverrideConfig(sanitizedUrl, worktreeAlias);
-            }
-
-            String output = runDevcontainerUp(worktreePath, configPath.toString());
-            DevcontainerUpResult result = parseDevcontainerUpOutput(output, worktreeAlias);
-            containerId = result.containerId() != null ? result.containerId() : "unknown";
-            remoteWorkspaceFolder = result.remoteWorkspaceFolder();
+        // Start container if stopped
+        try {
+            workspace.start();
+        } catch (WorkspaceException e) {
+            LOG.warnf("Failed to start container for workspace %s: %s", workspaceId, e.getMessage());
         }
 
-        return new DevcontainerWorkspace(containerId, worktreePath, remoteWorkspaceFolder, command);
+        return Optional.of(workspace);
     }
 
     @Override
@@ -151,14 +145,14 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
             // Inspect container to get image info BEFORE removal
             String imageId = null;
             try {
-                imageId = runContainerCommand(containerRuntime, "inspect", "--format", "{{.Image}}", containerId).trim();
+                imageId = DevcontainerWorkspace.runContainerCommand(containerRuntime, "inspect", "--format", "{{.Image}}", containerId).trim();
             } catch (Exception e) {
                 LOG.warnf("Failed to inspect container %s: %s", containerId, e.getMessage());
             }
 
             // Remove container
             LOG.infof("Removing container %s", containerId);
-            runContainerCommand(containerRuntime, "rm", "-f", containerId);
+            DevcontainerWorkspace.runContainerCommand(containerRuntime, "rm", "-f", containerId);
 
             // Best-effort removal of derived devcontainer image
             if (imageId != null) {
@@ -169,27 +163,9 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
         }
     }
 
-    @Override
-    public boolean exists(String workspaceId) {
-        String worktreePath = parseWorktreePath(workspaceId);
-        return Files.isDirectory(Path.of(worktreePath));
-    }
-
-    @Override
-    public WorkspaceHealthStatus healthStatus(String workspaceId) {
-        String containerId = parseContainerId(workspaceId);
-        if (containerId == null || containerId.isBlank() || "unknown".equals(containerId)) {
-            return WorkspaceHealthStatus.error("No container ID");
-        }
-        try {
-            String running = runContainerCommand(containerRuntime, "inspect", "--format", "{{.State.Running}}", containerId).trim();
-            if ("true".equals(running)) {
-                return WorkspaceHealthStatus.running(true);
-            }
-            return WorkspaceHealthStatus.stopped("Container is stopped", true);
-        } catch (Exception e) {
-            return WorkspaceHealthStatus.error(e.getMessage());
-        }
+    private DevcontainerWorkspace createWorkspace(String containerId, String worktreePath, String remoteWorkspaceFolder) {
+        return new DevcontainerWorkspace(containerId, worktreePath, remoteWorkspaceFolder,
+                command, containerRuntime, remoteUserConfig, codingAgentType, portAllocator);
     }
 
     private static String parseContainerId(String workspaceId) {
@@ -242,7 +218,7 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
             Optional<List<String>> envPassthroughNames;
             Optional<Map<String, String>> agentMounts;
 
-            switch (codingAgent) {
+            switch (codingAgentType) {
                 case CLAUDE -> {
                     postCreateCommand = claudePostCreateCommand.orElseThrow();
                     envPassthroughNames = claudeEnvPassthrough;
@@ -256,7 +232,7 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
                     postStartCommand = "/home/vscode/.opencode/bin/opencode serve --port " + openCodePort + " --hostname 0.0.0.0 > /tmp/opencode-server.log 2>&1 & while ! curl -s http://localhost:" + openCodePort + " > /dev/null 2>&1; do sleep 1; done";
                     appPort = List.of(openCodePort);
                 }
-                default -> throw new WorkspaceException("Unsupported coding agent: " + codingAgent);
+                default -> throw new WorkspaceException("Unsupported coding agent: " + codingAgentType);
             }
 
             List<EnvVar> envVars = new java.util.ArrayList<>(envPassthroughNames.orElse(List.of()).stream()
@@ -371,105 +347,17 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
         return new DevcontainerUpResult(null, "/workspaces/" + folderName);
     }
 
-    private boolean isContainerRunning(String workspaceId) {
-        try {
-            ProcessBuilder pb = new ProcessBuilder(
-                    command, "exec", "--workspace-folder", workspaceId, "true")
-                    .redirectErrorStream(true);
-            Process process = pb.start();
-            boolean finished = process.waitFor(30, TimeUnit.SECONDS);
-            return finished && process.exitValue() == 0;
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-
-    @Override
-    public void start(String workspaceId) throws WorkspaceException {
-        String containerId = parseContainerId(workspaceId);
-        try {
-            runContainerCommand(containerRuntime, "start", containerId);
-        } catch (Exception e) {
-            throw new WorkspaceException("Failed to start container " + containerId, e);
-        }
-    }
-
-    @Override
-    public void stop(String workspaceId) throws WorkspaceException {
-        String containerId = parseContainerId(workspaceId);
-        try {
-            runContainerCommand(containerRuntime, "stop", containerId);
-        } catch (Exception e) {
-            throw new WorkspaceException("Failed to stop container " + containerId, e);
-        }
-    }
-
-    @Override
-    public List<WorkspaceCommand> commands(String workspaceId) {
-        String containerId = parseContainerId(workspaceId);
-        String worktreePath = parseWorktreePath(workspaceId);
-        var commands = new java.util.ArrayList<WorkspaceCommand>();
-
-        commands.add(new WorkspaceCommand(WorkspaceCommandType.NAVIGATE, "cd " + worktreePath));
-
-        String worktreeAlias = Path.of(worktreePath).getFileName().toString();
-        String shortId = containerId.length() > 12 ? containerId.substring(0, 12) : containerId;
-        String hexConfig = java.util.HexFormat.of().formatHex(shortId.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-        commands.add(new WorkspaceCommand(WorkspaceCommandType.VSCODE,
-                "code --folder-uri \"vscode-remote://attached-container+%s/workspaces/trees/%s\"".formatted(hexConfig, worktreeAlias)
-        ));
-
-        switch (codingAgent) {
-            case CLAUDE -> {
-                commands.add(new WorkspaceCommand(WorkspaceCommandType.CONTAINER_EXEC,
-                        "%s exec -it --user %s -w /workspaces/trees/%s %s claude".formatted(containerRuntime, remoteUserConfig, worktreeAlias, containerId)
-                ));
-            }
-            case OPENCODE -> {
-                int port = portAllocator.allocate(worktreeAlias);
-                commands.add(new WorkspaceCommand(WorkspaceCommandType.CONTAINER_EXEC,
-                        "%s exec -it --user %s -w /workspaces/trees/%s %s opencode attach http://localhost:%s".formatted(containerRuntime, remoteUserConfig, worktreeAlias, containerId, port)
-                ));
-                commands.add(new WorkspaceCommand(WorkspaceCommandType.REMOTE_EXEC,
-                        "opencode attach http://localhost:%d".formatted(port)
-                ));
-            }
-        }
-
-        return commands;
-    }
-
     private void removeDevcontainerImage(String imageId) {
         try {
-            String repoTags = runContainerCommand(containerRuntime, "image", "inspect", "--format", "{{.RepoTags}}", imageId).trim();
+            String repoTags = DevcontainerWorkspace.runContainerCommand(containerRuntime, "image", "inspect", "--format", "{{.RepoTags}}", imageId).trim();
             if (repoTags.contains(image)) {
                 LOG.debugf("Skipping image cleanup: %s is the configured base image", image);
                 return;
             }
             LOG.infof("Removing devcontainer image %s", imageId);
-            runContainerCommand(containerRuntime, "rmi", imageId);
+            DevcontainerWorkspace.runContainerCommand(containerRuntime, "rmi", imageId);
         } catch (Exception e) {
             LOG.warnf("Failed to remove devcontainer image %s: %s", imageId, e.getMessage());
         }
-    }
-
-    private static String runContainerCommand(String... args) throws Exception {
-        ProcessBuilder pb = new ProcessBuilder(args).redirectErrorStream(true);
-        Process process = pb.start();
-        String output;
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
-            output = reader.lines().collect(Collectors.joining("\n"));
-        }
-        boolean finished = process.waitFor(30, TimeUnit.SECONDS);
-        if (!finished) {
-            process.destroyForcibly();
-            throw new RuntimeException("Command timed out: " + String.join(" ", args));
-        }
-        if (process.exitValue() != 0) {
-            throw new RuntimeException("Command failed (exit " + process.exitValue() + "): " + output);
-        }
-        return output;
     }
 }

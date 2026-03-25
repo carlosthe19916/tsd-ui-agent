@@ -1,7 +1,10 @@
 package org.acme.services.workspace.filesystem;
 
 import org.acme.services.workspace.Workspace;
+import org.acme.services.workspace.WorkspaceCommand;
+import org.acme.services.workspace.WorkspaceCommandType;
 import org.acme.services.workspace.WorkspaceException;
+import org.acme.services.workspace.WorkspaceHealthStatus;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -9,6 +12,7 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
@@ -145,6 +149,22 @@ public class FilesystemWorkspace implements Workspace {
         } catch (Exception e) {
             throw new WorkspaceException("Failed to execute command: " + String.join(" ", command), e);
         }
+    }
+
+    @Override
+    public WorkspaceHealthStatus healthStatus() {
+        if (isAlive()) {
+            return WorkspaceHealthStatus.running();
+        }
+        return WorkspaceHealthStatus.error("Directory does not exist: " + directory);
+    }
+
+    @Override
+    public List<WorkspaceCommand> commands() {
+        return List.of(
+                new WorkspaceCommand(WorkspaceCommandType.NAVIGATE, "cd " + directory),
+                new WorkspaceCommand(WorkspaceCommandType.VSCODE, "code " + directory)
+        );
     }
 
     @Override

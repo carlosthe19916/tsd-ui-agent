@@ -67,9 +67,8 @@ class ChangeRequestServiceTest {
                 .thenAnswer(invocation -> "/tmp/tsd-agent-ui-test/repo/trees/" + invocation.getArgument(1));
         when(workspaceManager.provision(any()))
                 .thenAnswer(invocation -> new FilesystemWorkspace("/tmp/tsd-agent-ui-test/repo/trees/plan-worktree"));
-        when(workspaceManager.reconnect(anyString()))
-                .thenAnswer(invocation -> new FilesystemWorkspace(invocation.getArgument(0)));
-        when(workspaceManager.exists(anyString())).thenReturn(true);
+        when(workspaceManager.getWorkspace(anyString()))
+                .thenAnswer(invocation -> java.util.Optional.of(new FilesystemWorkspace(invocation.getArgument(0))));
         doNothing().when(changeRequestService).triggerChangeRequest(any());
         doNothing().when(gitManager).deleteClonedDirectory(anyString());
     }
