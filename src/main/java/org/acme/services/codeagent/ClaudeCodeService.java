@@ -25,6 +25,9 @@ public class ClaudeCodeService implements CodingAgentService {
     @ConfigProperty(name = "tsd-agent.claude.command")
     String claudeCommand;
 
+    @ConfigProperty(name = "tsd-agent.claude.model")
+    String model;
+
     @Override
     public String generatePlan(Workspace workspace, String requirement, Long taskId) {
         String prompt = PLAN_GENERATION_PROMPT.formatted(requirement);
@@ -52,6 +55,7 @@ public class ClaudeCodeService implements CodingAgentService {
                         }
                     },
                     claudeCommand, "-p",
+                    "--model", model,
                     "--dangerously-skip-permissions",
                     "--verbose",
                     "--output-format", "stream-json"
@@ -87,6 +91,7 @@ public class ClaudeCodeService implements CodingAgentService {
                         output.append(line).append("\n");
                     },
                     claudeCommand, "-p",
+                    "--model", model,
                     "--dangerously-skip-permissions",
                     "--verbose",
                     "--output-format", "stream-json"
