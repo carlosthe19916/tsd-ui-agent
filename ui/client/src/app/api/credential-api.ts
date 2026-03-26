@@ -19,3 +19,16 @@ export const updateCredential = (id: number, credential: CredentialDto) =>
 
 export const deleteCredential = (id: number) =>
   axios.delete<void>(`${BASE_URL}/${id}`);
+
+export const checkCredentialNameExists = (
+  name: string,
+  excludeId?: number
+): Promise<boolean> => {
+  return axios.get<CredentialDto[]>(BASE_URL).then(({ data }) => {
+    return data.some(
+      (credential) =>
+        credential.name.toLowerCase() === name.toLowerCase() &&
+        credential.id !== excludeId
+    );
+  });
+};

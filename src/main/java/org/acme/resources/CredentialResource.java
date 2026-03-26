@@ -53,6 +53,13 @@ public class CredentialResource {
         if (dto.token == null) {
             throw new BadRequestException("Token is required");
         }
+
+        // Check for duplicate name
+        long count = CredentialEntity.count("name", dto.name);
+        if (count > 0) {
+            throw new BadRequestException("Credential with name '" + dto.name + "' already exists");
+        }
+
         CredentialEntity entity = credentialMapper.toEntity(dto);
         entity.persist();
         return Response.status(Response.Status.CREATED)
@@ -65,6 +72,13 @@ public class CredentialResource {
     public CredentialDto update(@PathParam("id") Long id, @Valid CredentialDto dto) {
         CredentialEntity entity = (CredentialEntity) CredentialEntity.findByIdOptional(id)
                 .orElseThrow(NotFoundException::new);
+
+        // Check for duplicate name (excluding current entity)
+        long count = CredentialEntity.count("name = ?1 and id <> ?2", dto.name, id);
+        if (count > 0) {
+            throw new BadRequestException("Credential with name '" + dto.name + "' already exists");
+        }
+
         credentialMapper.updateEntity(dto, entity);
         entity.persist();
         return credentialMapper.toDto(entity);

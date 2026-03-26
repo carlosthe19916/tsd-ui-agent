@@ -20,7 +20,7 @@ public class CredentialEntity extends PanacheEntityBase {
     public Long id;
 
     @NotNull
-    @Column(name = "name")
+    @Column(name = "name", unique = true)
     public String name;
 
     @NotNull

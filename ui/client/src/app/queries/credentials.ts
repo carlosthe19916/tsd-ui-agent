@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
+  checkCredentialNameExists,
   createCredential,
   deleteCredential,
   getCredentials,
@@ -49,5 +50,14 @@ export const useDeleteCredentialMutation = (onSuccess?: () => void) => {
       queryClient.invalidateQueries({ queryKey: [CREDENTIAL_QUERY_KEY] });
       onSuccess?.();
     },
+  });
+};
+
+export const useCheckCredentialName = (name: string, excludeId?: number) => {
+  return useQuery({
+    queryKey: [CREDENTIAL_QUERY_KEY, "check-name", name, excludeId],
+    queryFn: () => checkCredentialNameExists(name, excludeId),
+    enabled: !!name && name.length > 0,
+    staleTime: 0,
   });
 };

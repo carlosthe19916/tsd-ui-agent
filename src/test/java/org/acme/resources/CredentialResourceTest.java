@@ -6,6 +6,7 @@ import org.acme.dto.CredentialDto;
 import org.junit.jupiter.api.Test;
 
 import static io.restassured.RestAssured.given;
+import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
@@ -148,5 +149,90 @@ class CredentialResourceTest {
                 .when().delete("/credentials/{id}", 9999)
                 .then()
                 .statusCode(404);
+    }
+
+    @Test
+    void testCreateCredentialWithDuplicateName() {
+        // Create first credential
+        CredentialDto dto1 = credential("unique-token", "token123");
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(dto1)
+                .when().post("/credentials")
+                .then()
+                .statusCode(201);
+
+        // Attempt to create second credential with same name
+        CredentialDto dto2 = credential("unique-token", "token456");
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(dto2)
+                .when().post("/credentials")
+                .then()
+                .statusCode(400)
+                .body(containsString("already exists"));
+    }
+
+    @Test
+    void testUpdateCredentialWithDuplicateName() {
+        // Create two credentials
+        CredentialDto dto1 = credential("token-one", "token123");
+
+        int id1 = given()
+                .contentType(ContentType.JSON)
+                .body(dto1)
+                .when().post("/credentials")
+                .then()
+                .statusCode(201)
+                .extract().path("id");
+
+        CredentialDto dto2 = credential("token-two", "token456");
+
+        int id2 = given()
+                .contentType(ContentType.JSON)
+                .body(dto2)
+                .when().post("/credentials")
+                .then()
+                .statusCode(201)
+                .extract().path("id");
+
+        // Try to update second credential with first credential's name
+        dto2.name = "token-one";
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(dto2)
+                .when().put("/credentials/{id}", id2)
+                .then()
+                .statusCode(400)
+                .body(containsString("already exists"));
+    }
+
+    @Test
+    void testUpdateCredentialKeepingSameName() {
+        // Create credential
+        CredentialDto dto = credential("my-token", "token123");
+
+        int id = given()
+                .contentType(ContentType.JSON)
+                .body(dto)
+                .when().post("/credentials")
+                .then()
+                .statusCode(201)
+                .extract().path("id");
+
+        // Update with same name (should succeed)
+        dto.name = "my-token"; // Same name
+        dto.token = "new-token-value";
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(dto)
+                .when().put("/credentials/{id}", id)
+                .then()
+                .statusCode(200)
+                .body("name", is("my-token"));
     }
 }
