@@ -31,7 +31,7 @@ class ProjectTestConnectionTest {
 
     private int createCredential() {
         CredentialDto cred = new CredentialDto();
-        cred.name = "test-cred";
+        cred.name = "test-cred-" + System.nanoTime();
         cred.token = "test-token";
         return given()
                 .contentType(ContentType.JSON)

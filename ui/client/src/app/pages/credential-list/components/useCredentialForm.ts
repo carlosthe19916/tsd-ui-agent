@@ -5,6 +5,7 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 
 import type { CredentialDto, New } from "@app/api/models";
+import { checkCredentialNameExists } from "@app/api/credential-api";
 import {
   useCreateCredentialMutation,
   useUpdateCredentialMutation,
@@ -15,15 +16,39 @@ export interface CredentialFormValues {
   token: string;
 }
 
-const createSchema = yup.object({
-  name: yup.string().required("Name is required"),
-  token: yup.string().required("Token is required"),
-});
+const createSchemaWithUniqueName = (excludeId?: number) =>
+  yup.object({
+    name: yup
+      .string()
+      .required("Name is required")
+      .test(
+        "unique-name",
+        "A credential with this name already exists",
+        async (value) => {
+          if (!value) return true;
+          const exists = await checkCredentialNameExists(value, excludeId);
+          return !exists;
+        },
+      ),
+    token: yup.string().required("Token is required"),
+  });
 
-const editTokenDisabledSchema = yup.object({
-  name: yup.string().required("Name is required"),
-  token: yup.string().defined(),
-});
+const editTokenDisabledSchemaWithUniqueName = (excludeId?: number) =>
+  yup.object({
+    name: yup
+      .string()
+      .required("Name is required")
+      .test(
+        "unique-name",
+        "A credential with this name already exists",
+        async (value) => {
+          if (!value) return true;
+          const exists = await checkCredentialNameExists(value, excludeId);
+          return !exists;
+        },
+      ),
+    token: yup.string().defined(),
+  });
 
 const mapCredentialToFormValues = (
   credential: CredentialDto | null,
@@ -51,7 +76,9 @@ export const useCredentialForm = (
   const updateMutation = useUpdateCredentialMutation(onClose);
 
   const schema =
-    isEditing && !isTokenEnabled ? editTokenDisabledSchema : createSchema;
+    isEditing && !isTokenEnabled
+      ? editTokenDisabledSchemaWithUniqueName(credential?.id)
+      : createSchemaWithUniqueName(credential?.id);
 
   const form = useForm<CredentialFormValues>({
     defaultValues: mapCredentialToFormValues(credential),

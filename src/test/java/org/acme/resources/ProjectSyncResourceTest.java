@@ -37,7 +37,7 @@ class ProjectSyncResourceTest {
 
     private static int createCredential() {
         CredentialDto cred = new CredentialDto();
-        cred.name = "sync-cred";
+        cred.name = "sync-cred-" + System.nanoTime();
         cred.token = "test-token";
         return given()
                 .contentType(ContentType.JSON)

@@ -51,8 +51,19 @@ public class CredentialResource {
     @POST
     public Response create(@Valid CredentialDto dto) {
         if (dto.token == null) {
-            throw new BadRequestException("Token is required");
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("Token is required")
+                    .build();
         }
+
+        // Check for duplicate name
+        long count = CredentialEntity.count("name", dto.name);
+        if (count > 0) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("Credential with name '" + dto.name + "' already exists")
+                    .build();
+        }
+
         CredentialEntity entity = credentialMapper.toEntity(dto);
         entity.persist();
         return Response.status(Response.Status.CREATED)
@@ -62,12 +73,21 @@ public class CredentialResource {
 
     @PUT
     @Path("/{id}")
-    public CredentialDto update(@PathParam("id") Long id, @Valid CredentialDto dto) {
+    public Response update(@PathParam("id") Long id, @Valid CredentialDto dto) {
         CredentialEntity entity = (CredentialEntity) CredentialEntity.findByIdOptional(id)
                 .orElseThrow(NotFoundException::new);
+
+        // Check for duplicate name (excluding current entity)
+        long count = CredentialEntity.count("name = ?1 and id <> ?2", dto.name, id);
+        if (count > 0) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("Credential with name '" + dto.name + "' already exists")
+                    .build();
+        }
+
         credentialMapper.updateEntity(dto, entity);
         entity.persist();
-        return credentialMapper.toDto(entity);
+        return Response.ok(credentialMapper.toDto(entity)).build();
     }
 
     @DELETE
