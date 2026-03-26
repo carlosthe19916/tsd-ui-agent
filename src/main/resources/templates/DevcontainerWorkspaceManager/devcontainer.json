@@ -4,6 +4,20 @@
 {/if}
   "remoteUser": "{remoteUser}",
   "workspaceFolder": "{workspaceFolder}",
+{#if featuresJson}
+  "features": {featuresJson},
+{/if}
+{#if vscodeExtensions}
+  "customizations": \{
+    "vscode": \{
+      "extensions": [
+{#for ext in vscodeExtensions}
+        "{ext}"{#if !ext_isLast},{/if}
+{/for}
+      ]
+    \}
+  \},
+{/if}
   "containerEnv": \{
 {#for env in envVars}
     "{env.name}": "{env.value}"{#if !env_isLast},{/if}

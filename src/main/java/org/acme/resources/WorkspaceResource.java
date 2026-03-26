@@ -168,6 +168,19 @@ public class WorkspaceResource {
     }
 
     @GET
+    @Path("/{id}/configuration")
+    public Response configuration(@PathParam("id") Long id) {
+        WorkspaceEntity entity = (WorkspaceEntity) WorkspaceEntity.findByIdOptional(id)
+                .orElseThrow(NotFoundException::new);
+        if (entity.workspaceId == null) {
+            throw new NotFoundException("Workspace not provisioned");
+        }
+        return workspaceManager.getConfiguration(entity.workspaceId)
+                .map(content -> Response.ok(content, MediaType.APPLICATION_JSON).build())
+                .orElseThrow(() -> new NotFoundException("Configuration not found"));
+    }
+
+    @GET
     @Path("/{id}/output")
     @Produces(MediaType.SERVER_SENT_EVENTS)
     @RestStreamElementType(MediaType.TEXT_PLAIN)

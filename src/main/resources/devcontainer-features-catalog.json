@@ -1,0 +1,88 @@
+{
+  "languages": {
+    "java": {
+      "extensions": [".java", ".kt", ".groovy", ".scala"],
+      "manifests": ["pom.xml", "build.gradle", "build.gradle.kts"],
+      "feature": {
+        "id": "ghcr.io/devcontainers/features/java:1",
+        "versionOption": "version"
+      },
+      "vscodeExtensions": ["vscjava.vscode-java-pack"]
+    },
+    "node": {
+      "extensions": [".js", ".ts", ".jsx", ".tsx", ".mjs", ".cjs"],
+      "manifests": ["package.json"],
+      "feature": {
+        "id": "ghcr.io/devcontainers/features/node:1",
+        "versionOption": "version"
+      },
+      "vscodeExtensions": ["dbaeumer.vscode-eslint"]
+    },
+    "python": {
+      "extensions": [".py"],
+      "manifests": ["pyproject.toml", "requirements.txt", "setup.py", "Pipfile"],
+      "feature": {
+        "id": "ghcr.io/devcontainers/features/python:1",
+        "versionOption": "version"
+      },
+      "vscodeExtensions": ["ms-python.python"]
+    },
+    "go": {
+      "extensions": [".go"],
+      "manifests": ["go.mod"],
+      "feature": {
+        "id": "ghcr.io/devcontainers/features/go:1",
+        "versionOption": "version"
+      },
+      "vscodeExtensions": ["golang.go"]
+    },
+    "rust": {
+      "extensions": [".rs"],
+      "manifests": ["Cargo.toml"],
+      "feature": {
+        "id": "ghcr.io/devcontainers/features/rust:1",
+        "versionOption": "version"
+      },
+      "vscodeExtensions": ["rust-lang.rust-analyzer"]
+    },
+    "ruby": {
+      "extensions": [".rb"],
+      "manifests": ["Gemfile"],
+      "feature": {
+        "id": "ghcr.io/devcontainers/features/ruby:1",
+        "versionOption": "version"
+      },
+      "vscodeExtensions": ["shopify.ruby-lsp"]
+    },
+    "dotnet": {
+      "extensions": [".cs", ".fs", ".vb", ".csproj", ".fsproj"],
+      "manifests": ["*.csproj", "*.fsproj", "*.sln"],
+      "feature": {
+        "id": "ghcr.io/devcontainers/features/dotnet:2",
+        "versionOption": "version"
+      },
+      "vscodeExtensions": ["ms-dotnettools.csdevkit"]
+    },
+    "php": {
+      "extensions": [".php"],
+      "manifests": ["composer.json"],
+      "feature": {
+        "id": "ghcr.io/devcontainers/features/php:1",
+        "versionOption": "version"
+      },
+      "vscodeExtensions": ["bmewburn.vscode-intelephense-client"]
+    }
+  },
+  "tools": {
+    "git": {
+      "feature": {
+        "id": "ghcr.io/devcontainers/features/git:1"
+      }
+    },
+    "common-utils": {
+      "feature": {
+        "id": "ghcr.io/devcontainers/features/common-utils:2"
+      }
+    }
+  }
+}

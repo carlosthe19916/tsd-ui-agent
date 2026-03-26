@@ -1,6 +1,7 @@
 package org.acme.services.workspace.devcontainer;
 
 import io.quarkus.qute.CheckedTemplate;
+import io.quarkus.qute.RawString;
 import io.quarkus.qute.TemplateInstance;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -38,7 +39,8 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
                 String image, String remoteUser, String workspaceFolder,
                 List<EnvVar> envVars, List<String> mounts,
                 String postCreateCommand, String postStartCommand,
-                List<Integer> appPort);
+                List<Integer> appPort, RawString featuresJson,
+                List<String> vscodeExtensions);
     }
 
     public record EnvVar(String name, String value) {
@@ -81,6 +83,9 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
     PortAllocator portAllocator;
 
     @Inject
+    DevcontainerEnrichmentService enrichmentService;
+
+    @Inject
     @WorkspaceManagerType(type = ExecutionMode.FILESYSTEM)
     FilesystemWorkspaceManager filesystemManager;
 
@@ -99,7 +104,10 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
         String sanitizedUrl = deriveSanitizedUrl(worktreePath);
         String worktreeAlias = Path.of(worktreePath).getFileName().toString();
 
-        Path overrideConfigPath = generateOverrideConfig(sanitizedUrl, worktreeAlias);
+        DevcontainerEnrichmentService.EnrichmentResult enrichment =
+                enrichmentService.enrich(Path.of(worktreePath), outputConsumer);
+
+        Path overrideConfigPath = generateOverrideConfig(sanitizedUrl, worktreeAlias, enrichment);
 
         String output = runDevcontainerUp(worktreePath, overrideConfigPath.toString(), outputConsumer);
         DevcontainerUpResult result = parseDevcontainerUpOutput(output, worktreeAlias);
@@ -199,7 +207,8 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
         return Path.of(worktreePath).getParent().getParent().getFileName().toString();
     }
 
-    private Path generateOverrideConfig(String sanitizedUrl, String worktreeAlias) throws WorkspaceException {
+    private Path generateOverrideConfig(String sanitizedUrl, String worktreeAlias,
+            DevcontainerEnrichmentService.EnrichmentResult enrichment) throws WorkspaceException {
         try {
             Path configDir = devcontainerConfigDir(sanitizedUrl, worktreeAlias);
             Files.createDirectories(configDir);
@@ -260,10 +269,17 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
 
             mountList.add("source=code-agent-config-" + worktreeAlias + ",target=/home/" + remoteUser + "/" + codingAgentType.configDir + ",type=volume");
 
+            RawString featuresJson = enrichment != null && enrichment.featuresJson() != null
+                    ? new RawString(enrichment.featuresJson()) : null;
+            List<String> vscodeExtensions = enrichment != null && enrichment.vscodeExtensions() != null
+                    && !enrichment.vscodeExtensions().isEmpty()
+                    ? enrichment.vscodeExtensions() : null;
+
             String configContent = Templates.devcontainer(
                     effectiveImage, remoteUser, "/workspaces/trees/" + worktreeAlias,
                     envVars, mountList.isEmpty() ? null : mountList,
-                    postCreateCommand, postStartCommand, appPort
+                    postCreateCommand, postStartCommand, appPort,
+                    featuresJson, vscodeExtensions
             ).render();
 
             Path configPath = configDir.resolve("devcontainer.json");
@@ -273,6 +289,22 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
         } catch (Exception e) {
             throw new WorkspaceException("Failed to generate devcontainer override config", e);
         }
+    }
+
+    @Override
+    public Optional<String> getConfiguration(String workspaceId) {
+        try {
+            String worktreePath = parseWorktreePath(workspaceId);
+            String sanitizedUrl = deriveSanitizedUrl(worktreePath);
+            String alias = Path.of(worktreePath).getFileName().toString();
+            Path configPath = devcontainerConfigPath(sanitizedUrl, alias);
+            if (Files.exists(configPath)) {
+                return Optional.of(Files.readString(configPath));
+            }
+        } catch (Exception e) {
+            LOG.warnf("Failed to read devcontainer config for workspace %s: %s", workspaceId, e.getMessage());
+        }
+        return Optional.empty();
     }
 
     private boolean hasProjectDevcontainerConfig(Path worktreePath) {

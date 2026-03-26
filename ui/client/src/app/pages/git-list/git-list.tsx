@@ -51,6 +51,8 @@ import {
   useFetchWorkspaces,
 } from "@app/queries/gits";
 
+import { WorkspaceConfigurationModal } from "@app/components/WorkspaceConfigurationModal";
+
 import { GitFormModal } from "./components/git-form-modal";
 import {
   parseWorkspaceId,
@@ -94,6 +96,9 @@ const GitExpandedContent: React.FC<{ gitId: number }> = ({ gitId }) => {
   const [wsToDelete, setWsToDelete] = React.useState<WorkspaceDto | null>(null);
   const [openWsKebabId, setOpenWsKebabId] = React.useState<number | null>(null);
   const [provisionLogWsId, setProvisionLogWsId] = React.useState<number | null>(
+    null,
+  );
+  const [configWsId, setConfigWsId] = React.useState<number | null>(
     null,
   );
   const deleteMutation = useDeleteWorkspaceMutation(() => setWsToDelete(null));
@@ -196,6 +201,15 @@ const GitExpandedContent: React.FC<{ gitId: number }> = ({ gitId }) => {
                   >
                     <DropdownList>
                       <DropdownItem
+                        key="view-devcontainer"
+                        isDisabled={!ws.workspaceId}
+                        onClick={() =>
+                          ws.id != null && setConfigWsId(ws.id)
+                        }
+                      >
+                        View configuration
+                      </DropdownItem>
+                      <DropdownItem
                         key="delete"
                         onClick={() => setWsToDelete(ws)}
                       >
@@ -232,6 +246,12 @@ const GitExpandedContent: React.FC<{ gitId: number }> = ({ gitId }) => {
         wsId={provisionLogWsId}
         isOpen={provisionLogWsId !== null}
         onClose={() => setProvisionLogWsId(null)}
+      />
+
+      <WorkspaceConfigurationModal
+        wsId={configWsId}
+        isOpen={configWsId !== null}
+        onClose={() => setConfigWsId(null)}
       />
     </>
   );

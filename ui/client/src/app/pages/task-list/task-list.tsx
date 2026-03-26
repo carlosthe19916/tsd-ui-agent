@@ -58,6 +58,8 @@ import {
 import { formatDateTime } from "@app/utils/utils";
 import { ButtonVariant } from "@patternfly/react-core";
 
+import { WorkspaceConfigurationModal } from "@app/components/WorkspaceConfigurationModal";
+
 import { ExecutionOutputModal } from "./components/execution-output-modal";
 import { PlanProgressStepper } from "./components/plan-progress-stepper";
 import { WorkspaceCell } from "./components/workspace-cell";
@@ -106,6 +108,7 @@ const TaskListContent: React.FC = () => {
   );
   const [outputTaskId, setOutputTaskId] = React.useState<number | null>(null);
   const [runAllTask, setRunAllTask] = React.useState<TaskDto | null>(null);
+  const [configWsId, setConfigWsId] = React.useState<number | null>(null);
 
   const createPlanMutation = useCreateTaskPlanMutation(() =>
     setCreatePlanTask(null),
@@ -337,6 +340,16 @@ const TaskListContent: React.FC = () => {
                           Edit plan
                         </DropdownItem>
                       )}
+                      <DropdownItem
+                        key="view-devcontainer"
+                        isDisabled={!task.workspace?.id || !task.workspace?.workspaceId}
+                        onClick={() =>
+                          task.workspace?.id &&
+                          setConfigWsId(task.workspace.id)
+                        }
+                      >
+                        View configuration
+                      </DropdownItem>
                     </DropdownList>
                   </Dropdown>
                 </DataListAction>
@@ -435,6 +448,12 @@ const TaskListContent: React.FC = () => {
         }}
         onClose={() => setRunAllTask(null)}
         onCancel={() => setRunAllTask(null)}
+      />
+
+      <WorkspaceConfigurationModal
+        wsId={configWsId}
+        isOpen={configWsId !== null}
+        onClose={() => setConfigWsId(null)}
       />
 
       <ConfirmDialog

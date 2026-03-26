@@ -55,6 +55,11 @@ export const startWorkspace = (wsId: number) =>
 export const stopWorkspace = (wsId: number) =>
   axios.post<void>(`${WORKSPACES_URL}/${wsId}/stop`);
 
+export const getWorkspaceConfiguration = (wsId: number) =>
+  axios
+    .get<string>(`${WORKSPACES_URL}/${wsId}/configuration`)
+    .then((response) => response.data);
+
 export const streamWorkspaceOutput = async function* (
   wsId: number,
   signal?: AbortSignal,
