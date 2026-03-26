@@ -104,6 +104,21 @@ public class DevcontainerFeatureCatalog {
         return result;
     }
 
+    public Map<String, List<String>> getAllLanguageManifests() {
+        JsonObject languages = catalog.getJsonObject("languages");
+        Map<String, List<String>> result = new LinkedHashMap<>();
+        for (Map.Entry<String, JsonValue> entry : languages.entrySet()) {
+            JsonObject lang = entry.getValue().asJsonObject();
+            if (lang.containsKey("manifests")) {
+                List<String> manifests = lang.getJsonArray("manifests").stream()
+                        .map(v -> ((JsonString) v).getString())
+                        .toList();
+                result.put(entry.getKey(), manifests);
+            }
+        }
+        return result;
+    }
+
     public List<String> getAllLanguageExtensions() {
         JsonObject languages = catalog.getJsonObject("languages");
         List<String> all = new ArrayList<>();

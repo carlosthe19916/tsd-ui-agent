@@ -74,15 +74,5 @@
     }
   },
   "tools": {
-    "git": {
-      "feature": {
-        "id": "ghcr.io/devcontainers/features/git:1"
-      }
-    },
-    "common-utils": {
-      "feature": {
-        "id": "ghcr.io/devcontainers/features/common-utils:2"
-      }
-    }
   }
 }

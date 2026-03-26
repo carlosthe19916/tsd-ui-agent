@@ -41,6 +41,7 @@ public class DevcontainerDiscoveryService {
         Map<String, String> metadata = new LinkedHashMap<>();
 
         try {
+            detectManifests(worktreePath, languages);
             scanFileExtensions(worktreePath, languages);
             detectToolIndicators(worktreePath, tools);
             inferVersions(worktreePath, languages, versions);
@@ -60,6 +61,18 @@ public class DevcontainerDiscoveryService {
                 new ArrayList<>(tools),
                 versions,
                 metadata);
+    }
+
+    private void detectManifests(Path root, Set<String> languages) {
+        Map<String, List<String>> allManifests = catalog.getAllLanguageManifests();
+        for (Map.Entry<String, List<String>> entry : allManifests.entrySet()) {
+            for (String manifest : entry.getValue()) {
+                if (Files.exists(root.resolve(manifest))) {
+                    languages.add(entry.getKey());
+                    break;
+                }
+            }
+        }
     }
 
     private void scanFileExtensions(Path root, Set<String> languages) throws IOException {

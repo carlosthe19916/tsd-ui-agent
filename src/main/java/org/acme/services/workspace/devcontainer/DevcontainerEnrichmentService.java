@@ -67,11 +67,8 @@ public class DevcontainerEnrichmentService {
                 }
             }
 
-            // Always include git and common-utils
-            DevcontainerFeatureCatalog.FeatureEntry git = catalog.findFeatureForTool("git");
-            if (git != null) features.putIfAbsent(git.id(), Map.of());
-            DevcontainerFeatureCatalog.FeatureEntry commonUtils = catalog.findFeatureForTool("common-utils");
-            if (commonUtils != null) features.putIfAbsent(commonUtils.id(), Map.of());
+            // git and common-utils are already in the base image — adding them as
+            // features causes /tmp permission conflicts in rootless podman builds
 
             String featuresJson = buildFeaturesJson(features);
             List<String> extensionsList = new ArrayList<>(extensions);
@@ -93,11 +90,7 @@ public class DevcontainerEnrichmentService {
     }
 
     private EnrichmentResult fallback() {
-        DevcontainerFeatureCatalog.FeatureEntry git = catalog.findFeatureForTool("git");
-        String gitId = git != null ? git.id() : "ghcr.io/devcontainers/features/git:1";
-        return new EnrichmentResult(
-                "{ \"" + gitId + "\": {} }",
-                List.of());
+        return new EnrichmentResult(null, List.of());
     }
 
     private String buildFeaturesJson(Map<String, Map<String, String>> features) {
