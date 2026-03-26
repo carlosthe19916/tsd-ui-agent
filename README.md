@@ -1,82 +1,100 @@
 # TSD UI Agent
 
-## Pre requisites
+A Quarkus-based backend that manages software development tasks imported from external trackers (GitHub Issues, Jira) and orchestrates AI-assisted code changes via Claude CLI or OpenCode.
 
-- JDK 25
-- Ollama (Local dev)
+## Prerequisites
 
-```shell
-curl -fsSL https://ollama.com/install.sh | sh
-ollama pull granite3.3:8b
-ollama serve
-```
+The application supports three execution modes (configured via `tsd-agent.execution-mode`): **FILESYSTEM** (local development), **DOCKER** (devcontainer-based, default), and **KUBERNETES** (Eclipse Che/K8s). Prerequisites vary by mode.
 
-### Filesystem mode
+### Core Requirements (All Modes)
+- **Git** - Version control
+- **JDK 25** - Java Development Kit
+- **Maven** - Build tool (wrapper included via `./mvnw`)
 
-- Install git
+### Filesystem Mode (Local Development)
+- **Ollama** - Local LLM runtime (see AI/LLM Requirements below)
+- **Coding Agent** - Claude CLI or OpenCode (see Coding Agent section below)
 
-### Devcontainer Mode
+Note: PostgreSQL is automatically provided by Quarkus Dev Services in dev mode - no manual installation required.
 
-- Install git
-- Docker
-- Install devcontainer-cli
+### Docker Mode (Default)
+- **Docker or Podman** - Container runtime
+- **Devcontainer CLI** - Install with `npm install -g @devcontainers/cli`
 
 ### Kubernetes Mode
+- **Kubernetes Cluster** - With Eclipse Che or Devfile support
 
-- Start Minikube:
+#### AI/LLM Requirements
+- **Ollama** - Local LLM runtime (development mode)
+  ```shell
+  curl -fsSL https://ollama.com/install.sh | sh
+  ollama pull granite3.3:8b
+  ollama serve  # Run in separate terminal
+  ```
 
-```shell
-minikube start --addons=ingress,dashboard --vm=true --memory=15360 --cpus=6 --disk-size=70GB
+#### Coding Agent
+Choose one:
+
+- **Claude CLI**
+  ```shell
+  curl -fsSL https://claude.ai/install.sh | bash
+  claude --version
+  ```
+
+- **OpenCode CLI**
+  ```shell
+  curl -fsSL https://opencode.ai/install | bash
+  opencode --version
+  ```
+
+Configure the agent in `application.properties`:
+```properties
+tsd-agent.coding-agent=CLAUDE  # or OPENCODE
 ```
 
-- Install `chectl` if you don't have it. See https://github.com/che-incubator/chectl#installation
+## Quick Start
+
+### Validate Prerequisites
+
+Before starting, you can validate that all required prerequisites are installed:
 
 ```shell
-chectl server:deploy --platform minikube
+./scripts/validate-prerequisites.sh
 ```
 
-- IMPORTANT: Patch the CheCluster to fix the UID mismatch. The default runAsUser (1234) doesn't exist in most devfile
-  container images. UID 1001 matches the "default" user in Red Hat UBI-based images.
+This script will check:
+- Common requirements (Git)
+- Filesystem mode requirements (JDK 25, PostgreSQL, Ollama, coding agents)
+- Docker mode requirements (Docker/Podman, Docker Compose)
+
+## Development Mode
+
+Run the application in dev mode with live coding (hot reload):
 
 ```shell
-kubectl patch checluster eclipse-che -n eclipse-che --type=merge -p '                                                                                                                                             
-{
-  "spec": {
-    "devEnvironments": {
-      "maxNumberOfRunningWorkspacesPerUser": -1,
-      "defaultComponents": [
-        {
-          "name": "universal-developer-image",
-          "container": {
-            "image": "quay.io/devfile/universal-developer-image:ubi8-latest"
-          }
-        }
-      ],
-      "security": {
-        "containerSecurityContext": {
-          "runAsUser": 1001,
-          "podSecurityContext": {
-            "runAsUser": 1001,
-            "fsGroup": 1001
-          }
-        }
-      }
-    }
-  }
-}'
-```
-
-- Verify:
-
-```shell
-chectl server:status
-chectl dashboard:open
-```
-
-## Dev mode
-
-You can run your application in dev mode that enables live coding using:
-
-```shell script
 ./mvnw quarkus:dev
 ```
+
+**Dev mode features:**
+- Live reload on code changes
+- Dev UI available at http://localhost:8080/q/dev
+- Continuous testing with `./mvnw quarkus:test`
+- Debugging on port 5005
+
+## UI
+
+You need NodeJS 22
+
+```shell
+cd ui
+npm ci
+npm run start:dev
+```
+
+- UI available at http://localhost:3000/q/dev
+
+## Configuration
+
+### Application Properties
+
+Edit `src/main/resources/application.properties` to customize the app
