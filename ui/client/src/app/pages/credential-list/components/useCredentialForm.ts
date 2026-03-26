@@ -28,7 +28,7 @@ const createSchemaWithUniqueName = (excludeId?: number) =>
           if (!value) return true;
           const exists = await checkCredentialNameExists(value, excludeId);
           return !exists;
-        }
+        },
       ),
     token: yup.string().required("Token is required"),
   });
@@ -45,7 +45,7 @@ const editTokenDisabledSchemaWithUniqueName = (excludeId?: number) =>
           if (!value) return true;
           const exists = await checkCredentialNameExists(value, excludeId);
           return !exists;
-        }
+        },
       ),
     token: yup.string().defined(),
   });

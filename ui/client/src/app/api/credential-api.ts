@@ -22,13 +22,13 @@ export const deleteCredential = (id: number) =>
 
 export const checkCredentialNameExists = (
   name: string,
-  excludeId?: number
+  excludeId?: number,
 ): Promise<boolean> => {
   return axios.get<CredentialDto[]>(BASE_URL).then(({ data }) => {
     return data.some(
       (credential) =>
         credential.name.toLowerCase() === name.toLowerCase() &&
-        credential.id !== excludeId
+        credential.id !== excludeId,
     );
   });
 };
