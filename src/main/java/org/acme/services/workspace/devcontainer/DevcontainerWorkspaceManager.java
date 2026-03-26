@@ -1,13 +1,13 @@
 package org.acme.services.workspace.devcontainer;
 
-import io.quarkus.qute.CheckedTemplate;
-import io.quarkus.qute.RawString;
-import io.quarkus.qute.TemplateInstance;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.json.Json;
 import jakarta.json.JsonObject;
 import org.acme.services.codeagent.CodingAgentType;
+import org.acme.services.devcontainer.DevcontainerSpec;
+import org.acme.services.devcontainer.EnrichmentService;
 
 import org.acme.services.workspace.*;
 import org.acme.services.workspace.filesystem.FilesystemWorkspaceManager;
@@ -20,12 +20,12 @@ import java.io.StringReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
 @WorkspaceManagerType(type = ExecutionMode.DOCKER)
 @ApplicationScoped
@@ -33,18 +33,8 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
 
     private static final Logger LOG = Logger.getLogger(DevcontainerWorkspaceManager.class);
 
-    @CheckedTemplate
-    public static class Templates {
-        public static native TemplateInstance devcontainer(
-                String image, String remoteUser, String workspaceFolder,
-                List<EnvVar> envVars, List<String> mounts,
-                String postCreateCommand, String postStartCommand,
-                List<Integer> appPort, RawString featuresJson,
-                List<String> vscodeExtensions, List<String> featureInstallOrder);
-    }
-
-    public record EnvVar(String name, String value) {
-    }
+    @Inject
+    ObjectMapper objectMapper;
 
     @ConfigProperty(name = "tsd-agent.coding-agent")
     CodingAgentType codingAgentType;
@@ -83,7 +73,7 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
     PortAllocator portAllocator;
 
     @Inject
-    DevcontainerEnrichmentService enrichmentService;
+    EnrichmentService enrichmentService;
 
     @Inject
     @WorkspaceManagerType(type = ExecutionMode.FILESYSTEM)
@@ -104,7 +94,7 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
         String sanitizedUrl = deriveSanitizedUrl(worktreePath);
         String worktreeAlias = Path.of(worktreePath).getFileName().toString();
 
-        DevcontainerEnrichmentService.EnrichmentResult enrichment =
+        EnrichmentService.EnrichmentResult enrichment =
                 enrichmentService.enrich(Path.of(worktreePath), outputConsumer);
 
         boolean hasProjectConfig = hasProjectDevcontainerConfig(Path.of(worktreePath));
@@ -209,7 +199,7 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
     }
 
     private Path generateOverrideConfig(String sanitizedUrl, String worktreeAlias,
-            DevcontainerEnrichmentService.EnrichmentResult enrichment) throws WorkspaceException {
+            EnrichmentService.EnrichmentResult enrichment) throws WorkspaceException {
         try {
             Path configDir = devcontainerConfigDir(sanitizedUrl, worktreeAlias);
             Files.createDirectories(configDir);
@@ -253,14 +243,16 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
                 default -> throw new WorkspaceException("Unsupported coding agent: " + codingAgentType);
             }
 
-            List<EnvVar> envVars = new java.util.ArrayList<>(envPassthroughNames.orElse(List.of()).stream()
-                    .map(String::trim)
-                    .filter(s -> !s.isEmpty())
-                    .map(name -> new EnvVar(name, "${localEnv:" + name + "}"))
-                    .toList());
-            envVars.add(new EnvVar("DEVCONTAINER", "true"));
+            Map<String, String> envVars = new LinkedHashMap<>();
+            for (String name : envPassthroughNames.orElse(List.of())) {
+                String trimmed = name.trim();
+                if (!trimmed.isEmpty()) {
+                    envVars.put(trimmed, "${localEnv:" + trimmed + "}");
+                }
+            }
+            envVars.put("DEVCONTAINER", "true");
             if (codingAgentType == CodingAgentType.OPENCODE) {
-                envVars.add(new EnvVar("OPENCODE_PERMISSION", "{\"tools\":{\"*\":{\"allow\":true}}}"));
+                envVars.put("OPENCODE_PERMISSION", "{\"tools\":{\"*\":{\"allow\":true}}}");
             }
 
             List<String> mountList = new java.util.ArrayList<>(agentMounts.orElse(Map.of()).values().stream()
@@ -270,19 +262,28 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
 
             mountList.add("source=code-agent-config-" + worktreeAlias + ",target=/home/" + remoteUser + "/" + codingAgentType.configDir + ",type=volume");
 
-            RawString featuresJson = enrichment != null && enrichment.featuresJson() != null
-                    ? new RawString(enrichment.featuresJson()) : null;
-            List<String> vscodeExtensions = enrichment != null && enrichment.vscodeExtensions() != null
-                    && !enrichment.vscodeExtensions().isEmpty()
-                    ? enrichment.vscodeExtensions() : null;
-            List<String> featureInstallOrder = enrichment != null ? enrichment.featureInstallOrder() : null;
+            DevcontainerSpec config = new DevcontainerSpec();
+            config.image = effectiveImage;
+            config.remoteUser = remoteUser;
+            config.workspaceFolder = "/workspaces/trees/" + worktreeAlias;
+            config.runArgs = List.of("--tmpfs=/tmp:rw,exec,nosuid,nodev,mode=1777");
+            config.containerEnv = envVars;
+            config.mounts = mountList.isEmpty() ? null : mountList;
+            config.postCreateCommand = postCreateCommand;
+            config.postStartCommand = postStartCommand;
+            if (postStartCommand != null) {
+                config.waitFor = "postStartCommand";
+            }
+            config.appPort = appPort;
 
-            String configContent = Templates.devcontainer(
-                    effectiveImage, remoteUser, "/workspaces/trees/" + worktreeAlias,
-                    envVars, mountList.isEmpty() ? null : mountList,
-                    postCreateCommand, postStartCommand, appPort,
-                    featuresJson, vscodeExtensions, featureInstallOrder
-            ).render();
+            if (enrichment != null) {
+                config.features = enrichment.features();
+                config.overrideFeatureInstallOrder = enrichment.featureInstallOrder();
+                List<String> vscodeExtensions = enrichment.vscodeExtensions();
+                config.setVscodeExtensions(vscodeExtensions != null && !vscodeExtensions.isEmpty() ? vscodeExtensions : null);
+            }
+
+            String configContent = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(config);
 
             Path configPath = configDir.resolve("devcontainer.json");
             Files.writeString(configPath, configContent);

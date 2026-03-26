@@ -1,4 +1,4 @@
-package org.acme.services.workspace.devcontainer;
+package org.acme.services.devcontainer;
 
 import java.util.List;
 import java.util.Map;
@@ -6,6 +6,5 @@ import java.util.Map;
 public record DiscoveryResult(
         List<String> languages,
         List<String> tools,
-        Map<String, String> versions,
-        Map<String, String> metadata) {
+        Map<String, String> versions) {
 }

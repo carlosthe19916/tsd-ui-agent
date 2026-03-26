@@ -1,4 +1,4 @@
-package org.acme.services.workspace.devcontainer;
+package org.acme.services.devcontainer;
 
 import io.quarkus.logging.Log;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -23,7 +23,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @ApplicationScoped
-public class DevcontainerDiscoveryService {
+public class DiscoveryService {
 
     private static final int MAX_DEPTH = 5;
     private static final Set<String> SKIP_DIRS = Set.of(
@@ -32,13 +32,12 @@ public class DevcontainerDiscoveryService {
             ".idea", ".vscode", ".settings", "bin", "obj");
 
     @Inject
-    DevcontainerFeatureCatalog catalog;
+    FeatureCatalog catalog;
 
     public DiscoveryResult discover(Path worktreePath) {
         Set<String> languages = new LinkedHashSet<>();
         Set<String> tools = new LinkedHashSet<>();
         Map<String, String> versions = new LinkedHashMap<>();
-        Map<String, String> metadata = new LinkedHashMap<>();
 
         try {
             detectManifests(worktreePath, languages);
@@ -49,18 +48,12 @@ public class DevcontainerDiscoveryService {
             Log.warnf(e, "Discovery partially failed for %s, proceeding with what was found", worktreePath);
         }
 
-        metadata.put("worktreePath", worktreePath.toString());
-        metadata.put("languagesDetected", String.valueOf(languages.size()));
-        metadata.put("toolsDetected", String.valueOf(tools.size()));
-        metadata.put("versionsInferred", String.valueOf(versions.size()));
-
         Log.infof("Discovery result: languages=%s, tools=%s, versions=%s", languages, tools, versions);
 
         return new DiscoveryResult(
                 new ArrayList<>(languages),
                 new ArrayList<>(tools),
-                versions,
-                metadata);
+                versions);
     }
 
     private void detectManifests(Path root, Set<String> languages) {

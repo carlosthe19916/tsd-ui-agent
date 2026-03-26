@@ -1,26 +1,44 @@
 package org.acme.services.workspace.devcontainer;
 
-import io.quarkus.qute.RawString;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.test.junit.QuarkusTest;
+import jakarta.inject.Inject;
 import jakarta.json.Json;
 import jakarta.json.JsonObject;
+import org.acme.services.devcontainer.DevcontainerSpec;
 import org.junit.jupiter.api.Test;
 
 import java.io.StringReader;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 @QuarkusTest
 class DevcontainerTemplateTest {
 
+    @Inject
+    ObjectMapper objectMapper;
+
+    private String render(DevcontainerSpec config) throws Exception {
+        return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(config);
+    }
+
+    private DevcontainerSpec minimal() {
+        DevcontainerSpec config = new DevcontainerSpec();
+        config.image = "node:20";
+        config.remoteUser = "node";
+        config.workspaceFolder = "/workspaces/trees/abc123";
+        config.containerEnv = Map.of("DEVCONTAINER", "true");
+        config.runArgs = List.of("--tmpfs=/tmp:rw,exec,nosuid,nodev,mode=1777");
+        config.postCreateCommand = "echo hello";
+        return config;
+    }
+
     @Test
-    void testMinimalTemplate() {
-        String rendered = DevcontainerWorkspaceManager.Templates.devcontainer(
-                "node:20", "node", "/workspaces/trees/abc123",
-                List.of(new DevcontainerWorkspaceManager.EnvVar("DEVCONTAINER", "true")),
-                null, "echo hello", null, null, null, null, null
-        ).render();
+    void testMinimalTemplate() throws Exception {
+        String rendered = render(minimal());
 
         JsonObject json = Json.createReader(new StringReader(rendered)).readObject();
 
@@ -38,17 +56,16 @@ class DevcontainerTemplateTest {
     }
 
     @Test
-    void testTemplateWithFeatures() {
-        String featuresJson = """
-                {"ghcr.io/devcontainers/features/java:1": {"version": "25"}, "ghcr.io/devcontainers/features/git:1": {}}""";
+    void testTemplateWithFeatures() throws Exception {
+        DevcontainerSpec config = minimal();
+        config.remoteUser = "vscode";
+        config.workspaceFolder = "/workspaces/trees/xyz";
+        config.postCreateCommand = "echo setup";
+        config.features = new LinkedHashMap<>();
+        config.features.put("ghcr.io/devcontainers/features/java:1", Map.of("version", "25"));
+        config.features.put("ghcr.io/devcontainers/features/git:1", Map.of());
 
-        String rendered = DevcontainerWorkspaceManager.Templates.devcontainer(
-                "node:20", "vscode", "/workspaces/trees/xyz",
-                List.of(new DevcontainerWorkspaceManager.EnvVar("DEVCONTAINER", "true")),
-                null, "echo setup", null, null,
-                new RawString(featuresJson), null, null
-        ).render();
-
+        String rendered = render(config);
         JsonObject json = Json.createReader(new StringReader(rendered)).readObject();
 
         assertTrue(json.containsKey("features"));
@@ -61,14 +78,14 @@ class DevcontainerTemplateTest {
     }
 
     @Test
-    void testTemplateWithVscodeExtensions() {
-        String rendered = DevcontainerWorkspaceManager.Templates.devcontainer(
-                "node:20", "vscode", "/workspaces/trees/ext",
-                List.of(new DevcontainerWorkspaceManager.EnvVar("DEVCONTAINER", "true")),
-                null, "echo setup", null, null, null,
-                List.of("vscjava.vscode-java-pack", "ms-python.python"), null
-        ).render();
+    void testTemplateWithVscodeExtensions() throws Exception {
+        DevcontainerSpec config = minimal();
+        config.remoteUser = "vscode";
+        config.workspaceFolder = "/workspaces/trees/ext";
+        config.postCreateCommand = "echo setup";
+        config.setVscodeExtensions(List.of("vscjava.vscode-java-pack", "ms-python.python"));
 
+        String rendered = render(config);
         JsonObject json = Json.createReader(new StringReader(rendered)).readObject();
 
         assertTrue(json.containsKey("customizations"));
@@ -80,23 +97,34 @@ class DevcontainerTemplateTest {
     }
 
     @Test
-    void testTemplateWithFeaturesAndExtensions() {
-        String featuresJson = """
-                {"ghcr.io/devcontainers/features/java:1": {"version": "21"}, "ghcr.io/devcontainers/features/node:1": {"version": "20"}, "ghcr.io/devcontainers/features/common-utils:2": {}}""";
+    void testTemplateWithFeaturesAndExtensions() throws Exception {
+        DevcontainerSpec config = new DevcontainerSpec();
+        config.image = "mcr.microsoft.com/devcontainers/base:ubuntu";
+        config.remoteUser = "vscode";
+        config.workspaceFolder = "/workspaces/trees/full";
+        config.runArgs = List.of("--tmpfs=/tmp:rw,exec,nosuid,nodev,mode=1777");
+        config.postCreateCommand = "npm install";
 
-        String rendered = DevcontainerWorkspaceManager.Templates.devcontainer(
-                "mcr.microsoft.com/devcontainers/base:ubuntu", "vscode",
-                "/workspaces/trees/full",
-                List.of(
-                        new DevcontainerWorkspaceManager.EnvVar("DEVCONTAINER", "true"),
-                        new DevcontainerWorkspaceManager.EnvVar("MY_VAR", "my_value")),
-                List.of("source=vol1,target=/home/vscode/.config,type=volume"),
-                "npm install", null, null,
-                new RawString(featuresJson),
-                List.of("vscjava.vscode-java-pack", "dbaeumer.vscode-eslint"),
-                List.of("ghcr.io/devcontainers/features/node:1", "ghcr.io/devcontainers/features/java:1", "ghcr.io/devcontainers/features/common-utils:2")
-        ).render();
+        Map<String, String> envVars = new LinkedHashMap<>();
+        envVars.put("DEVCONTAINER", "true");
+        envVars.put("MY_VAR", "my_value");
+        config.containerEnv = envVars;
 
+        config.mounts = List.of("source=vol1,target=/home/vscode/.config,type=volume");
+
+        config.features = new LinkedHashMap<>();
+        config.features.put("ghcr.io/devcontainers/features/java:1", Map.of("version", "21"));
+        config.features.put("ghcr.io/devcontainers/features/node:1", Map.of("version", "20"));
+        config.features.put("ghcr.io/devcontainers/features/common-utils:2", Map.of());
+
+        config.setVscodeExtensions(List.of("vscjava.vscode-java-pack", "dbaeumer.vscode-eslint"));
+
+        config.overrideFeatureInstallOrder = List.of(
+                "ghcr.io/devcontainers/features/node:1",
+                "ghcr.io/devcontainers/features/java:1",
+                "ghcr.io/devcontainers/features/common-utils:2");
+
+        String rendered = render(config);
         JsonObject json = Json.createReader(new StringReader(rendered)).readObject();
 
         // Image
@@ -138,13 +166,14 @@ class DevcontainerTemplateTest {
     }
 
     @Test
-    void testTemplateWithoutImage() {
-        String rendered = DevcontainerWorkspaceManager.Templates.devcontainer(
-                null, "vscode", "/workspaces/trees/noimg",
-                List.of(new DevcontainerWorkspaceManager.EnvVar("DEVCONTAINER", "true")),
-                null, "echo setup", null, null, null, null, null
-        ).render();
+    void testTemplateWithoutImage() throws Exception {
+        DevcontainerSpec config = minimal();
+        config.image = null;
+        config.remoteUser = "vscode";
+        config.workspaceFolder = "/workspaces/trees/noimg";
+        config.postCreateCommand = "echo setup";
 
+        String rendered = render(config);
         JsonObject json = Json.createReader(new StringReader(rendered)).readObject();
 
         assertFalse(json.containsKey("image"));
@@ -152,14 +181,16 @@ class DevcontainerTemplateTest {
     }
 
     @Test
-    void testTemplateWithPostStartCommandAndAppPort() {
-        String rendered = DevcontainerWorkspaceManager.Templates.devcontainer(
-                "node:20", "vscode", "/workspaces/trees/opencode",
-                List.of(new DevcontainerWorkspaceManager.EnvVar("DEVCONTAINER", "true")),
-                null, "echo create", "opencode serve --port 3000", List.of(3000),
-                null, null, null
-        ).render();
+    void testTemplateWithPostStartCommandAndAppPort() throws Exception {
+        DevcontainerSpec config = minimal();
+        config.remoteUser = "vscode";
+        config.workspaceFolder = "/workspaces/trees/opencode";
+        config.postCreateCommand = "echo create";
+        config.postStartCommand = "opencode serve --port 3000";
+        config.waitFor = "postStartCommand";
+        config.appPort = List.of(3000);
 
+        String rendered = render(config);
         JsonObject json = Json.createReader(new StringReader(rendered)).readObject();
 
         assertEquals("echo create", json.getString("postCreateCommand"));
@@ -169,17 +200,15 @@ class DevcontainerTemplateTest {
     }
 
     @Test
-    void testTemplateWithFeaturesNoVersionOption() {
-        String featuresJson = """
-                {"ghcr.io/devcontainers/features/common-utils:2": {}, "ghcr.io/devcontainers/features/git:1": {}}""";
+    void testTemplateWithFeaturesNoVersionOption() throws Exception {
+        DevcontainerSpec config = minimal();
+        config.workspaceFolder = "/workspaces/trees/noversion";
+        config.postCreateCommand = "echo setup";
+        config.features = new LinkedHashMap<>();
+        config.features.put("ghcr.io/devcontainers/features/common-utils:2", Map.of());
+        config.features.put("ghcr.io/devcontainers/features/git:1", Map.of());
 
-        String rendered = DevcontainerWorkspaceManager.Templates.devcontainer(
-                "node:20", "node", "/workspaces/trees/noversion",
-                List.of(new DevcontainerWorkspaceManager.EnvVar("DEVCONTAINER", "true")),
-                null, "echo setup", null, null,
-                new RawString(featuresJson), null, null
-        ).render();
-
+        String rendered = render(config);
         JsonObject json = Json.createReader(new StringReader(rendered)).readObject();
 
         JsonObject features = json.getJsonObject("features");
@@ -189,16 +218,17 @@ class DevcontainerTemplateTest {
     }
 
     @Test
-    void testTemplateMultipleEnvVars() {
-        String rendered = DevcontainerWorkspaceManager.Templates.devcontainer(
-                "node:20", "node", "/workspaces/trees/multi",
-                List.of(
-                        new DevcontainerWorkspaceManager.EnvVar("DEVCONTAINER", "true"),
-                        new DevcontainerWorkspaceManager.EnvVar("FOO", "bar"),
-                        new DevcontainerWorkspaceManager.EnvVar("BAZ", "qux")),
-                null, "echo setup", null, null, null, null, null
-        ).render();
+    void testTemplateMultipleEnvVars() throws Exception {
+        DevcontainerSpec config = minimal();
+        config.workspaceFolder = "/workspaces/trees/multi";
+        config.postCreateCommand = "echo setup";
+        Map<String, String> envVars = new LinkedHashMap<>();
+        envVars.put("DEVCONTAINER", "true");
+        envVars.put("FOO", "bar");
+        envVars.put("BAZ", "qux");
+        config.containerEnv = envVars;
 
+        String rendered = render(config);
         JsonObject json = Json.createReader(new StringReader(rendered)).readObject();
 
         JsonObject env = json.getJsonObject("containerEnv");
@@ -209,14 +239,13 @@ class DevcontainerTemplateTest {
     }
 
     @Test
-    void testTemplateSingleVscodeExtension() {
-        String rendered = DevcontainerWorkspaceManager.Templates.devcontainer(
-                "node:20", "node", "/workspaces/trees/single-ext",
-                List.of(new DevcontainerWorkspaceManager.EnvVar("DEVCONTAINER", "true")),
-                null, "echo setup", null, null, null,
-                List.of("ms-python.python"), null
-        ).render();
+    void testTemplateSingleVscodeExtension() throws Exception {
+        DevcontainerSpec config = minimal();
+        config.workspaceFolder = "/workspaces/trees/single-ext";
+        config.postCreateCommand = "echo setup";
+        config.setVscodeExtensions(List.of("ms-python.python"));
 
+        String rendered = render(config);
         JsonObject json = Json.createReader(new StringReader(rendered)).readObject();
 
         List<String> extensions = json.getJsonObject("customizations")
@@ -228,23 +257,34 @@ class DevcontainerTemplateTest {
     }
 
     @Test
-    void testRenderedJsonIsValid() {
-        String featuresJson = """
-                {"ghcr.io/devcontainers/features/java:1": {"version": "25"}}""";
+    void testRenderedJsonIsValid() throws Exception {
+        DevcontainerSpec config = new DevcontainerSpec();
+        config.image = "node:20";
+        config.remoteUser = "vscode";
+        config.workspaceFolder = "/workspaces/trees/valid";
+        config.runArgs = List.of("--tmpfs=/tmp:rw,exec,nosuid,nodev,mode=1777");
+        config.postCreateCommand = "echo create";
+        config.postStartCommand = "echo start";
+        config.waitFor = "postStartCommand";
+        config.appPort = List.of(8080);
 
-        String rendered = DevcontainerWorkspaceManager.Templates.devcontainer(
-                "node:20", "vscode", "/workspaces/trees/valid",
-                List.of(
-                        new DevcontainerWorkspaceManager.EnvVar("DEVCONTAINER", "true"),
-                        new DevcontainerWorkspaceManager.EnvVar("KEY", "value")),
-                List.of("source=vol,target=/home/vscode/.data,type=volume"),
-                "echo create", "echo start", List.of(8080),
-                new RawString(featuresJson),
-                List.of("vscjava.vscode-java-pack", "ms-python.python"),
-                List.of("ghcr.io/devcontainers/features/java:1")
-        ).render();
+        Map<String, String> envVars = new LinkedHashMap<>();
+        envVars.put("DEVCONTAINER", "true");
+        envVars.put("KEY", "value");
+        config.containerEnv = envVars;
 
-        // Should not throw — proves the full template with all fields renders valid JSON
+        config.mounts = List.of("source=vol,target=/home/vscode/.data,type=volume");
+
+        config.features = new LinkedHashMap<>();
+        config.features.put("ghcr.io/devcontainers/features/java:1", Map.of("version", "25"));
+
+        config.setVscodeExtensions(List.of("vscjava.vscode-java-pack", "ms-python.python"));
+
+        config.overrideFeatureInstallOrder = List.of("ghcr.io/devcontainers/features/java:1");
+
+        String rendered = render(config);
+
+        // Should not throw — proves the config renders valid JSON
         JsonObject json = Json.createReader(new StringReader(rendered)).readObject();
         assertNotNull(json);
         // image, remoteUser, workspaceFolder, overrideFeatureInstallOrder, features, customizations, runArgs, containerEnv, mounts, postCreateCommand, postStartCommand, waitFor, appPort

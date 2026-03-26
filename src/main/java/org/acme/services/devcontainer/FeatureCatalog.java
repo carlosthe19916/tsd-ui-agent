@@ -1,4 +1,4 @@
-package org.acme.services.workspace.devcontainer;
+package org.acme.services.devcontainer;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Map;
 
 @ApplicationScoped
-public class DevcontainerFeatureCatalog {
+public class FeatureCatalog {
 
     public record Catalog(
             Map<String, LanguageEntry> languages,
@@ -41,15 +41,12 @@ public class DevcontainerFeatureCatalog {
 
     @PostConstruct
     void init() {
-        try (InputStream is = Thread.currentThread().getContextClassLoader()
-                .getResourceAsStream("devcontainer-features-catalog.json")) {
+        try (InputStream is = Thread.currentThread().getContextClassLoader().getResourceAsStream("devcontainer-features-catalog.json")) {
             if (is == null) {
                 throw new IllegalStateException("devcontainer-features-catalog.json not found on classpath");
             }
             catalog = new ObjectMapper().readValue(is, Catalog.class);
-            Log.infof("Loaded devcontainer feature catalog: %d languages, %d tools",
-                    catalog.languages().size(),
-                    catalog.tools().size());
+            Log.infof("Loaded devcontainer feature catalog: %d languages, %d tools", catalog.languages().size(), catalog.tools().size());
         } catch (Exception e) {
             throw new IllegalStateException("Failed to load devcontainer feature catalog", e);
         }
