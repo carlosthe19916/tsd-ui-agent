@@ -9,7 +9,6 @@ import jakarta.json.JsonString;
 import jakarta.json.JsonValue;
 
 import java.io.InputStream;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -79,16 +78,6 @@ public class DevcontainerFeatureCatalog {
         return null;
     }
 
-    public List<String> getManifestsForLanguage(String language) {
-        JsonObject lang = catalog.getJsonObject("languages").getJsonObject(language.toLowerCase());
-        if (lang == null || !lang.containsKey("manifests")) {
-            return List.of();
-        }
-        return lang.getJsonArray("manifests").stream()
-                .map(v -> ((JsonString) v).getString())
-                .toList();
-    }
-
     public Map<String, List<String>> getToolIndicators() {
         JsonObject tools = catalog.getJsonObject("tools");
         Map<String, List<String>> result = new LinkedHashMap<>();
@@ -119,14 +108,4 @@ public class DevcontainerFeatureCatalog {
         return result;
     }
 
-    public List<String> getAllLanguageExtensions() {
-        JsonObject languages = catalog.getJsonObject("languages");
-        List<String> all = new ArrayList<>();
-        for (JsonValue v : languages.values()) {
-            v.asJsonObject().getJsonArray("extensions").stream()
-                    .map(e -> ((JsonString) e).getString())
-                    .forEach(all::add);
-        }
-        return all;
-    }
 }

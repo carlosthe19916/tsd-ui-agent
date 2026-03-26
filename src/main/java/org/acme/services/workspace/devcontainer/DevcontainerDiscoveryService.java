@@ -187,8 +187,10 @@ public class DevcontainerDiscoveryService {
         // package.json: engines.node
         Path packageJson = root.resolve("package.json");
         if (Files.exists(packageJson)) {
+            String content = readFileQuietly(packageJson);
+            if (content == null) return null;
             try {
-                JsonObject pkg = Json.createReader(new StringReader(readFileQuietly(packageJson))).readObject();
+                JsonObject pkg = Json.createReader(new StringReader(content)).readObject();
                 if (pkg.containsKey("engines")) {
                     JsonObject engines = pkg.getJsonObject("engines");
                     if (engines.containsKey("node")) {
@@ -280,8 +282,10 @@ public class DevcontainerDiscoveryService {
     private String inferPhpVersion(Path root) {
         Path composer = root.resolve("composer.json");
         if (Files.exists(composer)) {
+            String content = readFileQuietly(composer);
+            if (content == null) return null;
             try {
-                JsonObject pkg = Json.createReader(new StringReader(readFileQuietly(composer))).readObject();
+                JsonObject pkg = Json.createReader(new StringReader(content)).readObject();
                 if (pkg.containsKey("require")) {
                     JsonObject require = pkg.getJsonObject("require");
                     if (require.containsKey("php")) {

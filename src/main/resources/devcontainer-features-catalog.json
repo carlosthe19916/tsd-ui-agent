@@ -56,7 +56,7 @@
     },
     "dotnet": {
       "extensions": [".cs", ".fs", ".vb", ".csproj", ".fsproj"],
-      "manifests": ["*.csproj", "*.fsproj", "*.sln"],
+      "manifests": [],
       "feature": {
         "id": "ghcr.io/devcontainers/features/dotnet:2",
         "versionOption": "version"

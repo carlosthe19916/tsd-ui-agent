@@ -25,10 +25,10 @@ export const WorkspaceConfigurationModal: React.FC<
   const [loading, setLoading] = React.useState(false);
 
   React.useEffect(() => {
+    setContent(null);
+    setError(null);
     if (isOpen && wsId !== null) {
       setLoading(true);
-      setContent(null);
-      setError(null);
       getWorkspaceConfiguration(wsId)
         .then((data) => {
           const formatted =

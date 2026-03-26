@@ -5,11 +5,8 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.json.Json;
 import jakarta.json.JsonObjectBuilder;
-import jakarta.json.JsonArrayBuilder;
 
-import java.io.IOException;
 import java.io.StringWriter;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -78,9 +75,6 @@ public class DevcontainerEnrichmentService {
                 outputConsumer.accept("[enrichment] VS Code extensions: " + extensionsList);
             }
 
-            // Write sidecar metadata
-            writeSidecarMetadata(worktreePath, discovery, features, extensionsList);
-
             return new EnrichmentResult(featuresJson, extensionsList);
         } catch (Exception e) {
             Log.warnf(e, "Enrichment failed for %s, falling back to minimal config", worktreePath);
@@ -94,6 +88,7 @@ public class DevcontainerEnrichmentService {
     }
 
     private String buildFeaturesJson(Map<String, Map<String, String>> features) {
+        if (features.isEmpty()) return null;
         JsonObjectBuilder root = Json.createObjectBuilder();
         for (Map.Entry<String, Map<String, String>> entry : features.entrySet()) {
             JsonObjectBuilder options = Json.createObjectBuilder();
@@ -107,38 +102,4 @@ public class DevcontainerEnrichmentService {
         return sw.toString();
     }
 
-    private void writeSidecarMetadata(Path worktreePath, DiscoveryResult discovery,
-            Map<String, Map<String, String>> features, List<String> extensions) {
-        try {
-            JsonObjectBuilder meta = Json.createObjectBuilder();
-            JsonArrayBuilder langs = Json.createArrayBuilder();
-            discovery.languages().forEach(langs::add);
-            meta.add("languages", langs);
-
-            JsonArrayBuilder toolsArr = Json.createArrayBuilder();
-            discovery.tools().forEach(toolsArr::add);
-            meta.add("tools", toolsArr);
-
-            JsonObjectBuilder versionsObj = Json.createObjectBuilder();
-            discovery.versions().forEach(versionsObj::add);
-            meta.add("versions", versionsObj);
-
-            JsonArrayBuilder featuresArr = Json.createArrayBuilder();
-            features.keySet().forEach(featuresArr::add);
-            meta.add("features", featuresArr);
-
-            JsonArrayBuilder extsArr = Json.createArrayBuilder();
-            extensions.forEach(extsArr::add);
-            meta.add("vscodeExtensions", extsArr);
-
-            StringWriter sw = new StringWriter();
-            Json.createWriter(sw).writeObject(meta.build());
-
-            Path sidecar = worktreePath.resolve("enrichment-metadata.json");
-            Files.writeString(sidecar, sw.toString());
-            Log.debugf("Wrote enrichment metadata to %s", sidecar);
-        } catch (IOException e) {
-            Log.warnf("Failed to write enrichment metadata: %s", e.getMessage());
-        }
-    }
 }
