@@ -19,7 +19,7 @@ class DevcontainerTemplateTest {
         String rendered = DevcontainerWorkspaceManager.Templates.devcontainer(
                 "node:20", "node", "/workspaces/trees/abc123",
                 List.of(new DevcontainerWorkspaceManager.EnvVar("DEVCONTAINER", "true")),
-                null, "echo hello", null, null, null, null
+                null, "echo hello", null, null, null, null, null
         ).render();
 
         JsonObject json = Json.createReader(new StringReader(rendered)).readObject();
@@ -45,7 +45,7 @@ class DevcontainerTemplateTest {
                 "node:20", "vscode", "/workspaces/trees/xyz",
                 List.of(new DevcontainerWorkspaceManager.EnvVar("DEVCONTAINER", "true")),
                 null, "echo setup", null, null,
-                new RawString(featuresJson), null
+                new RawString(featuresJson), null, null
         ).render();
 
         JsonObject json = Json.createReader(new StringReader(rendered)).readObject();
@@ -64,7 +64,7 @@ class DevcontainerTemplateTest {
                 "node:20", "vscode", "/workspaces/trees/ext",
                 List.of(new DevcontainerWorkspaceManager.EnvVar("DEVCONTAINER", "true")),
                 null, "echo setup", null, null, null,
-                List.of("vscjava.vscode-java-pack", "ms-python.python")
+                List.of("vscjava.vscode-java-pack", "ms-python.python"), null
         ).render();
 
         JsonObject json = Json.createReader(new StringReader(rendered)).readObject();
@@ -91,7 +91,7 @@ class DevcontainerTemplateTest {
                 List.of("source=vol1,target=/home/vscode/.config,type=volume"),
                 "npm install", null, null,
                 new RawString(featuresJson),
-                List.of("vscjava.vscode-java-pack", "dbaeumer.vscode-eslint")
+                List.of("vscjava.vscode-java-pack", "dbaeumer.vscode-eslint"), null
         ).render();
 
         JsonObject json = Json.createReader(new StringReader(rendered)).readObject();
@@ -130,7 +130,7 @@ class DevcontainerTemplateTest {
         String rendered = DevcontainerWorkspaceManager.Templates.devcontainer(
                 null, "vscode", "/workspaces/trees/noimg",
                 List.of(new DevcontainerWorkspaceManager.EnvVar("DEVCONTAINER", "true")),
-                null, "echo setup", null, null, null, null
+                null, "echo setup", null, null, null, null, null
         ).render();
 
         JsonObject json = Json.createReader(new StringReader(rendered)).readObject();
@@ -145,7 +145,7 @@ class DevcontainerTemplateTest {
                 "node:20", "vscode", "/workspaces/trees/opencode",
                 List.of(new DevcontainerWorkspaceManager.EnvVar("DEVCONTAINER", "true")),
                 null, "echo create", "opencode serve --port 3000", List.of(3000),
-                null, null
+                null, null, null
         ).render();
 
         JsonObject json = Json.createReader(new StringReader(rendered)).readObject();
@@ -165,7 +165,7 @@ class DevcontainerTemplateTest {
                 "node:20", "node", "/workspaces/trees/noversion",
                 List.of(new DevcontainerWorkspaceManager.EnvVar("DEVCONTAINER", "true")),
                 null, "echo setup", null, null,
-                new RawString(featuresJson), null
+                new RawString(featuresJson), null, null
         ).render();
 
         JsonObject json = Json.createReader(new StringReader(rendered)).readObject();
@@ -184,7 +184,7 @@ class DevcontainerTemplateTest {
                         new DevcontainerWorkspaceManager.EnvVar("DEVCONTAINER", "true"),
                         new DevcontainerWorkspaceManager.EnvVar("FOO", "bar"),
                         new DevcontainerWorkspaceManager.EnvVar("BAZ", "qux")),
-                null, "echo setup", null, null, null, null
+                null, "echo setup", null, null, null, null, null
         ).render();
 
         JsonObject json = Json.createReader(new StringReader(rendered)).readObject();
@@ -202,7 +202,7 @@ class DevcontainerTemplateTest {
                 "node:20", "node", "/workspaces/trees/single-ext",
                 List.of(new DevcontainerWorkspaceManager.EnvVar("DEVCONTAINER", "true")),
                 null, "echo setup", null, null, null,
-                List.of("ms-python.python")
+                List.of("ms-python.python"), null
         ).render();
 
         JsonObject json = Json.createReader(new StringReader(rendered)).readObject();
@@ -228,12 +228,17 @@ class DevcontainerTemplateTest {
                 List.of("source=vol,target=/home/vscode/.data,type=volume"),
                 "echo create", "echo start", List.of(8080),
                 new RawString(featuresJson),
-                List.of("vscjava.vscode-java-pack", "ms-python.python")
+                List.of("vscjava.vscode-java-pack", "ms-python.python"),
+                List.of("ghcr.io/devcontainers/features/node", "ghcr.io/devcontainers/features/java")
         ).render();
 
         // Should not throw — proves the full template with all fields renders valid JSON
         JsonObject json = Json.createReader(new StringReader(rendered)).readObject();
         assertNotNull(json);
-        assertEquals(11, json.size()); // image, remoteUser, workspaceFolder, features, customizations, containerEnv, mounts, postCreateCommand, postStartCommand, waitFor, appPort
+        assertEquals(12, json.size()); // image, remoteUser, workspaceFolder, features, overrideFeatureInstallOrder, customizations, containerEnv, mounts, postCreateCommand, postStartCommand, waitFor, appPort
+        List<String> installOrder = json.getJsonArray("overrideFeatureInstallOrder").stream()
+                .map(v -> ((jakarta.json.JsonString) v).getString())
+                .toList();
+        assertEquals(List.of("ghcr.io/devcontainers/features/node", "ghcr.io/devcontainers/features/java"), installOrder);
     }
 }

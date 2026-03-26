@@ -5,7 +5,8 @@
       "manifests": ["pom.xml", "build.gradle", "build.gradle.kts"],
       "feature": {
         "id": "ghcr.io/devcontainers/features/java:1",
-        "versionOption": "version"
+        "versionOption": "version",
+        "installPriority": 2
       },
       "vscodeExtensions": ["vscjava.vscode-java-pack"]
     },
@@ -14,7 +15,8 @@
       "manifests": ["package.json"],
       "feature": {
         "id": "ghcr.io/devcontainers/features/node:1",
-        "versionOption": "version"
+        "versionOption": "version",
+        "installPriority": 1
       },
       "vscodeExtensions": ["dbaeumer.vscode-eslint"]
     },
@@ -23,7 +25,8 @@
       "manifests": ["pyproject.toml", "requirements.txt", "setup.py", "Pipfile"],
       "feature": {
         "id": "ghcr.io/devcontainers/features/python:1",
-        "versionOption": "version"
+        "versionOption": "version",
+        "installPriority": 1
       },
       "vscodeExtensions": ["ms-python.python"]
     },
@@ -32,7 +35,8 @@
       "manifests": ["go.mod"],
       "feature": {
         "id": "ghcr.io/devcontainers/features/go:1",
-        "versionOption": "version"
+        "versionOption": "version",
+        "installPriority": 2
       },
       "vscodeExtensions": ["golang.go"]
     },
@@ -41,7 +45,8 @@
       "manifests": ["Cargo.toml"],
       "feature": {
         "id": "ghcr.io/devcontainers/features/rust:1",
-        "versionOption": "version"
+        "versionOption": "version",
+        "installPriority": 2
       },
       "vscodeExtensions": ["rust-lang.rust-analyzer"]
     },
@@ -50,7 +55,8 @@
       "manifests": ["Gemfile"],
       "feature": {
         "id": "ghcr.io/devcontainers/features/ruby:1",
-        "versionOption": "version"
+        "versionOption": "version",
+        "installPriority": 1
       },
       "vscodeExtensions": ["shopify.ruby-lsp"]
     },
@@ -59,7 +65,8 @@
       "manifests": [],
       "feature": {
         "id": "ghcr.io/devcontainers/features/dotnet:2",
-        "versionOption": "version"
+        "versionOption": "version",
+        "installPriority": 1
       },
       "vscodeExtensions": ["ms-dotnettools.csdevkit"]
     },
@@ -68,7 +75,8 @@
       "manifests": ["composer.json"],
       "feature": {
         "id": "ghcr.io/devcontainers/features/php:1",
-        "versionOption": "version"
+        "versionOption": "version",
+        "installPriority": 1
       },
       "vscodeExtensions": ["bmewburn.vscode-intelephense-client"]
     }

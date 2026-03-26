@@ -40,7 +40,8 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
                 List<EnvVar> envVars, List<String> mounts,
                 String postCreateCommand, String postStartCommand,
                 List<Integer> appPort, RawString featuresJson,
-                List<String> vscodeExtensions);
+                List<String> vscodeExtensions,
+                List<String> overrideFeatureInstallOrder);
     }
 
     public record EnvVar(String name, String value) {
@@ -274,12 +275,15 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
             List<String> vscodeExtensions = enrichment != null && enrichment.vscodeExtensions() != null
                     && !enrichment.vscodeExtensions().isEmpty()
                     ? enrichment.vscodeExtensions() : null;
+            List<String> installOrder = enrichment != null && enrichment.featureInstallOrder() != null
+                    && !enrichment.featureInstallOrder().isEmpty()
+                    ? enrichment.featureInstallOrder() : null;
 
             String configContent = Templates.devcontainer(
                     effectiveImage, remoteUser, "/workspaces/trees/" + worktreeAlias,
                     envVars, mountList.isEmpty() ? null : mountList,
                     postCreateCommand, postStartCommand, appPort,
-                    featuresJson, vscodeExtensions
+                    featuresJson, vscodeExtensions, installOrder
             ).render();
 
             Path configPath = configDir.resolve("devcontainer.json");

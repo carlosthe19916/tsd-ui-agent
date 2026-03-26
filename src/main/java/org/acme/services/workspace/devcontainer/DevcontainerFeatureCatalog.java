@@ -34,7 +34,7 @@ public class DevcontainerFeatureCatalog {
         }
     }
 
-    public record FeatureEntry(String id, String versionOption, List<String> vscodeExtensions) {
+    public record FeatureEntry(String id, String versionOption, int installPriority, List<String> vscodeExtensions) {
     }
 
     public FeatureEntry findFeatureForLanguage(String language) {
@@ -46,12 +46,13 @@ public class DevcontainerFeatureCatalog {
         JsonObject feature = lang.getJsonObject("feature");
         String id = feature.getString("id");
         String versionOption = feature.containsKey("versionOption") ? feature.getString("versionOption") : null;
+        int installPriority = feature.containsKey("installPriority") ? feature.getInt("installPriority") : 1;
         List<String> extensions = lang.containsKey("vscodeExtensions")
                 ? lang.getJsonArray("vscodeExtensions").stream()
                         .map(v -> ((JsonString) v).getString())
                         .toList()
                 : List.of();
-        return new FeatureEntry(id, versionOption, extensions);
+        return new FeatureEntry(id, versionOption, installPriority, extensions);
     }
 
     public FeatureEntry findFeatureForTool(String tool) {
@@ -61,7 +62,8 @@ public class DevcontainerFeatureCatalog {
             return null;
         }
         JsonObject feature = toolObj.getJsonObject("feature");
-        return new FeatureEntry(feature.getString("id"), null, List.of());
+        int installPriority = feature.containsKey("installPriority") ? feature.getInt("installPriority") : 1;
+        return new FeatureEntry(feature.getString("id"), null, installPriority, List.of());
     }
 
     public String languageForExtension(String extension) {

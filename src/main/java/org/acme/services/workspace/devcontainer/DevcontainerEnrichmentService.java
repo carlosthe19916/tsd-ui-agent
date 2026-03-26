@@ -25,7 +25,8 @@ public class DevcontainerEnrichmentService {
     @Inject
     DevcontainerFeatureCatalog catalog;
 
-    public record EnrichmentResult(String featuresJson, List<String> vscodeExtensions) {
+    public record EnrichmentResult(String featuresJson, List<String> vscodeExtensions,
+            List<String> featureInstallOrder) {
     }
 
     public EnrichmentResult enrich(Path worktreePath, Consumer<String> outputConsumer) {
@@ -40,6 +41,7 @@ public class DevcontainerEnrichmentService {
             }
 
             Map<String, Map<String, String>> features = new LinkedHashMap<>();
+            Map<String, Integer> featurePriorities = new LinkedHashMap<>();
             Set<String> extensions = new LinkedHashSet<>();
 
             // Map detected languages to features
@@ -52,6 +54,7 @@ public class DevcontainerEnrichmentService {
                         options.put(entry.versionOption(), version);
                     }
                     features.put(entry.id(), options);
+                    featurePriorities.put(entry.id(), entry.installPriority());
                     extensions.addAll(entry.vscodeExtensions());
                 }
             }
@@ -61,21 +64,20 @@ public class DevcontainerEnrichmentService {
                 DevcontainerFeatureCatalog.FeatureEntry entry = catalog.findFeatureForTool(tool);
                 if (entry != null) {
                     features.putIfAbsent(entry.id(), Map.of());
+                    featurePriorities.putIfAbsent(entry.id(), entry.installPriority());
                 }
             }
 
-            // git and common-utils are already in the base image — adding them as
-            // features causes /tmp permission conflicts in rootless podman builds
-
             String featuresJson = buildFeaturesJson(features);
             List<String> extensionsList = new ArrayList<>(extensions);
+            List<String> installOrder = buildInstallOrder(featurePriorities);
 
             outputConsumer.accept("[enrichment] Features: " + features.keySet());
             if (!extensionsList.isEmpty()) {
                 outputConsumer.accept("[enrichment] VS Code extensions: " + extensionsList);
             }
 
-            return new EnrichmentResult(featuresJson, extensionsList);
+            return new EnrichmentResult(featuresJson, extensionsList, installOrder);
         } catch (Exception e) {
             Log.warnf(e, "Enrichment failed for %s, falling back to minimal config", worktreePath);
             outputConsumer.accept("[enrichment] Failed: " + e.getMessage() + ", using minimal config");
@@ -84,7 +86,15 @@ public class DevcontainerEnrichmentService {
     }
 
     private EnrichmentResult fallback() {
-        return new EnrichmentResult(null, List.of());
+        return new EnrichmentResult(null, List.of(), List.of());
+    }
+
+    private List<String> buildInstallOrder(Map<String, Integer> featurePriorities) {
+        if (featurePriorities.size() <= 1) return List.of();
+        return featurePriorities.entrySet().stream()
+                .sorted(Map.Entry.comparingByValue())
+                .map(e -> e.getKey().replaceFirst(":\\d+$", ""))
+                .toList();
     }
 
     private String buildFeaturesJson(Map<String, Map<String, String>> features) {
