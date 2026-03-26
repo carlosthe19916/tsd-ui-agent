@@ -4,7 +4,9 @@ import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.SequenceGenerator;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import jakarta.validation.constraints.NotNull;
@@ -16,7 +18,8 @@ import java.util.Objects;
 public class CredentialEntity extends PanacheEntityBase {
 
     @Id
-    @GeneratedValue(generator = "credential_sequence")
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "credential_sequence")
+    @SequenceGenerator(name = "credential_sequence", sequenceName = "credential_seq", allocationSize = 1)
     public Long id;
 
     @NotNull
