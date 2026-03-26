@@ -1,6 +1,5 @@
 package org.acme.services.devcontainer;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.logging.Log;
 import jakarta.annotation.PostConstruct;
@@ -31,10 +30,7 @@ public class FeatureCatalog {
             FeatureRef feature) {
     }
 
-    public record FeatureRef(
-            String id,
-            @JsonProperty("versionOption") String versionOption,
-            @JsonProperty("installOrder") int installOrder) {
+    public record FeatureRef(String id) {
     }
 
     private Catalog catalog;

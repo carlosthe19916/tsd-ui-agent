@@ -42,7 +42,7 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
     @ConfigProperty(name = "tsd-agent.devcontainer.command")
     public String command;
 
-    @ConfigProperty(name = "tsd-agent.devcontainer.image")
+    @ConfigProperty(name     = "tsd-agent.devcontainer.image")
     public String image;
 
     @ConfigProperty(name = "tsd-agent.devcontainer.container-runtime")

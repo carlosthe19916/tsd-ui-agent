@@ -36,9 +36,17 @@ public class EnrichmentService {
                 outputConsumer.accept("[enrichment] Inferred versions: " + discovery.versions());
             }
 
-            record FeatureWithOrder(String id, Map<String, String> options, int installOrder) {}
-            List<FeatureWithOrder> collectedFeatures = new ArrayList<>();
+            Map<String, Map<String, String>> features = new LinkedHashMap<>();
             Set<String> extensions = new LinkedHashSet<>();
+
+            // Node first (required by coding agent) — must be installed before other features
+            FeatureCatalog.LanguageEntry nodeEntry = catalog.findLanguage("node");
+            if (nodeEntry != null) {
+                features.put(nodeEntry.feature().id(), Map.of());
+                if (nodeEntry.vscodeExtensions() != null) {
+                    extensions.addAll(nodeEntry.vscodeExtensions());
+                }
+            }
 
             // Map detected languages to features
             for (String language : discovery.languages()) {
@@ -46,10 +54,11 @@ public class EnrichmentService {
                 if (entry != null) {
                     Map<String, String> options = new LinkedHashMap<>();
                     String version = discovery.versions().get(language);
-                    if (version != null && entry.feature().versionOption() != null) {
-                        options.put(entry.feature().versionOption(), version);
+                    if (version != null) {
+                        options.put("version", version);
                     }
-                    collectedFeatures.add(new FeatureWithOrder(entry.feature().id(), options, entry.feature().installOrder()));
+                    // put or replace (node may already be present with empty options)
+                    features.put(entry.feature().id(), options);
                     if (entry.vscodeExtensions() != null) {
                         extensions.addAll(entry.vscodeExtensions());
                     }
@@ -59,34 +68,17 @@ public class EnrichmentService {
             // Map detected tools to features
             for (String tool : discovery.tools()) {
                 FeatureCatalog.ToolEntry entry = catalog.findTool(tool);
-                if (entry != null && collectedFeatures.stream().noneMatch(f -> f.id().equals(entry.feature().id()))) {
-                    collectedFeatures.add(new FeatureWithOrder(entry.feature().id(), Map.of(), entry.feature().installOrder()));
+                if (entry != null && !features.containsKey(entry.feature().id())) {
+                    features.put(entry.feature().id(), Map.of());
                 }
             }
 
-            // Always include node (required by coding agent), git and common-utils
-            FeatureCatalog.LanguageEntry nodeEntry = catalog.findLanguage("node");
-            if (nodeEntry != null && collectedFeatures.stream().noneMatch(f -> f.id().equals(nodeEntry.feature().id()))) {
-                collectedFeatures.add(new FeatureWithOrder(nodeEntry.feature().id(), Map.of(), nodeEntry.feature().installOrder()));
-                if (nodeEntry.vscodeExtensions() != null) {
-                    extensions.addAll(nodeEntry.vscodeExtensions());
-                }
-            }
-
+            // Always include git and common-utils
             for (String toolName : List.of("git", "common-utils")) {
                 FeatureCatalog.ToolEntry entry = catalog.findTool(toolName);
-                if (entry != null && collectedFeatures.stream().noneMatch(f -> f.id().equals(entry.feature().id()))) {
-                    collectedFeatures.add(new FeatureWithOrder(entry.feature().id(), Map.of(), entry.feature().installOrder()));
+                if (entry != null && !features.containsKey(entry.feature().id())) {
+                    features.put(entry.feature().id(), Map.of());
                 }
-            }
-
-            // Sort by installOrder — apt-dependent features (node, python) first, then others, then tools
-            collectedFeatures.sort(java.util.Comparator.comparingInt(FeatureWithOrder::installOrder));
-
-            // Build ordered features map
-            Map<String, Map<String, String>> features = new LinkedHashMap<>();
-            for (FeatureWithOrder f : collectedFeatures) {
-                features.put(f.id(), f.options());
             }
 
             List<String> extensionsList = new ArrayList<>(extensions);

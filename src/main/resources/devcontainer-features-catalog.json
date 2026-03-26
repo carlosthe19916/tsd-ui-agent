@@ -4,9 +4,7 @@
       "extensions": [".java", ".kt", ".groovy", ".scala"],
       "manifests": ["pom.xml", "build.gradle", "build.gradle.kts"],
       "feature": {
-        "id": "ghcr.io/devcontainers/features/java:1",
-        "versionOption": "version",
-        "installOrder": 20
+        "id": "ghcr.io/devcontainers/features/java:1"
       },
       "vscodeExtensions": ["vscjava.vscode-java-pack"]
     },
@@ -14,9 +12,7 @@
       "extensions": [".js", ".ts", ".jsx", ".tsx", ".mjs", ".cjs"],
       "manifests": ["package.json"],
       "feature": {
-        "id": "ghcr.io/devcontainers/features/node:1",
-        "versionOption": "version",
-        "installOrder": 10
+        "id": "ghcr.io/devcontainers/features/node:1"
       },
       "vscodeExtensions": ["dbaeumer.vscode-eslint"]
     },
@@ -24,9 +20,7 @@
       "extensions": [".py"],
       "manifests": ["pyproject.toml", "requirements.txt", "setup.py", "Pipfile"],
       "feature": {
-        "id": "ghcr.io/devcontainers/features/python:1",
-        "versionOption": "version",
-        "installOrder": 11
+        "id": "ghcr.io/devcontainers/features/python:1"
       },
       "vscodeExtensions": ["ms-python.python"]
     },
@@ -34,9 +28,7 @@
       "extensions": [".go"],
       "manifests": ["go.mod"],
       "feature": {
-        "id": "ghcr.io/devcontainers/features/go:1",
-        "versionOption": "version",
-        "installOrder": 21
+        "id": "ghcr.io/devcontainers/features/go:1"
       },
       "vscodeExtensions": ["golang.go"]
     },
@@ -44,9 +36,7 @@
       "extensions": [".rs"],
       "manifests": ["Cargo.toml"],
       "feature": {
-        "id": "ghcr.io/devcontainers/features/rust:1",
-        "versionOption": "version",
-        "installOrder": 22
+        "id": "ghcr.io/devcontainers/features/rust:1"
       },
       "vscodeExtensions": ["rust-lang.rust-analyzer"]
     },
@@ -54,9 +44,7 @@
       "extensions": [".rb"],
       "manifests": ["Gemfile"],
       "feature": {
-        "id": "ghcr.io/devcontainers/features/ruby:1",
-        "versionOption": "version",
-        "installOrder": 12
+        "id": "ghcr.io/devcontainers/features/ruby:1"
       },
       "vscodeExtensions": ["shopify.ruby-lsp"]
     },
@@ -64,9 +52,7 @@
       "extensions": [".cs", ".fs", ".vb", ".csproj", ".fsproj"],
       "manifests": [],
       "feature": {
-        "id": "ghcr.io/devcontainers/features/dotnet:2",
-        "versionOption": "version",
-        "installOrder": 13
+        "id": "ghcr.io/devcontainers/features/dotnet:2"
       },
       "vscodeExtensions": ["ms-dotnettools.csdevkit"]
     },
@@ -74,9 +60,7 @@
       "extensions": [".php"],
       "manifests": ["composer.json"],
       "feature": {
-        "id": "ghcr.io/devcontainers/features/php:1",
-        "versionOption": "version",
-        "installOrder": 14
+        "id": "ghcr.io/devcontainers/features/php:1"
       },
       "vscodeExtensions": ["bmewburn.vscode-intelephense-client"]
     }
@@ -84,14 +68,7 @@
   "tools": {
     "git": {
       "feature": {
-        "id": "ghcr.io/devcontainers/features/git:1",
-        "installOrder": 30
-      }
-    },
-    "common-utils": {
-      "feature": {
-        "id": "ghcr.io/devcontainers/features/common-utils:2",
-        "installOrder": 31
+        "id": "ghcr.io/devcontainers/features/git:1"
       }
     }
   }
