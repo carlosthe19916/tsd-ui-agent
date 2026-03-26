@@ -6,7 +6,7 @@
       "feature": {
         "id": "ghcr.io/devcontainers/features/java:1",
         "versionOption": "version",
-        "installPriority": 2
+        "installOrder": 20
       },
       "vscodeExtensions": ["vscjava.vscode-java-pack"]
     },
@@ -16,7 +16,7 @@
       "feature": {
         "id": "ghcr.io/devcontainers/features/node:1",
         "versionOption": "version",
-        "installPriority": 1
+        "installOrder": 10
       },
       "vscodeExtensions": ["dbaeumer.vscode-eslint"]
     },
@@ -26,7 +26,7 @@
       "feature": {
         "id": "ghcr.io/devcontainers/features/python:1",
         "versionOption": "version",
-        "installPriority": 1
+        "installOrder": 11
       },
       "vscodeExtensions": ["ms-python.python"]
     },
@@ -36,7 +36,7 @@
       "feature": {
         "id": "ghcr.io/devcontainers/features/go:1",
         "versionOption": "version",
-        "installPriority": 2
+        "installOrder": 21
       },
       "vscodeExtensions": ["golang.go"]
     },
@@ -46,7 +46,7 @@
       "feature": {
         "id": "ghcr.io/devcontainers/features/rust:1",
         "versionOption": "version",
-        "installPriority": 2
+        "installOrder": 22
       },
       "vscodeExtensions": ["rust-lang.rust-analyzer"]
     },
@@ -56,7 +56,7 @@
       "feature": {
         "id": "ghcr.io/devcontainers/features/ruby:1",
         "versionOption": "version",
-        "installPriority": 1
+        "installOrder": 12
       },
       "vscodeExtensions": ["shopify.ruby-lsp"]
     },
@@ -66,7 +66,7 @@
       "feature": {
         "id": "ghcr.io/devcontainers/features/dotnet:2",
         "versionOption": "version",
-        "installPriority": 1
+        "installOrder": 13
       },
       "vscodeExtensions": ["ms-dotnettools.csdevkit"]
     },
@@ -76,11 +76,23 @@
       "feature": {
         "id": "ghcr.io/devcontainers/features/php:1",
         "versionOption": "version",
-        "installPriority": 1
+        "installOrder": 14
       },
       "vscodeExtensions": ["bmewburn.vscode-intelephense-client"]
     }
   },
   "tools": {
+    "git": {
+      "feature": {
+        "id": "ghcr.io/devcontainers/features/git:1",
+        "installOrder": 30
+      }
+    },
+    "common-utils": {
+      "feature": {
+        "id": "ghcr.io/devcontainers/features/common-utils:2",
+        "installOrder": 31
+      }
+    }
   }
 }

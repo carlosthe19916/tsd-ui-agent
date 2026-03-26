@@ -25,8 +25,7 @@ public class DevcontainerEnrichmentService {
     @Inject
     DevcontainerFeatureCatalog catalog;
 
-    public record EnrichmentResult(String featuresJson, List<String> vscodeExtensions,
-            List<String> featureInstallOrder) {
+    public record EnrichmentResult(String featuresJson, List<String> vscodeExtensions, List<String> featureInstallOrder) {
     }
 
     public EnrichmentResult enrich(Path worktreePath, Consumer<String> outputConsumer) {
@@ -40,44 +39,69 @@ public class DevcontainerEnrichmentService {
                 outputConsumer.accept("[enrichment] Inferred versions: " + discovery.versions());
             }
 
-            Map<String, Map<String, String>> features = new LinkedHashMap<>();
-            Map<String, Integer> featurePriorities = new LinkedHashMap<>();
+            record FeatureWithOrder(String id, Map<String, String> options, int installOrder) {}
+            List<FeatureWithOrder> collectedFeatures = new ArrayList<>();
             Set<String> extensions = new LinkedHashSet<>();
 
             // Map detected languages to features
             for (String language : discovery.languages()) {
-                DevcontainerFeatureCatalog.FeatureEntry entry = catalog.findFeatureForLanguage(language);
+                DevcontainerFeatureCatalog.LanguageEntry entry = catalog.findLanguage(language);
                 if (entry != null) {
                     Map<String, String> options = new LinkedHashMap<>();
                     String version = discovery.versions().get(language);
-                    if (version != null && entry.versionOption() != null) {
-                        options.put(entry.versionOption(), version);
+                    if (version != null && entry.feature().versionOption() != null) {
+                        options.put(entry.feature().versionOption(), version);
                     }
-                    features.put(entry.id(), options);
-                    featurePriorities.put(entry.id(), entry.installPriority());
-                    extensions.addAll(entry.vscodeExtensions());
+                    collectedFeatures.add(new FeatureWithOrder(entry.feature().id(), options, entry.feature().installOrder()));
+                    if (entry.vscodeExtensions() != null) {
+                        extensions.addAll(entry.vscodeExtensions());
+                    }
                 }
             }
 
             // Map detected tools to features
             for (String tool : discovery.tools()) {
-                DevcontainerFeatureCatalog.FeatureEntry entry = catalog.findFeatureForTool(tool);
-                if (entry != null) {
-                    features.putIfAbsent(entry.id(), Map.of());
-                    featurePriorities.putIfAbsent(entry.id(), entry.installPriority());
+                DevcontainerFeatureCatalog.ToolEntry entry = catalog.findTool(tool);
+                if (entry != null && collectedFeatures.stream().noneMatch(f -> f.id().equals(entry.feature().id()))) {
+                    collectedFeatures.add(new FeatureWithOrder(entry.feature().id(), Map.of(), entry.feature().installOrder()));
                 }
+            }
+
+            // Always include node (required by coding agent), git and common-utils
+            DevcontainerFeatureCatalog.LanguageEntry nodeEntry = catalog.findLanguage("node");
+            if (nodeEntry != null && collectedFeatures.stream().noneMatch(f -> f.id().equals(nodeEntry.feature().id()))) {
+                collectedFeatures.add(new FeatureWithOrder(nodeEntry.feature().id(), Map.of(), nodeEntry.feature().installOrder()));
+                if (nodeEntry.vscodeExtensions() != null) {
+                    extensions.addAll(nodeEntry.vscodeExtensions());
+                }
+            }
+
+            for (String toolName : List.of("git", "common-utils")) {
+                DevcontainerFeatureCatalog.ToolEntry entry = catalog.findTool(toolName);
+                if (entry != null && collectedFeatures.stream().noneMatch(f -> f.id().equals(entry.feature().id()))) {
+                    collectedFeatures.add(new FeatureWithOrder(entry.feature().id(), Map.of(), entry.feature().installOrder()));
+                }
+            }
+
+            // Sort by installOrder — apt-dependent features (node, python) first, then others, then tools
+            collectedFeatures.sort(java.util.Comparator.comparingInt(FeatureWithOrder::installOrder));
+
+            // Build ordered features map
+            Map<String, Map<String, String>> features = new LinkedHashMap<>();
+            for (FeatureWithOrder f : collectedFeatures) {
+                features.put(f.id(), f.options());
             }
 
             String featuresJson = buildFeaturesJson(features);
             List<String> extensionsList = new ArrayList<>(extensions);
-            List<String> installOrder = buildInstallOrder(featurePriorities);
 
             outputConsumer.accept("[enrichment] Features: " + features.keySet());
             if (!extensionsList.isEmpty()) {
                 outputConsumer.accept("[enrichment] VS Code extensions: " + extensionsList);
             }
 
-            return new EnrichmentResult(featuresJson, extensionsList, installOrder);
+            List<String> featureInstallOrder = features.isEmpty() ? null : new ArrayList<>(features.keySet());
+            return new EnrichmentResult(featuresJson, extensionsList, featureInstallOrder);
         } catch (Exception e) {
             Log.warnf(e, "Enrichment failed for %s, falling back to minimal config", worktreePath);
             outputConsumer.accept("[enrichment] Failed: " + e.getMessage() + ", using minimal config");
@@ -86,15 +110,7 @@ public class DevcontainerEnrichmentService {
     }
 
     private EnrichmentResult fallback() {
-        return new EnrichmentResult(null, List.of(), List.of());
-    }
-
-    private List<String> buildInstallOrder(Map<String, Integer> featurePriorities) {
-        if (featurePriorities.size() <= 1) return List.of();
-        return featurePriorities.entrySet().stream()
-                .sorted(Map.Entry.comparingByValue())
-                .map(e -> e.getKey().replaceFirst(":\\d+$", ""))
-                .toList();
+        return new EnrichmentResult(null, List.of(), null);
     }
 
     private String buildFeaturesJson(Map<String, Map<String, String>> features) {

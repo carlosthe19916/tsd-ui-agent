@@ -29,6 +29,7 @@ class DevcontainerTemplateTest {
         assertEquals("/workspaces/trees/abc123", json.getString("workspaceFolder"));
         assertEquals("echo hello", json.getString("postCreateCommand"));
         assertEquals("true", json.getJsonObject("containerEnv").getString("DEVCONTAINER"));
+        assertTrue(json.containsKey("runArgs"));
         assertFalse(json.containsKey("features"));
         assertFalse(json.containsKey("customizations"));
         assertFalse(json.containsKey("mounts"));
@@ -56,6 +57,7 @@ class DevcontainerTemplateTest {
         assertEquals("25", features.getJsonObject("ghcr.io/devcontainers/features/java:1").getString("version"));
         assertTrue(features.containsKey("ghcr.io/devcontainers/features/git:1"));
         assertFalse(json.containsKey("customizations"));
+        assertFalse(json.containsKey("overrideFeatureInstallOrder"));
     }
 
     @Test
@@ -91,7 +93,8 @@ class DevcontainerTemplateTest {
                 List.of("source=vol1,target=/home/vscode/.config,type=volume"),
                 "npm install", null, null,
                 new RawString(featuresJson),
-                List.of("vscjava.vscode-java-pack", "dbaeumer.vscode-eslint"), null
+                List.of("vscjava.vscode-java-pack", "dbaeumer.vscode-eslint"),
+                List.of("ghcr.io/devcontainers/features/node:1", "ghcr.io/devcontainers/features/java:1", "ghcr.io/devcontainers/features/common-utils:2")
         ).render();
 
         JsonObject json = Json.createReader(new StringReader(rendered)).readObject();
@@ -123,6 +126,15 @@ class DevcontainerTemplateTest {
         assertEquals(1, json.getJsonArray("mounts").size());
         assertEquals("source=vol1,target=/home/vscode/.config,type=volume",
                 json.getJsonArray("mounts").getString(0));
+
+        // Override feature install order
+        assertTrue(json.containsKey("overrideFeatureInstallOrder"));
+        List<String> installOrder = json.getJsonArray("overrideFeatureInstallOrder").stream()
+                .map(v -> ((jakarta.json.JsonString) v).getString())
+                .toList();
+        assertEquals(List.of("ghcr.io/devcontainers/features/node:1",
+                "ghcr.io/devcontainers/features/java:1",
+                "ghcr.io/devcontainers/features/common-utils:2"), installOrder);
     }
 
     @Test
@@ -229,16 +241,16 @@ class DevcontainerTemplateTest {
                 "echo create", "echo start", List.of(8080),
                 new RawString(featuresJson),
                 List.of("vscjava.vscode-java-pack", "ms-python.python"),
-                List.of("ghcr.io/devcontainers/features/node", "ghcr.io/devcontainers/features/java")
+                List.of("ghcr.io/devcontainers/features/java:1")
         ).render();
 
         // Should not throw — proves the full template with all fields renders valid JSON
         JsonObject json = Json.createReader(new StringReader(rendered)).readObject();
         assertNotNull(json);
-        assertEquals(12, json.size()); // image, remoteUser, workspaceFolder, features, overrideFeatureInstallOrder, customizations, containerEnv, mounts, postCreateCommand, postStartCommand, waitFor, appPort
-        List<String> installOrder = json.getJsonArray("overrideFeatureInstallOrder").stream()
-                .map(v -> ((jakarta.json.JsonString) v).getString())
-                .toList();
-        assertEquals(List.of("ghcr.io/devcontainers/features/node", "ghcr.io/devcontainers/features/java"), installOrder);
+        // image, remoteUser, workspaceFolder, overrideFeatureInstallOrder, features, customizations, runArgs, containerEnv, mounts, postCreateCommand, postStartCommand, waitFor, appPort
+        assertEquals(13, json.size());
+        assertTrue(json.containsKey("runArgs"));
+        assertEquals("--tmpfs=/tmp:rw,exec,nosuid,nodev,mode=1777",
+                json.getJsonArray("runArgs").getString(0));
     }
 }

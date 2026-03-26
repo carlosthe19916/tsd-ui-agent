@@ -4,15 +4,15 @@
 {/if}
   "remoteUser": "{remoteUser}",
   "workspaceFolder": "{workspaceFolder}",
-{#if featuresJson}
-  "features": {featuresJson},
-{/if}
-{#if overrideFeatureInstallOrder}
+{#if featureInstallOrder}
   "overrideFeatureInstallOrder": [
-{#for f in overrideFeatureInstallOrder}
+{#for f in featureInstallOrder}
     "{f}"{#if !f_isLast},{/if}
 {/for}
   ],
+{/if}
+{#if featuresJson}
+  "features": {featuresJson},
 {/if}
 {#if vscodeExtensions}
   "customizations": \{
@@ -25,6 +25,9 @@
     \}
   \},
 {/if}
+  "runArgs": [
+    "--tmpfs=/tmp:rw,exec,nosuid,nodev,mode=1777"
+  ],
   "containerEnv": \{
 {#for env in envVars}
     "{env.name}": "{env.value}"{#if !env_isLast},{/if}

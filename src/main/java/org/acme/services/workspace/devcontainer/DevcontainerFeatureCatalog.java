@@ -1,12 +1,10 @@
 package org.acme.services.workspace.devcontainer;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.logging.Log;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.json.Json;
-import jakarta.json.JsonObject;
-import jakarta.json.JsonString;
-import jakarta.json.JsonValue;
 
 import java.io.InputStream;
 import java.util.LinkedHashMap;
@@ -16,7 +14,30 @@ import java.util.Map;
 @ApplicationScoped
 public class DevcontainerFeatureCatalog {
 
-    private JsonObject catalog;
+    public record Catalog(
+            Map<String, LanguageEntry> languages,
+            Map<String, ToolEntry> tools) {
+    }
+
+    public record LanguageEntry(
+            List<String> extensions,
+            List<String> manifests,
+            FeatureRef feature,
+            List<String> vscodeExtensions) {
+    }
+
+    public record ToolEntry(
+            List<String> indicators,
+            FeatureRef feature) {
+    }
+
+    public record FeatureRef(
+            String id,
+            @JsonProperty("versionOption") String versionOption,
+            @JsonProperty("installOrder") int installOrder) {
+    }
+
+    private Catalog catalog;
 
     @PostConstruct
     void init() {
@@ -25,55 +46,27 @@ public class DevcontainerFeatureCatalog {
             if (is == null) {
                 throw new IllegalStateException("devcontainer-features-catalog.json not found on classpath");
             }
-            catalog = Json.createReader(is).readObject();
+            catalog = new ObjectMapper().readValue(is, Catalog.class);
             Log.infof("Loaded devcontainer feature catalog: %d languages, %d tools",
-                    catalog.getJsonObject("languages").size(),
-                    catalog.getJsonObject("tools").size());
+                    catalog.languages().size(),
+                    catalog.tools().size());
         } catch (Exception e) {
             throw new IllegalStateException("Failed to load devcontainer feature catalog", e);
         }
     }
 
-    public record FeatureEntry(String id, String versionOption, int installPriority, List<String> vscodeExtensions) {
+    public LanguageEntry findLanguage(String language) {
+        return catalog.languages().get(language.toLowerCase());
     }
 
-    public FeatureEntry findFeatureForLanguage(String language) {
-        JsonObject languages = catalog.getJsonObject("languages");
-        JsonObject lang = languages.getJsonObject(language.toLowerCase());
-        if (lang == null) {
-            return null;
-        }
-        JsonObject feature = lang.getJsonObject("feature");
-        String id = feature.getString("id");
-        String versionOption = feature.containsKey("versionOption") ? feature.getString("versionOption") : null;
-        int installPriority = feature.containsKey("installPriority") ? feature.getInt("installPriority") : 1;
-        List<String> extensions = lang.containsKey("vscodeExtensions")
-                ? lang.getJsonArray("vscodeExtensions").stream()
-                        .map(v -> ((JsonString) v).getString())
-                        .toList()
-                : List.of();
-        return new FeatureEntry(id, versionOption, installPriority, extensions);
-    }
-
-    public FeatureEntry findFeatureForTool(String tool) {
-        JsonObject tools = catalog.getJsonObject("tools");
-        JsonObject toolObj = tools.getJsonObject(tool.toLowerCase());
-        if (toolObj == null) {
-            return null;
-        }
-        JsonObject feature = toolObj.getJsonObject("feature");
-        int installPriority = feature.containsKey("installPriority") ? feature.getInt("installPriority") : 1;
-        return new FeatureEntry(feature.getString("id"), null, installPriority, List.of());
+    public ToolEntry findTool(String tool) {
+        return catalog.tools().get(tool.toLowerCase());
     }
 
     public String languageForExtension(String extension) {
-        JsonObject languages = catalog.getJsonObject("languages");
-        for (Map.Entry<String, JsonValue> entry : languages.entrySet()) {
-            JsonObject lang = entry.getValue().asJsonObject();
-            List<String> extensions = lang.getJsonArray("extensions").stream()
-                    .map(v -> ((JsonString) v).getString())
-                    .toList();
-            if (extensions.contains(extension.toLowerCase())) {
+        String ext = extension.toLowerCase();
+        for (Map.Entry<String, LanguageEntry> entry : catalog.languages().entrySet()) {
+            if (entry.getValue().extensions() != null && entry.getValue().extensions().contains(ext)) {
                 return entry.getKey();
             }
         }
@@ -81,33 +74,22 @@ public class DevcontainerFeatureCatalog {
     }
 
     public Map<String, List<String>> getToolIndicators() {
-        JsonObject tools = catalog.getJsonObject("tools");
         Map<String, List<String>> result = new LinkedHashMap<>();
-        for (Map.Entry<String, JsonValue> entry : tools.entrySet()) {
-            JsonObject tool = entry.getValue().asJsonObject();
-            if (tool.containsKey("indicators")) {
-                List<String> indicators = tool.getJsonArray("indicators").stream()
-                        .map(v -> ((JsonString) v).getString())
-                        .toList();
-                result.put(entry.getKey(), indicators);
+        for (Map.Entry<String, ToolEntry> entry : catalog.tools().entrySet()) {
+            if (entry.getValue().indicators() != null && !entry.getValue().indicators().isEmpty()) {
+                result.put(entry.getKey(), entry.getValue().indicators());
             }
         }
         return result;
     }
 
     public Map<String, List<String>> getAllLanguageManifests() {
-        JsonObject languages = catalog.getJsonObject("languages");
         Map<String, List<String>> result = new LinkedHashMap<>();
-        for (Map.Entry<String, JsonValue> entry : languages.entrySet()) {
-            JsonObject lang = entry.getValue().asJsonObject();
-            if (lang.containsKey("manifests")) {
-                List<String> manifests = lang.getJsonArray("manifests").stream()
-                        .map(v -> ((JsonString) v).getString())
-                        .toList();
-                result.put(entry.getKey(), manifests);
+        for (Map.Entry<String, LanguageEntry> entry : catalog.languages().entrySet()) {
+            if (entry.getValue().manifests() != null && !entry.getValue().manifests().isEmpty()) {
+                result.put(entry.getKey(), entry.getValue().manifests());
             }
         }
         return result;
     }
-
 }

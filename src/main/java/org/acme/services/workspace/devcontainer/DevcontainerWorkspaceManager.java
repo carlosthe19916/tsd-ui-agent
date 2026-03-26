@@ -40,8 +40,7 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
                 List<EnvVar> envVars, List<String> mounts,
                 String postCreateCommand, String postStartCommand,
                 List<Integer> appPort, RawString featuresJson,
-                List<String> vscodeExtensions,
-                List<String> overrideFeatureInstallOrder);
+                List<String> vscodeExtensions, List<String> featureInstallOrder);
     }
 
     public record EnvVar(String name, String value) {
@@ -108,9 +107,10 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
         DevcontainerEnrichmentService.EnrichmentResult enrichment =
                 enrichmentService.enrich(Path.of(worktreePath), outputConsumer);
 
-        Path overrideConfigPath = generateOverrideConfig(sanitizedUrl, worktreeAlias, enrichment);
+        boolean hasProjectConfig = hasProjectDevcontainerConfig(Path.of(worktreePath));
+        Path configPath = generateOverrideConfig(sanitizedUrl, worktreeAlias, enrichment);
 
-        String output = runDevcontainerUp(worktreePath, overrideConfigPath.toString(), outputConsumer);
+        String output = runDevcontainerUp(worktreePath, configPath.toString(), hasProjectConfig, outputConsumer);
         DevcontainerUpResult result = parseDevcontainerUpOutput(output, worktreeAlias);
         String containerId = result.containerId() != null ? result.containerId() : "unknown";
         String remoteWorkspaceFolder = result.remoteWorkspaceFolder();
@@ -275,15 +275,13 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
             List<String> vscodeExtensions = enrichment != null && enrichment.vscodeExtensions() != null
                     && !enrichment.vscodeExtensions().isEmpty()
                     ? enrichment.vscodeExtensions() : null;
-            List<String> installOrder = enrichment != null && enrichment.featureInstallOrder() != null
-                    && !enrichment.featureInstallOrder().isEmpty()
-                    ? enrichment.featureInstallOrder() : null;
+            List<String> featureInstallOrder = enrichment != null ? enrichment.featureInstallOrder() : null;
 
             String configContent = Templates.devcontainer(
                     effectiveImage, remoteUser, "/workspaces/trees/" + worktreeAlias,
                     envVars, mountList.isEmpty() ? null : mountList,
                     postCreateCommand, postStartCommand, appPort,
-                    featuresJson, vscodeExtensions, installOrder
+                    featuresJson, vscodeExtensions, featureInstallOrder
             ).render();
 
             Path configPath = configDir.resolve("devcontainer.json");
@@ -333,12 +331,14 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
         return false;
     }
 
-    private String runDevcontainerUp(String workspaceFolder, String overrideConfigPath, Consumer<String> outputConsumer) throws WorkspaceException {
+    private String runDevcontainerUp(String workspaceFolder, String configPath,
+            boolean hasProjectConfig, Consumer<String> outputConsumer) throws WorkspaceException {
         try {
+            String configFlag = hasProjectConfig ? "--override-config" : "--config";
             ProcessBuilder pb = new ProcessBuilder(
                     command, "up",
                     "--workspace-folder", workspaceFolder,
-                    "--override-config", overrideConfigPath,
+                    configFlag, configPath,
                     "--remove-existing-container",
                     "--mount-git-worktree-common-dir")
                     .redirectErrorStream(true);
