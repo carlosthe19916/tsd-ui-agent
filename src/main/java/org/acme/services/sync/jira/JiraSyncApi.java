@@ -1,7 +1,9 @@
 package org.acme.services.sync.jira;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
@@ -30,4 +32,9 @@ public interface JiraSyncApi {
     @Path("/rest/api/3/issue/{issueKey}")
     JsonNode getIssue(@PathParam("issueKey") String issueKey,
                       @QueryParam("fields") String fields);
+
+    @POST
+    @Path("/rest/api/3/issue/{issueKey}/remotelink")
+    @Consumes(MediaType.APPLICATION_JSON)
+    JsonNode createRemoteLink(@PathParam("issueKey") String issueKey, JsonNode body);
 }

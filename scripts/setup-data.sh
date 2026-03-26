@@ -77,7 +77,7 @@ sync_project() {
 
 # Credentials
 GITHUB_CREDENTIAL_ID=$(create_credential github "$GITHUB_PAT")
-#CARLOS_JIRA_CREDENTIAL_ID=$(create_credential jira-carlos "$CARLOS_JIRA_TOKEN")
+CARLOS_JIRA_CREDENTIAL_ID=$(create_credential jira-carlos "$CARLOS_JIRA_TOKEN")
 REDHAT_JIRA_CREDENTIAL_ID=$(create_credential jira-redhat "$REDHAT_JIRA_TOKEN")
 REDHAT_GITLAB_CREDENTIAL_ID=$(create_credential gitlab-redhat "$REDHAT_GITLAB_PAT")
 
@@ -103,9 +103,9 @@ TRUSTIFY_UI_PROJECT_ID=$(create_project trustify-ui GITHUB \
   https://api.github.com/repos/trustificationdemo/trustify-ui "$GITHUB_CREDENTIAL_ID" \
   "is:issue state:open ")
 
-#CARLOS_JIRA_PROJECT_ID=$(create_project atlasian-carlosthe19916 JIRA \
-#  https://carlosthe19916-1773473418920.atlassian.net/ "$CARLOS_JIRA_CREDENTIAL_ID" \
-#  "project = KAN ORDER BY created DESC")
+CARLOS_JIRA_PROJECT_ID=$(create_project atlasian-carlosthe19916 JIRA \
+  https://carlosthe19916-1773473418920.atlassian.net/ "$CARLOS_JIRA_CREDENTIAL_ID" \
+  "project = KAN ORDER BY created DESC")
 REDHAT_JIRA_PROJECT_ID=$(create_project atlasian-redhat JIRA \
   https://redhat.atlassian.net/ "$REDHAT_JIRA_CREDENTIAL_ID" \
   "labels in (TSD-UI) AND statusCategory != Done")
@@ -118,7 +118,7 @@ create_git_mapping "$REDHAT_JIRA_PROJECT_ID" "$PACKAGES_REDHAT_GIT_ID" "PULP" '[
 sync_project tsd-ui-agent "$TSD_UI_AGENT_PROJECT_ID"
 sync_project trustify "$TRUSTIFY_PROJECT_ID"
 sync_project trustify-ui "$TRUSTIFY_UI_PROJECT_ID"
-#sync_project atlasian-carlosthe19916 "$CARLOS_JIRA_PROJECT_ID"
+sync_project atlasian-carlosthe19916 "$CARLOS_JIRA_PROJECT_ID"
 sync_project atlasian-redhat "$REDHAT_JIRA_PROJECT_ID"
 
 echo "Done! Seed data created successfully."

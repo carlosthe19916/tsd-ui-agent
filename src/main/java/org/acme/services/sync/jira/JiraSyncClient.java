@@ -1,6 +1,8 @@
 package org.acme.services.sync.jira;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.quarkus.rest.client.reactive.QuarkusRestClientBuilder;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.ws.rs.WebApplicationException;
@@ -105,6 +107,24 @@ public class JiraSyncClient {
             throw toSyncException("Jira comment fetch failed", e);
         } catch (Exception e) {
             throw new SyncException("Jira comment fetch failed: " + e.getMessage(), e);
+        }
+    }
+
+    public void addRemoteLink(String apiUrl, String issueKey, String linkUrl, String linkTitle, String token) {
+        String baseUrl = stripTrailingSlash(apiUrl);
+        JiraSyncApi api = buildClient(baseUrl, token);
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            ObjectNode body = mapper.createObjectNode();
+            body.put("globalId", "pr:" + linkUrl);
+            ObjectNode object = body.putObject("object");
+            object.put("url", linkUrl);
+            object.put("title", linkTitle);
+            api.createRemoteLink(issueKey, body);
+        } catch (WebApplicationException e) {
+            throw toSyncException("Jira remote link creation failed", e);
+        } catch (Exception e) {
+            throw new SyncException("Jira remote link creation failed: " + e.getMessage(), e);
         }
     }
 

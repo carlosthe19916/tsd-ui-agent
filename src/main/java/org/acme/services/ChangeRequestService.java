@@ -7,7 +7,9 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import org.acme.models.jpa.entity.GitVendorType;
+import org.acme.models.jpa.entity.SourceType;
 import org.acme.models.jpa.entity.TaskEntity;
+import org.acme.services.sync.jira.JiraSyncClient;
 import org.acme.services.changerequest.ChangeRequestParams;
 import org.acme.services.changerequest.ChangeRequestProvider;
 import org.acme.services.changerequest.ChangeRequestResult;
@@ -35,6 +37,9 @@ public class ChangeRequestService {
     @Inject
     Instance<ChangeRequestProvider> providers;
 
+    @Inject
+    JiraSyncClient jiraSyncClient;
+
     public void triggerChangeRequest(Long taskId) {
         Thread.startVirtualThread(() -> doChangeRequest(taskId));
     }
@@ -47,7 +52,9 @@ public class ChangeRequestService {
                     String workspaceId, String gitUrl,
                     String forkUrl, String taskTitle, String requirement,
                     Long planId, String gitToken, String gitBranch,
-                    GitVendorType vendorType
+                    GitVendorType vendorType,
+                    String taskUrl, SourceType sourceType, String taskExternalId,
+                    String jiraApiUrl, String jiraToken
             ) {}
 
             ChangeRequestContext context = QuarkusTransaction.requiringNew().call(() -> {
@@ -61,7 +68,10 @@ public class ChangeRequestService {
                         task.workspace.workspaceId, task.workspace.git.url,
                         task.workspace.git.forkUrl, task.title, task.plan.requirement,
                         task.plan.id, task.workspace.git.credential != null ? task.workspace.git.credential.token : null,
-                        task.workspace.git.branch, task.workspace.git.vendorType
+                        task.workspace.git.branch, task.workspace.git.vendorType,
+                        task.url, task.type, task.externalId,
+                        task.type == SourceType.JIRA ? task.project.apiUrl : null,
+                        task.type == SourceType.JIRA ? task.project.credential.token : null
                 );
             });
 
@@ -126,10 +136,14 @@ public class ChangeRequestService {
             }
 
             String ownerRepo = GitManager.extractOwnerRepo(context.gitUrl());
+            String description = context.requirement() != null ? context.requirement() : "";
+            if (context.taskUrl() != null && !context.taskUrl().isBlank()) {
+                description = "Fixes: " + context.taskUrl() + "\n\n" + description;
+            }
             ChangeRequestParams params = new ChangeRequestParams(
                     context.gitUrl(), context.forkUrl(), context.gitToken(),
                     ownerRepo, branchName, baseBranch,
-                    context.taskTitle(), context.requirement() != null ? context.requirement() : ""
+                    context.taskTitle(), description
             );
 
             ChangeRequestResult result;
@@ -146,6 +160,20 @@ public class ChangeRequestService {
 
             String htmlUrl = result.htmlUrl();
             LOG.infof("Task %d: Change request created at %s", taskId, htmlUrl);
+
+            if (context.sourceType() == SourceType.JIRA
+                    && context.jiraApiUrl() != null
+                    && context.taskExternalId() != null
+                    && context.jiraToken() != null) {
+                try {
+                    jiraSyncClient.addRemoteLink(context.jiraApiUrl(), context.taskExternalId(),
+                            htmlUrl, "Pull Request: " + context.taskTitle(), context.jiraToken());
+                    LOG.infof("Task %d: Linked PR to Jira issue %s", taskId, context.taskExternalId());
+                } catch (Exception e) {
+                    LOG.warnf(e, "Task %d: Failed to link PR to Jira issue %s (non-fatal)",
+                            taskId, context.taskExternalId());
+                }
+            }
 
             String finalHtmlUrl = htmlUrl;
             QuarkusTransaction.requiringNew().run(() -> {
