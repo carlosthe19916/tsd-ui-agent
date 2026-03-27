@@ -291,7 +291,6 @@ export const ProvisioningOutputPanel: React.FC<{
     <div style={{ marginTop: "var(--pf-t--global--spacer--sm)" }}>
       <LogViewer
         data={data}
-        hasLineNumbers
         height={300}
         isTextWrapped={false}
         scrollToRow={logLines.length}
