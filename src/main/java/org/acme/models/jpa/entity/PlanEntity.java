@@ -63,12 +63,6 @@ public class PlanEntity extends PanacheEntityBase {
     @Column(name = "change_request_url")
     public String changeRequestUrl;
 
-    @Column(name = "change_request_title")
-    public String changeRequestTitle;
-
-    @Column(name = "change_request_status")
-    public String changeRequestStatus;
-
     @Version
     public int version;
 

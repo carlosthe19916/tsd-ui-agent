@@ -259,13 +259,7 @@ const TaskListContent: React.FC = () => {
                           {task.plan?.changeRequestUrl && (
                             <FlexItem>
                               <Label
-                                color={
-                                  task.plan.changeRequestStatus === "merged"
-                                    ? "green"
-                                    : task.plan.changeRequestStatus === "closed"
-                                      ? "red"
-                                      : "blue"
-                                }
+                                color="blue"
                                 isCompact
                                 render={({ className, content }) => (
                                   <a
@@ -278,11 +272,6 @@ const TaskListContent: React.FC = () => {
                                   </a>
                                 )}
                               >
-                                {task.plan.changeRequestStatus === "merged"
-                                  ? "Merged"
-                                  : task.plan.changeRequestStatus === "closed"
-                                    ? "Closed"
-                                    : "Open"}{" "}
                                 PR
                               </Label>
                             </FlexItem>
@@ -407,37 +396,6 @@ const TaskListContent: React.FC = () => {
                           {formatDateTime(task.updatedAt)}
                         </DescriptionListDescription>
                       </DescriptionListGroup>
-                      {task.plan?.changeRequestUrl && (
-                        <DescriptionListGroup>
-                          <DescriptionListTerm>
-                            Pull Request
-                          </DescriptionListTerm>
-                          <DescriptionListDescription>
-                            <a
-                              href={task.plan.changeRequestUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              {task.plan.changeRequestTitle || "View PR"}
-                            </a>
-                            {task.plan.changeRequestStatus && (
-                              <Label
-                                isCompact
-                                color={
-                                  task.plan.changeRequestStatus === "merged"
-                                    ? "green"
-                                    : task.plan.changeRequestStatus === "closed"
-                                      ? "red"
-                                      : "blue"
-                                }
-                                style={{ marginLeft: 8 }}
-                              >
-                                {task.plan.changeRequestStatus}
-                              </Label>
-                            )}
-                          </DescriptionListDescription>
-                        </DescriptionListGroup>
-                      )}
                     </DescriptionList>
                   </GridItem>
                   <GridItem md={10}>
