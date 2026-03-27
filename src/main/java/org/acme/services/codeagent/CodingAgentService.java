@@ -17,8 +17,4 @@ public interface CodingAgentService {
     String generatePlan(Workspace workspace, String requirement, Long taskId);
 
     void executePlan(Workspace workspace, String planText, Long taskId);
-
-    String chat(Workspace workspace, String prompt, Long taskId);
-
-    String chatReadOnly(Workspace workspace, String prompt, Long taskId);
 }

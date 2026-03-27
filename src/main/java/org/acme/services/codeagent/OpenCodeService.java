@@ -94,42 +94,4 @@ public class OpenCodeService implements CodingAgentService {
             broadcaster.complete(Channel.TASK, taskId);
         }
     }
-
-    @Override
-    public String chat(Workspace workspace, String prompt, Long taskId) {
-        String worktreeAlias = Path.of(workspace.workingDirectory()).getFileName().toString();
-        int port = portAllocator.allocate(worktreeAlias);
-
-        LOG.infof("Task %d: Starting OpenCode CLI chat in %s (port %d)", taskId, workspace.workingDirectory(), port);
-
-        broadcaster.start(Channel.CHAT, taskId);
-        try {
-            StringBuilder result = new StringBuilder();
-
-            workspace.execStreaming(
-                    line -> {
-                        LOG.infof("Task %d: opencode-chat> %s", taskId, line);
-                        broadcaster.publish(Channel.CHAT, taskId, line);
-                        result.append(line).append("\n");
-                    },
-                    opencodeCommand, "run",
-                    "--model", model,
-                    "--attach", "http://localhost:" + port,
-                    prompt
-            );
-
-            String resultText = result.toString().trim();
-            return resultText.isBlank() ? "Command completed with no text output." : resultText;
-        } catch (WorkspaceException e) {
-            throw new RuntimeException("OpenCode CLI chat failed: " + e.getMessage(), e);
-        } finally {
-            broadcaster.complete(Channel.CHAT, taskId);
-        }
-    }
-
-    @Override
-    public String chatReadOnly(Workspace workspace, String prompt, Long taskId) {
-        // OpenCode doesn't have a read-only mode, so use the same as chat
-        return chat(workspace, prompt, taskId);
-    }
 }

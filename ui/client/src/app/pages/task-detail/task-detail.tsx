@@ -5,10 +5,16 @@ import { useParams, Link } from "react-router-dom";
 import {
   Breadcrumb,
   BreadcrumbItem,
+  Content,
+  Flex,
+  FlexItem,
   Grid,
   GridItem,
+  Label,
   PageSection,
   Spinner,
+  Split,
+  SplitItem,
   Title,
 } from "@patternfly/react-core";
 
@@ -42,17 +48,18 @@ export const TaskDetail: React.FC = () => {
 
   return (
     <>
-      <PageSection>
+      <PageSection type="breadcrumb">
         <Breadcrumb>
           <BreadcrumbItem>
             <Link to={Paths.tasks}>Tasks</Link>
           </BreadcrumbItem>
-          <BreadcrumbItem isActive>{task.title}</BreadcrumbItem>
+          <BreadcrumbItem isActive>Task {task.id}</BreadcrumbItem>
         </Breadcrumb>
       </PageSection>
       <PageSection isFilled>
         <Grid hasGutter>
           <GridItem md={6}>
+            <Content component="h1">{task.title}</Content>
             <TaskContextSidebar task={task} />
           </GridItem>
           <GridItem md={6}>

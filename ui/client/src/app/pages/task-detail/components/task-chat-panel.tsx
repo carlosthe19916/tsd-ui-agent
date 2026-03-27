@@ -121,7 +121,7 @@ export const TaskChatPanel: React.FC<TaskChatPanelProps> = ({
   return (
     <Chatbot displayMode={ChatbotDisplayMode.embedded}>
       <ChatbotContent>
-        <MessageBox>
+        <MessageBox enableSmartScroll>
           {messages.length === 0 ? (
             <ChatbotWelcomePrompt
               title="Task Assistant"

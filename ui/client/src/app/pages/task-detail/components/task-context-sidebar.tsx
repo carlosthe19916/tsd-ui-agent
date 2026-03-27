@@ -1,207 +1,338 @@
 import React from "react";
 
-import ReactMarkdown from "react-markdown";
-
 import {
+  Button,
+  ButtonVariant,
   DescriptionList,
   DescriptionListDescription,
   DescriptionListGroup,
   DescriptionListTerm,
+  Divider,
   Flex,
   FlexItem,
-  Icon,
+  Grid,
+  GridItem,
   Label,
   LabelGroup,
-  Panel,
-  PanelMain,
-  PanelMainBody,
-  Content,
   Tab,
   Tabs,
   TabTitleText,
-  Title,
 } from "@patternfly/react-core";
-import CheckCircleIcon from "@patternfly/react-icons/dist/esm/icons/check-circle-icon";
-import InProgressIcon from "@patternfly/react-icons/dist/esm/icons/in-progress-icon";
-import PendingIcon from "@patternfly/react-icons/dist/esm/icons/pending-icon";
+import { CodeEditor, Language } from "@patternfly/react-code-editor";
+import TerminalIcon from "@patternfly/react-icons/dist/esm/icons/terminal-icon";
 
 import type { TaskDto } from "@app/api/models";
+import { ConfirmDialog } from "@app/components/ConfirmDialog";
+import { ExecutionOutputModal } from "@app/pages/task-list/components/execution-output-modal";
 import { PlanProgressStepper } from "@app/pages/task-list/components/plan-progress-stepper";
+import {
+  PlanModal,
+  RequirementModal,
+} from "@app/pages/task-list/components/plan-wizard-modal";
+import { WorkspaceCell } from "@app/pages/task-list/components/workspace-cell";
+import {
+  useCreateChangeRequestMutation,
+  useCreateTaskPlanMutation,
+  usePatchTaskPlanMutation,
+  useRunAllPlanPhasesMutation,
+} from "@app/queries/tasks";
 import { formatDateTime } from "@app/utils/utils";
 
 interface TaskContextSidebarProps {
   task: TaskDto;
 }
 
-const statusIcon = (status: string) => {
-  switch (status) {
-    case "OPEN":
-      return <PendingIcon />;
-    case "IN_PROGRESS":
-      return <InProgressIcon />;
-    case "CLOSED":
-      return (
-        <CheckCircleIcon color="var(--pf-t--global--color--status--success--default)" />
-      );
-    default:
-      return <PendingIcon />;
-  }
-};
-
 export const TaskContextSidebar: React.FC<TaskContextSidebarProps> = ({
   task,
 }) => {
-  const [activeTab, setActiveTab] = React.useState<string | number>(0);
+  const [activeTab, setActiveTab] = React.useState<string | number>(1);
+  const [requirement, setRequirement] = React.useState(
+    task.plan?.requirement ?? "",
+  );
+  const [plan, setPlan] = React.useState(task.plan?.plan ?? "");
+  const [requirementTask, setRequirementTask] = React.useState<TaskDto | null>(
+    null,
+  );
+  const [planTask, setPlanTask] = React.useState<TaskDto | null>(null);
+
+  React.useEffect(() => {
+    setRequirement(task.plan?.requirement ?? "");
+    setPlan(task.plan?.plan ?? "");
+  }, [task.plan?.requirement, task.plan?.plan]);
+  const [outputTaskId, setOutputTaskId] = React.useState<number | null>(null);
+  const [createPlanTask, setCreatePlanTask] = React.useState<TaskDto | null>(
+    null,
+  );
+  const [runAllTask, setRunAllTask] = React.useState<TaskDto | null>(null);
+
+  const patchPlanMutation = usePatchTaskPlanMutation();
+  const changeRequestMutation = useCreateChangeRequestMutation();
+  const createPlanMutation = useCreateTaskPlanMutation(() =>
+    setCreatePlanTask(null),
+  );
+  const runAllMutation = useRunAllPlanPhasesMutation(() => setRunAllTask(null));
 
   return (
-    <Flex
-      direction={{ default: "column" }}
-      gap={{ default: "gapMd" }}
-      style={{ height: "100%", overflow: "auto", padding: "0 16px" }}
-    >
-      {/* Task header */}
-      <FlexItem>
-        <Flex
-          gap={{ default: "gapSm" }}
-          alignItems={{ default: "alignItemsCenter" }}
-        >
-          <FlexItem>
-            <Icon>{statusIcon(task.status)}</Icon>
-          </FlexItem>
-          <FlexItem>
-            <Title headingLevel="h2" size="lg">
-              {task.title}
-            </Title>
-          </FlexItem>
-        </Flex>
-        {task.url && (
-          <a href={task.url} target="_blank" rel="noopener noreferrer">
-            {task.type === "GITHUB" && "#"}
-            {task.externalId}
-          </a>
-        )}
-      </FlexItem>
-
-      {/* Task metadata */}
-      <FlexItem>
-        <DescriptionList isCompact>
-          <DescriptionListGroup>
-            <DescriptionListTerm>Project</DescriptionListTerm>
-            <DescriptionListDescription>
-              {task.project?.name ?? "-"}
-            </DescriptionListDescription>
-          </DescriptionListGroup>
-          <DescriptionListGroup>
-            <DescriptionListTerm>Status</DescriptionListTerm>
-            <DescriptionListDescription>
-              <Label>{task.externalStatus ?? task.status}</Label>
-            </DescriptionListDescription>
-          </DescriptionListGroup>
-          {task.labels && task.labels.length > 0 && (
+    <>
+      <Grid hasGutter>
+        <GridItem md={6}>
+          <DescriptionList isCompact>
             <DescriptionListGroup>
-              <DescriptionListTerm>Labels</DescriptionListTerm>
+              <DescriptionListTerm>External Id</DescriptionListTerm>
               <DescriptionListDescription>
-                <LabelGroup>
-                  {task.labels.map((label) => (
-                    <Label key={label}>{label}</Label>
-                  ))}
-                </LabelGroup>
+                {task.url && (
+                  <a href={task.url} target="_blank" rel="noopener noreferrer">
+                    {task.type === "GITHUB" && "#"}
+                    {task.externalId}
+                  </a>
+                )}
               </DescriptionListDescription>
             </DescriptionListGroup>
+            <DescriptionListGroup>
+              <DescriptionListTerm>Project</DescriptionListTerm>
+              <DescriptionListDescription>
+                {task.project?.name ?? "-"}
+              </DescriptionListDescription>
+            </DescriptionListGroup>
+            <DescriptionListGroup>
+              <DescriptionListTerm>Status</DescriptionListTerm>
+              <DescriptionListDescription>
+                <Label>{task.externalStatus ?? task.status}</Label>
+              </DescriptionListDescription>
+            </DescriptionListGroup>
+            {task.labels && task.labels.length > 0 && (
+              <DescriptionListGroup>
+                <DescriptionListTerm>Labels</DescriptionListTerm>
+                <DescriptionListDescription>
+                  <LabelGroup>
+                    {task.labels.map((label) => (
+                      <Label key={label}>{label}</Label>
+                    ))}
+                  </LabelGroup>
+                </DescriptionListDescription>
+              </DescriptionListGroup>
+            )}
+            <DescriptionListGroup>
+              <DescriptionListTerm>Updated</DescriptionListTerm>
+              <DescriptionListDescription>
+                {formatDateTime(task.updatedAt)}
+              </DescriptionListDescription>
+            </DescriptionListGroup>
+          </DescriptionList>
+        </GridItem>
+        {/* Workspace */}
+        <GridItem md={6}>
+          <DescriptionList isCompact>
+            <DescriptionListGroup>
+              <DescriptionListTerm>Workspace</DescriptionListTerm>
+              <DescriptionListDescription>
+                <WorkspaceCell task={task} />
+              </DescriptionListDescription>
+            </DescriptionListGroup>
+          </DescriptionList>
+        </GridItem>
+        {/* Plan progress */}
+        <Divider />
+        <GridItem md={12}>
+          {!task.plan && (
+            <FlexItem>
+              <Flex gap={{ default: "gapSm" }}>
+                <FlexItem>
+                  <Button
+                    variant="secondary"
+                    onClick={() => setCreatePlanTask(task)}
+                  >
+                    Create plan
+                  </Button>
+                </FlexItem>
+                {task.workspace?.workspaceId && (
+                  <FlexItem>
+                    <Button
+                      variant="primary"
+                      onClick={() => setRunAllTask(task)}
+                    >
+                      Create plan and run
+                    </Button>
+                  </FlexItem>
+                )}
+              </Flex>
+            </FlexItem>
           )}
-          <DescriptionListGroup>
-            <DescriptionListTerm>Workspace</DescriptionListTerm>
-            <DescriptionListDescription>
-              {task.workspace?.workspaceId ? (
-                <Label color="green">Provisioned</Label>
-              ) : (
-                <Label color="grey">Not provisioned</Label>
-              )}
-            </DescriptionListDescription>
-          </DescriptionListGroup>
-          <DescriptionListGroup>
-            <DescriptionListTerm>Updated</DescriptionListTerm>
-            <DescriptionListDescription>
-              {formatDateTime(task.updatedAt)}
-            </DescriptionListDescription>
-          </DescriptionListGroup>
-        </DescriptionList>
-      </FlexItem>
 
-      {/* Plan progress */}
-      {task.plan && (
-        <FlexItem>
-          <Title headingLevel="h3" size="md">
-            Plan Progress
-          </Title>
-          <PlanProgressStepper
-            taskId={task.id}
-            plan={task.plan}
-            workspace={task.workspace}
-            onEditRequirement={() => {}}
-            onEditPlan={() => {}}
-          />
-          {task.plan.changeRequestUrl && (
-            <div style={{ marginTop: 8 }}>
-              PR:{" "}
-              <a
-                href={task.plan.changeRequestUrl}
-                target="_blank"
-                rel="noopener noreferrer"
+          {task.plan && (
+            <FlexItem>
+              <DescriptionList isCompact>
+                <DescriptionListGroup>
+                  <DescriptionListTerm>Plan Progress</DescriptionListTerm>
+                  <DescriptionListDescription>
+                    <PlanProgressStepper
+                      taskId={task.id}
+                      plan={task.plan}
+                      workspace={task.workspace}
+                      onEditRequirement={() => setRequirementTask(task)}
+                      onEditPlan={() => setPlanTask(task)}
+                      onChangeRequest={() =>
+                        changeRequestMutation.mutate(task.id)
+                      }
+                    />
+                    {task.plan.changeRequestUrl && (
+                      <div style={{ marginTop: 8 }}>
+                        PR:{" "}
+                        <a
+                          href={task.plan.changeRequestUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          #
+                          {task.plan.changeRequestUrl.match(
+                            /\/(\d+)\/?$/,
+                          )?.[1] ?? "PR"}
+                        </a>
+                      </div>
+                    )}
+                    {(task.plan.isPlanGenerationInProgress ||
+                      task.plan.isExecutionPlanInProgress) && (
+                        <div style={{ marginTop: 8 }}>
+                          <Button
+                            variant="link"
+                            size="sm"
+                            icon={<TerminalIcon />}
+                            onClick={() => setOutputTaskId(task.id)}
+                          >
+                            View Output
+                          </Button>
+                        </div>
+                      )}
+                  </DescriptionListDescription>
+                </DescriptionListGroup>
+              </DescriptionList>
+            </FlexItem>
+          )}
+        </GridItem>
+        {task.plan && (
+          <GridItem>
+            <Tabs
+              activeKey={activeTab}
+              onSelect={(_ev, key) => setActiveTab(key)}
+              isFilled
+            >
+              <Tab
+                eventKey={1}
+                title={<TabTitleText>Requirements</TabTitleText>}
               >
-                #{task.plan.changeRequestUrl.match(/\/(\d+)\/?$/)?.[1] ?? "PR"}
-              </a>
-            </div>
-          )}
-        </FlexItem>
-      )}
+                <div style={{ marginTop: 8 }}>
+                  <CodeEditor
+                    isDarkTheme
+                    language={Language.markdown}
+                    code={requirement}
+                    onCodeChange={setRequirement}
+                    height="30vh"
+                    isLineNumbersVisible
+                  />
+                  <Button
+                    variant="primary"
+                    onClick={() =>
+                      patchPlanMutation.mutate({
+                        taskId: task.id,
+                        plan: { requirement },
+                      })
+                    }
+                    isLoading={patchPlanMutation.isPending}
+                    isDisabled={requirement === (task.plan?.requirement ?? "")}
+                    style={{ marginTop: 8 }}
+                  >
+                    Save
+                  </Button>
+                </div>
+              </Tab>
+              <Tab eventKey={2} title={<TabTitleText>Plan</TabTitleText>}>
+                <div style={{ marginTop: 8 }}>
+                  <CodeEditor
+                    isDarkTheme
+                    language={Language.markdown}
+                    code={plan}
+                    onCodeChange={setPlan}
+                    height="30vh"
+                    isLineNumbersVisible
+                  />
+                  <Button
+                    variant="primary"
+                    onClick={() =>
+                      patchPlanMutation.mutate({
+                        taskId: task.id,
+                        plan: { plan },
+                      })
+                    }
+                    isLoading={patchPlanMutation.isPending}
+                    isDisabled={plan === (task.plan?.plan ?? "")}
+                    style={{ marginTop: 8 }}
+                  >
+                    Save
+                  </Button>
+                </div>
+              </Tab>
+            </Tabs>
+          </GridItem>
+        )}
+      </Grid>
 
-      {/* Tabbed content */}
-      <FlexItem grow={{ default: "grow" }} style={{ minHeight: 0 }}>
-        <Tabs
-          activeKey={activeTab}
-          onSelect={(_ev, key) => setActiveTab(key)}
-          isFilled
-        >
-          <Tab eventKey={0} title={<TabTitleText>Description</TabTitleText>}>
-            <Panel isScrollable style={{ marginTop: 8 }}>
-              <PanelMain tabIndex={0}>
-                <PanelMainBody>
-                  <Content>
-                    <ReactMarkdown>{task.description ?? ""}</ReactMarkdown>
-                  </Content>
-                </PanelMainBody>
-              </PanelMain>
-            </Panel>
-          </Tab>
-          {task.plan?.requirement && (
-            <Tab eventKey={1} title={<TabTitleText>Requirement</TabTitleText>}>
-              <Panel isScrollable style={{ marginTop: 8 }}>
-                <PanelMain tabIndex={0}>
-                  <PanelMainBody>
-                    <Content>
-                      <ReactMarkdown>{task.plan.requirement}</ReactMarkdown>
-                    </Content>
-                  </PanelMainBody>
-                </PanelMain>
-              </Panel>
-            </Tab>
-          )}
-          {task.plan?.plan && (
-            <Tab eventKey={2} title={<TabTitleText>Plan</TabTitleText>}>
-              <Panel isScrollable style={{ marginTop: 8 }}>
-                <PanelMain tabIndex={0}>
-                  <PanelMainBody>
-                    <Content>
-                      <ReactMarkdown>{task.plan.plan}</ReactMarkdown>
-                    </Content>
-                  </PanelMainBody>
-                </PanelMain>
-              </Panel>
-            </Tab>
-          )}
-        </Tabs>
-      </FlexItem>
-    </Flex>
+      {/* Modals */}
+      <RequirementModal
+        task={requirementTask}
+        isOpen={requirementTask !== null}
+        onClose={() => setRequirementTask(null)}
+      />
+
+      <PlanModal
+        task={planTask}
+        isOpen={planTask !== null}
+        onClose={() => setPlanTask(null)}
+      />
+
+      <ExecutionOutputModal
+        taskId={outputTaskId}
+        isOpen={outputTaskId !== null}
+        onClose={() => setOutputTaskId(null)}
+      />
+
+      <ConfirmDialog
+        isOpen={runAllTask !== null}
+        title="Create plan and run"
+        titleIconVariant="warning"
+        message={`This will create a plan and run all phases (requirement enrichment, plan generation, execution, and change request) for "${runAllTask?.title}". This operation can take a long time.`}
+        confirmBtnLabel="Run all"
+        cancelBtnLabel="Cancel"
+        confirmBtnVariant={ButtonVariant.danger}
+        inProgress={runAllMutation.isPending}
+        onConfirm={() => {
+          if (runAllTask) {
+            runAllMutation.mutate(runAllTask.id);
+          }
+        }}
+        onClose={() => setRunAllTask(null)}
+        onCancel={() => setRunAllTask(null)}
+      />
+
+      <ConfirmDialog
+        isOpen={createPlanTask !== null}
+        title="Create plan"
+        titleIconVariant="info"
+        message={`Create a new plan for "${createPlanTask?.title}"? This will auto-populate the requirement from the task description.`}
+        confirmBtnLabel="Create"
+        cancelBtnLabel="Cancel"
+        confirmBtnVariant={ButtonVariant.primary}
+        inProgress={createPlanMutation.isPending}
+        onConfirm={() => {
+          if (createPlanTask) {
+            createPlanMutation.mutate({
+              taskId: createPlanTask.id,
+              plan: { plan: "" },
+            });
+          }
+        }}
+        onClose={() => setCreatePlanTask(null)}
+        onCancel={() => setCreatePlanTask(null)}
+      />
+    </>
   );
 };
