@@ -42,12 +42,18 @@ public class ChangeRequestService {
     JiraSyncClient jiraSyncClient;
 
     public void triggerChangeRequest(Long taskId) {
-        Thread.startVirtualThread(() -> doChangeRequest(taskId));
+        Thread.startVirtualThread(() -> {
+            ManagedContext requestContext = Arc.container().requestContext();
+            requestContext.activate();
+            try {
+                doChangeRequest(taskId);
+            } finally {
+                requestContext.terminate();
+            }
+        });
     }
 
-    void doChangeRequest(Long taskId) {
-        ManagedContext requestContext = Arc.container().requestContext();
-        requestContext.activate();
+    public void doChangeRequest(Long taskId) {
         try {
             record ChangeRequestContext(
                     String workspaceId, String gitUrl,
@@ -204,8 +210,6 @@ public class ChangeRequestService {
             } catch (Exception inner) {
                 LOG.errorf(inner, "Failed to set error status for task %d change request", taskId);
             }
-        } finally {
-            requestContext.terminate();
         }
     }
 }

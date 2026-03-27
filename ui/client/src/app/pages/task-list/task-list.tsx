@@ -1,6 +1,7 @@
 import React from "react";
 
 import ReactMarkdown from "react-markdown";
+import { Link } from "react-router-dom";
 
 import {
   Button,
@@ -228,7 +229,9 @@ const TaskListContent: React.FC = () => {
                         direction={{ default: "column" }}
                         gap={{ default: "gapXs" }}
                       >
-                        <FlexItem>{task.title}</FlexItem>
+                        <FlexItem>
+                          <Link to={`/tasks/${task.id}`}>{task.title}</Link>
+                        </FlexItem>
                         <FlexItem>
                           <small>
                             {task.url ? (

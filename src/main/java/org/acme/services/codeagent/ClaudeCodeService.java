@@ -104,4 +104,78 @@ public class ClaudeCodeService implements CodingAgentService {
             broadcaster.complete(Channel.TASK, taskId);
         }
     }
+
+    @Override
+    public String chat(Workspace workspace, String prompt, Long taskId) {
+        LOG.infof("Task %d: Starting Claude CLI chat in %s", taskId, workspace.workingDirectory());
+
+        broadcaster.start(Channel.CHAT, taskId);
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            String[] resultHolder = {null};
+
+            workspace.execWithStdinStreaming(
+                    prompt.getBytes(StandardCharsets.UTF_8),
+                    line -> {
+                        LOG.infof("Task %d: claude-chat> %s", taskId, line);
+                        broadcaster.publish(Channel.CHAT, taskId, line);
+                        try {
+                            JsonNode node = mapper.readTree(line);
+                            if ("result".equals(node.path("type").asText())) {
+                                resultHolder[0] = node.path("result").asText();
+                            }
+                        } catch (Exception ignored) {
+                        }
+                    },
+                    claudeCommand, "-p",
+                    "--model", model,
+                    "--dangerously-skip-permissions",
+                    "--verbose",
+                    "--output-format", "stream-json"
+            );
+
+            return resultHolder[0] != null ? resultHolder[0].trim() : "Command completed with no text output.";
+        } catch (WorkspaceException e) {
+            throw new RuntimeException("Claude CLI chat failed: " + e.getMessage(), e);
+        } finally {
+            broadcaster.complete(Channel.CHAT, taskId);
+        }
+    }
+
+    @Override
+    public String chatReadOnly(Workspace workspace, String prompt, Long taskId) {
+        LOG.infof("Task %d: Starting Claude CLI read-only chat in %s", taskId, workspace.workingDirectory());
+
+        broadcaster.start(Channel.CHAT, taskId);
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            String[] resultHolder = {null};
+
+            workspace.execWithStdinStreaming(
+                    prompt.getBytes(StandardCharsets.UTF_8),
+                    line -> {
+                        LOG.infof("Task %d: claude-chat-ro> %s", taskId, line);
+                        broadcaster.publish(Channel.CHAT, taskId, line);
+                        try {
+                            JsonNode node = mapper.readTree(line);
+                            if ("result".equals(node.path("type").asText())) {
+                                resultHolder[0] = node.path("result").asText();
+                            }
+                        } catch (Exception ignored) {
+                        }
+                    },
+                    claudeCommand, "-p",
+                    "--model", model,
+                    "--verbose",
+                    "--output-format", "stream-json",
+                    "--allowedTools", "Read,Glob,Grep,Bash(git log:*),Bash(git diff:*),Bash(git show:*)"
+            );
+
+            return resultHolder[0] != null ? resultHolder[0].trim() : "Query completed with no text output.";
+        } catch (WorkspaceException e) {
+            throw new RuntimeException("Claude CLI read-only chat failed: " + e.getMessage(), e);
+        } finally {
+            broadcaster.complete(Channel.CHAT, taskId);
+        }
+    }
 }

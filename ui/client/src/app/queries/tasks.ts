@@ -15,6 +15,7 @@ import {
   enrichRequirement,
   executePlan,
   generatePlan,
+  getTask,
   getTaskPlan,
   getTasks,
   openTerminal,
@@ -163,6 +164,27 @@ export const usePatchTaskPlanMutation = (onSuccess?: () => void) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [TASK_QUERY_KEY] });
       onSuccess?.();
+    },
+  });
+};
+
+export const useFetchTask = (taskId: number) => {
+  return useQuery({
+    queryKey: [TASK_QUERY_KEY, taskId],
+    queryFn: () => getTask(taskId),
+    enabled: taskId > 0,
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      if (
+        data?.workspace?.isProvisioningInProgress ||
+        data?.plan?.isRequirementInProgress ||
+        data?.plan?.isPlanGenerationInProgress ||
+        data?.plan?.isExecutionPlanInProgress ||
+        data?.plan?.isChangeRequestInProgress
+      ) {
+        return 3000;
+      }
+      return false;
     },
   });
 };

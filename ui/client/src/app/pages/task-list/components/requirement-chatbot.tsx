@@ -16,6 +16,8 @@ import MessageBox from "@patternfly/chatbot/dist/dynamic/MessageBox";
 import { DropdownItem, DropdownList } from "@patternfly/react-core";
 
 import { sendChatMessage } from "@app/api/task-api";
+import botAvatar from "@app/images/bot_avatar.jpg";
+import userAvatar from "@app/images/user_avatar.svg";
 
 interface ChatMessage {
   role: "user" | "bot";
@@ -138,6 +140,7 @@ export const RequirementChatbot: React.FC<RequirementChatbotProps> = ({
                 role={msg.role}
                 content={msg.content}
                 name={msg.role === "user" ? "You" : "Assistant"}
+                avatar={msg.role === "user" ? userAvatar : botAvatar}
               />
             ))
           )}
