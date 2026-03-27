@@ -18,6 +18,8 @@ import org.acme.mapper.GitMapper;
 import org.acme.models.jpa.entity.CredentialEntity;
 import org.acme.models.jpa.entity.GitEntity;
 import org.acme.models.jpa.entity.WorkspaceEntity;
+import org.acme.services.devcontainer.DevcontainerConfigGenerator;
+import org.acme.services.devcontainer.EnrichmentService;
 import org.acme.services.git.GitManager;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
@@ -47,6 +49,12 @@ public class GitService {
 
     @Inject
     GitManager gitManager;
+
+    @Inject
+    EnrichmentService enrichmentService;
+
+    @Inject
+    DevcontainerConfigGenerator devcontainerConfigGenerator;
 
     @ConfigProperty(name = "tsd-agent.git.base-dir")
     String baseDir;
@@ -121,6 +129,11 @@ public class GitService {
                 gitManager.pullRepository(cloneDir, branch, context.token());
             }
 
+            // Enrichment + base devcontainer.json generation
+            EnrichmentService.EnrichmentResult enrichment =
+                    enrichmentService.enrich(Path.of(cloneDir), line -> broadcaster.publish(Channel.GIT, gitEntityId, line));
+
+            devcontainerConfigGenerator.generateBaseConfig(sanitized, Path.of(cloneDir), enrichment);
             broadcaster.publish(Channel.GIT, gitEntityId, "[git] Provisioning complete");
 
             QuarkusTransaction.requiringNew().run(() -> {
