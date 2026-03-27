@@ -40,6 +40,7 @@ import static org.acme.services.ExecutionOutputBroadcaster.Channel;
 
 import org.acme.services.ExecutionOutputBroadcaster;
 import org.acme.services.PlanService;
+import org.acme.services.TaskService;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.resteasy.reactive.RestStreamElementType;
 
@@ -69,6 +70,9 @@ public class TaskResource {
     PlanService planService;
 
     @Inject
+    TaskService taskService;
+
+    @Inject
     ChangeRequestService changeRequestService;
 
     @Inject
@@ -79,6 +83,14 @@ public class TaskResource {
 
     @ConfigProperty(name = "tsd-agent.discovery.ai.enabled")
     boolean aiDiscoveryEnabled;
+
+    @POST
+    public Response create(TaskDto dto) {
+        TaskEntity entity = taskService.create(dto);
+        return Response.status(Response.Status.CREATED)
+                .entity(taskMapper.toDto(entity))
+                .build();
+    }
 
     @GET
     public SearchResultDto<TaskDto> list(

@@ -25,6 +25,7 @@ public class SyncManager {
             return switch (project.type) {
                 case JIRA -> jiraClient.fetchIssues(project.apiUrl, project.query, project.credential.token);
                 case GITHUB -> gitHubClient.fetchIssues(project.apiUrl, project.query, project.credential.token);
+                case MANUAL -> List.of();
             };
         } catch (SyncException e) {
             throw e;
@@ -38,6 +39,7 @@ public class SyncManager {
             switch (type) {
                 case JIRA -> jiraClient.testQuery(url, query, token);
                 case GITHUB -> gitHubClient.testQuery(url, query, token);
+                case MANUAL -> {}
             }
         } catch (SyncException e) {
             throw e;
@@ -65,6 +67,7 @@ public class SyncManager {
                     yield gitHubClient.fetchComments(apiBase, owner, repo, issueNumber, token);
                 }
                 case JIRA -> jiraClient.fetchComments(task.project.apiUrl, task.externalId, token);
+                case MANUAL -> List.of();
             };
         } catch (SyncException e) {
             throw e;
@@ -92,6 +95,7 @@ public class SyncManager {
                     yield gitHubClient.fetchLabels(apiBase, owner, repo, issueNumber, token);
                 }
                 case JIRA -> jiraClient.fetchLabels(task.project.apiUrl, task.externalId, token);
+                case MANUAL -> List.of();
             };
         } catch (SyncException e) {
             throw e;
@@ -105,6 +109,7 @@ public class SyncManager {
             switch (type) {
                 case JIRA -> jiraClient.testConnection(url, token);
                 case GITHUB -> gitHubClient.testConnection(url, token);
+                case MANUAL -> {}
             }
         } catch (SyncException e) {
             throw e;

@@ -60,6 +60,7 @@ import { ButtonVariant } from "@patternfly/react-core";
 
 import { ExecutionOutputModal } from "./components/execution-output-modal";
 import { PlanProgressStepper } from "./components/plan-progress-stepper";
+import { TaskFormModal } from "./components/task-form-modal";
 import { WorkspaceCell } from "./components/workspace-cell";
 import { RequirementModal, PlanModal } from "./components/plan-wizard-modal";
 import { TaskSearchContext, TaskSearchProvider } from "./task-context";
@@ -95,6 +96,7 @@ const TaskListContent: React.FC = () => {
     },
   } = tableControls;
 
+  const [isCreateModalOpen, setIsCreateModalOpen] = React.useState(false);
   const [isSortByOpen, setIsSortByOpen] = React.useState(false);
   const [openKebabId, setOpenKebabId] = React.useState<number | null>(null);
   const [requirementTask, setRequirementTask] = React.useState<TaskDto | null>(
@@ -118,6 +120,15 @@ const TaskListContent: React.FC = () => {
       <Toolbar {...toolbarProps}>
         <ToolbarContent>
           <FilterToolbar {...filterToolbarProps} />
+
+          <ToolbarItem>
+            <Button
+              variant="primary"
+              onClick={() => setIsCreateModalOpen(true)}
+            >
+              Create task
+            </Button>
+          </ToolbarItem>
 
           <ToolbarGroup>
             <ToolbarItem>
@@ -220,16 +231,22 @@ const TaskListContent: React.FC = () => {
                         <FlexItem>{task.title}</FlexItem>
                         <FlexItem>
                           <small>
-                            <a
-                              id={`task-${task.id}`}
-                              href={task.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              {task.type === "GITHUB" && "#"}
-                              {task.externalId}
-                            </a>{" "}
-                            {task.project.name} ({task.type.toLowerCase()})
+                            {task.url ? (
+                              <a
+                                id={`task-${task.id}`}
+                                href={task.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                {task.type === "GITHUB" && "#"}
+                                {task.externalId}
+                              </a>
+                            ) : (
+                              <span id={`task-${task.id}`}>
+                                {task.externalId}
+                              </span>
+                            )}{" "}
+                            {task.project?.name} ({task.type.toLowerCase()})
                           </small>
                         </FlexItem>
                         <FlexItem>Status: {task.externalStatus}</FlexItem>
@@ -351,7 +368,7 @@ const TaskListContent: React.FC = () => {
                       <DescriptionListGroup>
                         <DescriptionListTerm>Project</DescriptionListTerm>
                         <DescriptionListDescription>
-                          {task.project.name}
+                          {task.project?.name ?? "-"}
                         </DescriptionListDescription>
                       </DescriptionListGroup>
                       <DescriptionListGroup>
@@ -399,6 +416,11 @@ const TaskListContent: React.FC = () => {
         idPrefix="tasks-table"
         isTop={false}
         paginationProps={paginationProps}
+      />
+
+      <TaskFormModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
       />
 
       <ExecutionOutputModal
