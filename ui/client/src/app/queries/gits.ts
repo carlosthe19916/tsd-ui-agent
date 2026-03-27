@@ -24,6 +24,12 @@ export const useFetchGits = () => {
   return useQuery({
     queryKey: [GIT_QUERY_KEY],
     queryFn: getGits,
+    refetchInterval: (query) => {
+      const hasInProgress = query.state.data?.some(
+        (git) => git.isProvisioningInProgress,
+      );
+      return hasInProgress ? 3000 : false;
+    },
   });
 };
 

@@ -14,8 +14,4 @@ public interface WorkspaceManager {
     Optional<Workspace> getWorkspace(String workspaceId);
 
     void destroy(String workspaceId) throws WorkspaceException;
-
-    default Optional<String> getConfiguration(String workspaceId) {
-        return Optional.empty();
-    }
 }

@@ -17,7 +17,7 @@ export const ProvisioningOutputModal: React.FC<
     <Modal variant="large" isOpen={isOpen} onClose={onClose}>
       <ModalHeader title="Provisioning Output" />
       <ModalBody>
-        {isOpen && wsId !== null && <ProvisioningOutputPanel wsId={wsId} />}
+        {isOpen && wsId !== null && <ProvisioningOutputPanel id={wsId} />}
       </ModalBody>
     </Modal>
   );

@@ -241,9 +241,13 @@ export const WorkspaceCommands: React.FC<{ ws: WorkspaceDto }> = ({ ws }) => {
   );
 };
 
-export const ProvisioningOutputPanel: React.FC<{ wsId: number }> = ({
-  wsId,
-}) => {
+export const ProvisioningOutputPanel: React.FC<{
+  id: number;
+  streamFn?: (
+    id: number,
+    signal?: AbortSignal,
+  ) => AsyncGenerator<string>;
+}> = ({ id, streamFn = streamWorkspaceOutput }) => {
   const { isDark } = React.useContext(ThemeContext);
   const [logLines, setLogLines] = React.useState<string[]>([]);
   const [isStreaming, setIsStreaming] = React.useState(false);
@@ -258,10 +262,7 @@ export const ProvisioningOutputPanel: React.FC<{ wsId: number }> = ({
 
     (async () => {
       try {
-        for await (const line of streamWorkspaceOutput(
-          wsId,
-          abortController.signal,
-        )) {
+        for await (const line of streamFn(id, abortController.signal)) {
           linesRef.current = [...linesRef.current, line];
           if (rafRef.current == null) {
             rafRef.current = requestAnimationFrame(() => {
@@ -285,7 +286,7 @@ export const ProvisioningOutputPanel: React.FC<{ wsId: number }> = ({
         rafRef.current = undefined;
       }
     };
-  }, [wsId]);
+  }, [id, streamFn]);
 
   const data = logLines.length > 0 ? logLines.join("\n") : " ";
 

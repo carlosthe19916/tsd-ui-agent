@@ -20,4 +20,8 @@ public class GitDto {
     public GitVendorType vendorType;
 
     public CredentialDto credential;
+
+    public Boolean isProvisioningInProgress;
+
+    public String provisioningError;
 }

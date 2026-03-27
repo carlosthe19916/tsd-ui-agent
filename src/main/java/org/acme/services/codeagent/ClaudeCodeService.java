@@ -2,6 +2,8 @@ package org.acme.services.codeagent;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import static org.acme.services.ExecutionOutputBroadcaster.Channel;
+
 import org.acme.services.ExecutionOutputBroadcaster;
 import org.acme.services.workspace.Workspace;
 import org.acme.services.workspace.WorkspaceException;
@@ -34,7 +36,7 @@ public class ClaudeCodeService implements CodingAgentService {
 
         LOG.infof("Starting Claude CLI for plan generation in %s", workspace.workingDirectory());
 
-        broadcaster.start(taskId);
+        broadcaster.start(Channel.TASK, taskId);
         try {
             ObjectMapper mapper = new ObjectMapper();
             StringBuilder rawOutput = new StringBuilder();
@@ -45,7 +47,7 @@ public class ClaudeCodeService implements CodingAgentService {
                     line -> {
                         LOG.infof("claude-plan> %s", line);
                         rawOutput.append(line).append("\n");
-                        broadcaster.publish(taskId, line);
+                        broadcaster.publish(Channel.TASK, taskId, line);
                         try {
                             JsonNode node = mapper.readTree(line);
                             if ("result".equals(node.path("type").asText())) {
@@ -70,7 +72,7 @@ public class ClaudeCodeService implements CodingAgentService {
         } catch (WorkspaceException e) {
             throw new RuntimeException("Claude CLI plan generation failed: " + e.getMessage(), e);
         } finally {
-            broadcaster.complete(taskId);
+            broadcaster.complete(Channel.TASK, taskId);
         }
     }
 
@@ -79,7 +81,7 @@ public class ClaudeCodeService implements CodingAgentService {
         LOG.infof("Task %d: Starting Claude CLI for plan execution in %s", taskId, workspace.workingDirectory());
         LOG.infof("Task %d: Plan text length: %d chars", taskId, planText.length());
 
-        broadcaster.start(taskId);
+        broadcaster.start(Channel.TASK, taskId);
         try {
             StringBuilder output = new StringBuilder();
 
@@ -87,7 +89,7 @@ public class ClaudeCodeService implements CodingAgentService {
                     planText.getBytes(StandardCharsets.UTF_8),
                     line -> {
                         LOG.infof("Task %d: claude> %s", taskId, line);
-                        broadcaster.publish(taskId, line);
+                        broadcaster.publish(Channel.TASK, taskId, line);
                         output.append(line).append("\n");
                     },
                     claudeCommand, "-p",
@@ -99,7 +101,7 @@ public class ClaudeCodeService implements CodingAgentService {
         } catch (WorkspaceException e) {
             throw new RuntimeException("Claude CLI plan execution failed: " + e.getMessage(), e);
         } finally {
-            broadcaster.complete(taskId);
+            broadcaster.complete(Channel.TASK, taskId);
         }
     }
 }

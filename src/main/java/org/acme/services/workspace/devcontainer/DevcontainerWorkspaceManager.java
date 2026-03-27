@@ -294,22 +294,6 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
         }
     }
 
-    @Override
-    public Optional<String> getConfiguration(String workspaceId) {
-        try {
-            String worktreePath = parseWorktreePath(workspaceId);
-            String sanitizedUrl = deriveSanitizedUrl(worktreePath);
-            String alias = Path.of(worktreePath).getFileName().toString();
-            Path configPath = devcontainerConfigPath(sanitizedUrl, alias);
-            if (Files.exists(configPath)) {
-                return Optional.of(Files.readString(configPath));
-            }
-        } catch (Exception e) {
-            LOG.warnf("Failed to read devcontainer config for workspace %s: %s", workspaceId, e.getMessage());
-        }
-        return Optional.empty();
-    }
-
     private boolean hasProjectDevcontainerConfig(Path worktreePath) {
         return Files.exists(worktreePath.resolve(".devcontainer/devcontainer.json"))
                 || Files.exists(worktreePath.resolve(".devcontainer.json"));

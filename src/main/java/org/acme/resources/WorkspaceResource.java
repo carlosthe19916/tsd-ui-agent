@@ -22,6 +22,8 @@ import org.acme.dto.WorkspaceDto;
 import org.acme.mapper.WorkspaceMapper;
 import org.acme.models.jpa.entity.TaskEntity;
 import org.acme.models.jpa.entity.WorkspaceEntity;
+import static org.acme.services.ExecutionOutputBroadcaster.Channel;
+
 import org.acme.services.ExecutionOutputBroadcaster;
 import org.acme.services.WorkspaceService;
 import org.acme.services.workspace.Workspace;
@@ -168,19 +170,6 @@ public class WorkspaceResource {
     }
 
     @GET
-    @Path("/{id}/configuration")
-    public Response configuration(@PathParam("id") Long id) {
-        WorkspaceEntity entity = (WorkspaceEntity) WorkspaceEntity.findByIdOptional(id)
-                .orElseThrow(NotFoundException::new);
-        if (entity.workspaceId == null) {
-            throw new NotFoundException("Workspace not provisioned");
-        }
-        return workspaceManager.getConfiguration(entity.workspaceId)
-                .map(content -> Response.ok(content, MediaType.APPLICATION_JSON).build())
-                .orElseThrow(() -> new NotFoundException("Configuration not found"));
-    }
-
-    @GET
     @Path("/{id}/output")
     @Produces(MediaType.SERVER_SENT_EVENTS)
     @RestStreamElementType(MediaType.TEXT_PLAIN)
@@ -193,6 +182,6 @@ public class WorkspaceResource {
                 })
                 .runSubscriptionOn(Infrastructure.getDefaultWorkerPool())
                 .onItem().transformToMulti(wsId ->
-                        wsId != null ? broadcaster.subscribe(wsId) : Multi.createFrom().empty());
+                        wsId != null ? broadcaster.subscribe(Channel.WORKSPACE, wsId) : Multi.createFrom().empty());
     }
 }

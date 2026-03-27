@@ -27,13 +27,8 @@ public class FilesystemWorkspaceManager implements WorkspaceManager {
         String cloneDir = Path.of(baseDir, "repositories", sanitized, "default").toString();
 
         if (!Files.isDirectory(Path.of(cloneDir))) {
-            gitManager.cloneRepository(request.gitUrl(), request.gitBranch(), cloneDir, request.gitToken());
-            if (request.forkUrl() != null && !request.forkUrl().isBlank()) {
-                gitManager.addForkRemote(cloneDir, request.forkUrl());
-            }
-        } else {
-            String branch = request.gitBranch() != null && !request.gitBranch().isBlank() ? request.gitBranch() : null;
-            gitManager.pullRepository(cloneDir, branch, request.gitToken());
+            throw new WorkspaceException("Clone directory not found: " + cloneDir
+                    + ". Was the git repository provisioned?");
         }
 
         String alias = UUID.randomUUID().toString().substring(0, 8);
