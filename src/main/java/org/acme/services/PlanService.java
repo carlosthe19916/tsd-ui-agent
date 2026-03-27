@@ -250,8 +250,10 @@ public class PlanService {
                     return null;
                 }
 
-                List<ExternalIssueContext.Comment> allComments = syncManager.fetchComments(task);
-                List<String> labelsList = syncManager.fetchLabels(task);
+                List<ExternalIssueContext.Comment> allComments = task.project != null
+                        ? syncManager.fetchComments(task) : List.of();
+                List<String> labelsList = task.project != null
+                        ? syncManager.fetchLabels(task) : List.of();
                 String labelsText = labelsList != null && !labelsList.isEmpty()
                         ? String.join(", ", labelsList)
                         : "No labels available.";
