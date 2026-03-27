@@ -258,22 +258,17 @@ const TaskListContent: React.FC = () => {
                           </FlexItem>
                           {task.plan?.changeRequestUrl && (
                             <FlexItem>
-                              <Label
-                                color="blue"
-                                isCompact
-                                render={({ className, content }) => (
-                                  <a
-                                    className={className}
-                                    href={task.plan!.changeRequestUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                  >
-                                    {content}
-                                  </a>
-                                )}
+                              PR:{" "}
+                              <a
+                                href={task.plan.changeRequestUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
                               >
-                                PR
-                              </Label>
+                                #
+                                {task.plan.changeRequestUrl.match(
+                                  /\/(\d+)\/?$/,
+                                )?.[1] ?? "PR"}
+                              </a>
                             </FlexItem>
                           )}
                           {(task.plan.isPlanGenerationInProgress ||
