@@ -43,6 +43,12 @@ public class GitEntity extends PanacheEntityBase {
     @JoinColumn(name = "credential_id")
     public CredentialEntity credential;
 
+    @Column(name = "is_provisioning_in_progress")
+    public boolean isProvisioningInProgress;
+
+    @Column(name = "provisioning_error", columnDefinition = "TEXT")
+    public String provisioningError;
+
     @Version
     public int version;
 

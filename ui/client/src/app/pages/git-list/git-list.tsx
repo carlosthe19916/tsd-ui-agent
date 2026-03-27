@@ -18,7 +18,11 @@ import {
   Flex,
   FlexItem,
   Icon,
+  Label,
   MenuToggle,
+  Modal,
+  ModalBody,
+  ModalHeader,
   PageSection,
   Select,
   SelectList,
@@ -32,11 +36,14 @@ import {
 } from "@patternfly/react-core";
 import CodeBranchIcon from "@patternfly/react-icons/dist/esm/icons/code-branch-icon";
 import EllipsisVIcon from "@patternfly/react-icons/dist/esm/icons/ellipsis-v-icon";
+import ExclamationCircleIcon from "@patternfly/react-icons/dist/esm/icons/exclamation-circle-icon";
+import InProgressIcon from "@patternfly/react-icons/dist/esm/icons/in-progress-icon";
 import SortAmountDownIcon from "@patternfly/react-icons/dist/esm/icons/sort-amount-down-icon";
 import SortAmountUpIcon from "@patternfly/react-icons/dist/esm/icons/sort-amount-up-icon";
 import TerminalIcon from "@patternfly/react-icons/dist/esm/icons/terminal-icon";
 
 import { TablePersistenceKeyPrefixes } from "@app/Constants";
+import { streamGitOutput } from "@app/api/git-api";
 import type { GitDto, WorkspaceDto } from "@app/api/models";
 import { ConfirmDialog } from "@app/components/ConfirmDialog";
 import { ConditionalDataListBody } from "@app/components/DataListControls";
@@ -53,6 +60,7 @@ import {
 
 import { GitFormModal } from "./components/git-form-modal";
 import {
+  ProvisioningOutputPanel,
   parseWorkspaceId,
   WorkspaceCommands,
   WorkspaceStatusLabel,
@@ -60,10 +68,12 @@ import {
 } from "./components/workspace-status";
 import { ProvisioningOutputModal } from "../task-list/components/provisioning-output-modal";
 
-const GitWorkspaceCell: React.FC<{ gitId: number }> = ({ gitId }) => {
-  const { data: workspaces } = useFetchWorkspaces(gitId, false);
+const GitWorkspaceCell: React.FC<{ git: GitDto }> = ({ git }) => {
+  const { data: workspaces } = useFetchWorkspaces(git.id, false);
   const createMutation = useCreateWorkspaceMutation();
   const count = workspaces?.length ?? 0;
+  const isGitProvisioning =
+    git.isProvisioningInProgress || !!git.provisioningError;
 
   return (
     <Flex
@@ -78,8 +88,8 @@ const GitWorkspaceCell: React.FC<{ gitId: number }> = ({ gitId }) => {
         <Button
           variant="secondary"
           size="sm"
-          onClick={() => createMutation.mutate(gitId)}
-          isDisabled={createMutation.isPending}
+          onClick={() => createMutation.mutate(git.id)}
+          isDisabled={createMutation.isPending || isGitProvisioning}
           isLoading={createMutation.isPending}
         >
           Create workspace
@@ -249,6 +259,9 @@ export const GitList: React.FC = () => {
   const [gitToDelete, setGitToDelete] = React.useState<GitDto | null>(null);
   const [isSortByOpen, setIsSortByOpen] = React.useState(false);
   const [openKebabId, setOpenKebabId] = React.useState<number | null>(null);
+  const [provisionLogGitId, setProvisionLogGitId] = React.useState<
+    number | null
+  >(null);
 
   const { data: gits, isFetching } = useFetchGits();
   const deleteMutation = useDeleteGitMutation(() => setGitToDelete(null));
@@ -437,10 +450,47 @@ export const GitList: React.FC = () => {
                             </Icon>
                             <small>{git.forkUrl || "None"}</small>
                           </FlexItem>
+                          {git.isProvisioningInProgress && (
+                            <FlexItem>
+                              <Flex
+                                gap={{ default: "gapSm" }}
+                                alignItems={{ default: "alignItemsCenter" }}
+                              >
+                                <FlexItem>
+                                  <Label color="blue" icon={<InProgressIcon />}>
+                                    Provisioning
+                                  </Label>
+                                </FlexItem>
+                                <FlexItem>
+                                  <Button
+                                    variant="link"
+                                    size="sm"
+                                    icon={<TerminalIcon />}
+                                    onClick={() => setProvisionLogGitId(git.id)}
+                                  >
+                                    View Log
+                                  </Button>
+                                </FlexItem>
+                              </Flex>
+                            </FlexItem>
+                          )}
+                          {git.provisioningError && (
+                            <FlexItem>
+                              <Tooltip content={git.provisioningError}>
+                                <Label
+                                  color="red"
+                                  icon={<ExclamationCircleIcon />}
+                                  isCompact
+                                >
+                                  Provisioning Error
+                                </Label>
+                              </Tooltip>
+                            </FlexItem>
+                          )}
                         </Flex>
                       </DataListCell>,
                       <DataListCell key="workspaces" width={2}>
-                        <GitWorkspaceCell gitId={git.id} />
+                        <GitWorkspaceCell git={git} />
                       </DataListCell>,
                     ]}
                   />
@@ -527,6 +577,22 @@ export const GitList: React.FC = () => {
           inProgress={deleteMutation.isPending}
         />
       )}
+
+      <Modal
+        variant="large"
+        isOpen={provisionLogGitId !== null}
+        onClose={() => setProvisionLogGitId(null)}
+      >
+        <ModalHeader title="Git Provisioning Output" />
+        <ModalBody>
+          {provisionLogGitId !== null && (
+            <ProvisioningOutputPanel
+              id={provisionLogGitId}
+              streamFn={streamGitOutput}
+            />
+          )}
+        </ModalBody>
+      </Modal>
     </>
   );
 };

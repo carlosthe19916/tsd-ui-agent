@@ -2,6 +2,8 @@ package org.acme.services.codeagent;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import static org.acme.services.ExecutionOutputBroadcaster.Channel;
+
 import org.acme.services.ExecutionOutputBroadcaster;
 import org.acme.services.workspace.Workspace;
 import org.acme.services.workspace.WorkspaceException;
@@ -37,14 +39,14 @@ public class OpenCodeService implements CodingAgentService {
 
         LOG.infof("Starting OpenCode CLI for plan generation in %s (port %d)", workspace.workingDirectory(), port);
 
-        broadcaster.start(taskId);
+        broadcaster.start(Channel.TASK, taskId);
         try {
             StringBuilder result = new StringBuilder();
 
             workspace.execStreaming(
                     line -> {
                         LOG.infof("opencode-plan> %s", line);
-                        broadcaster.publish(taskId, line);
+                        broadcaster.publish(Channel.TASK, taskId, line);
                         result.append(line).append("\n");
                     },
                     opencodeCommand, "run",
@@ -62,7 +64,7 @@ public class OpenCodeService implements CodingAgentService {
         } catch (WorkspaceException e) {
             throw new RuntimeException("OpenCode CLI plan generation failed: " + e.getMessage(), e);
         } finally {
-            broadcaster.complete(taskId);
+            broadcaster.complete(Channel.TASK, taskId);
         }
     }
 
@@ -74,12 +76,12 @@ public class OpenCodeService implements CodingAgentService {
         LOG.infof("Task %d: Starting OpenCode CLI for plan execution in %s (port %d)", taskId, workspace.workingDirectory(), port);
         LOG.infof("Task %d: Plan text length: %d chars", taskId, planText.length());
 
-        broadcaster.start(taskId);
+        broadcaster.start(Channel.TASK, taskId);
         try {
             workspace.execStreaming(
                     line -> {
                         LOG.infof("Task %d: opencode> %s", taskId, line);
-                        broadcaster.publish(taskId, line);
+                        broadcaster.publish(Channel.TASK, taskId, line);
                     },
                     opencodeCommand, "run",
                     "--model", model,
@@ -89,7 +91,7 @@ public class OpenCodeService implements CodingAgentService {
         } catch (WorkspaceException e) {
             throw new RuntimeException("OpenCode CLI plan execution failed: " + e.getMessage(), e);
         } finally {
-            broadcaster.complete(taskId);
+            broadcaster.complete(Channel.TASK, taskId);
         }
     }
 }

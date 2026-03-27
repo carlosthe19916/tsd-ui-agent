@@ -11,10 +11,15 @@ import java.util.concurrent.CopyOnWriteArrayList;
 @ApplicationScoped
 public class ExecutionOutputBroadcaster {
 
-    private final ConcurrentHashMap<Long, OutputSession> sessions = new ConcurrentHashMap<>();
+    public enum Channel {
+        GIT, WORKSPACE, TASK
+    }
 
-    public void start(Long taskId) {
-        sessions.compute(taskId, (k, existing) -> {
+    private final ConcurrentHashMap<String, OutputSession> sessions = new ConcurrentHashMap<>();
+
+    public void start(Channel channel, Long id) {
+        String key = key(channel, id);
+        sessions.compute(key, (k, existing) -> {
             if (existing != null) {
                 for (MultiEmitter<? super String> emitter : existing.emitters) {
                     emitter.complete();
@@ -24,8 +29,8 @@ public class ExecutionOutputBroadcaster {
         });
     }
 
-    public void publish(Long taskId, String line) {
-        OutputSession session = sessions.get(taskId);
+    public void publish(Channel channel, Long id, String line) {
+        OutputSession session = sessions.get(key(channel, id));
         if (session == null) return;
         session.buffer.add(line);
         for (MultiEmitter<? super String> emitter : session.emitters) {
@@ -33,8 +38,8 @@ public class ExecutionOutputBroadcaster {
         }
     }
 
-    public void complete(Long taskId) {
-        OutputSession session = sessions.get(taskId);
+    public void complete(Channel channel, Long id) {
+        OutputSession session = sessions.get(key(channel, id));
         if (session == null) return;
         session.completed = true;
         for (MultiEmitter<? super String> emitter : session.emitters) {
@@ -42,10 +47,11 @@ public class ExecutionOutputBroadcaster {
         }
     }
 
-    public Multi<String> subscribe(Long taskId) {
+    public Multi<String> subscribe(Channel channel, Long id) {
+        String key = key(channel, id);
         return Multi.createFrom().emitter(emitter -> {
             // Get or create session — supports subscribing before start()
-            OutputSession session = sessions.computeIfAbsent(taskId, k -> new OutputSession());
+            OutputSession session = sessions.computeIfAbsent(key, k -> new OutputSession());
 
             // Replay buffered lines
             for (String line : session.buffer) {
@@ -59,6 +65,10 @@ public class ExecutionOutputBroadcaster {
             session.emitters.add(emitter);
             emitter.onTermination(() -> session.emitters.remove(emitter));
         });
+    }
+
+    private static String key(Channel channel, Long id) {
+        return channel.name() + ":" + id;
     }
 
     static class OutputSession {

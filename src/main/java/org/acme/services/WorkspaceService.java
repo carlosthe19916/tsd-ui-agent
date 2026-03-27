@@ -9,6 +9,8 @@ import jakarta.transaction.Synchronization;
 import jakarta.transaction.TransactionManager;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.NotFoundException;
+import static org.acme.services.ExecutionOutputBroadcaster.Channel;
+
 import org.acme.dto.WorkspaceDto;
 import org.acme.mapper.WorkspaceMapper;
 import org.acme.models.jpa.entity.TaskEntity;
@@ -46,7 +48,7 @@ public class WorkspaceService {
         entity.persist();
 
         Long workspaceEntityId = entity.id;
-        broadcaster.start(workspaceEntityId);
+        broadcaster.start(Channel.WORKSPACE, workspaceEntityId);
         try {
             transactionManager.getTransaction().registerSynchronization(new Synchronization() {
                 @Override
@@ -91,7 +93,7 @@ public class WorkspaceService {
             }
 
             WorkspaceRequest request = new WorkspaceRequest(context.gitUrl(), context.gitBranch(), context.gitToken(), context.forkUrl());
-            Workspace ws = workspaceManager.provision(request, line -> broadcaster.publish(workspaceEntityId, line));
+            Workspace ws = workspaceManager.provision(request, line -> broadcaster.publish(Channel.WORKSPACE, workspaceEntityId, line));
 
             QuarkusTransaction.requiringNew().run(() -> {
                 WorkspaceEntity entity = WorkspaceEntity.findById(workspaceEntityId);
@@ -116,7 +118,7 @@ public class WorkspaceService {
                 LOG.errorf(inner, "Failed to record provisioning error for workspace %d", workspaceEntityId);
             }
         } finally {
-            broadcaster.complete(workspaceEntityId);
+            broadcaster.complete(Channel.WORKSPACE, workspaceEntityId);
             requestContext.terminate();
         }
     }

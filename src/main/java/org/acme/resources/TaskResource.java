@@ -36,6 +36,8 @@ import org.acme.models.jpa.entity.TaskEntity;
 import org.acme.models.jpa.entity.TaskStatus;
 import org.acme.models.jpa.entity.WorkspaceEntity;
 import org.acme.services.ChangeRequestService;
+import static org.acme.services.ExecutionOutputBroadcaster.Channel;
+
 import org.acme.services.ExecutionOutputBroadcaster;
 import org.acme.services.PlanService;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -541,7 +543,7 @@ public class TaskResource {
                     return taskId;
                 })
                 .runSubscriptionOn(Infrastructure.getDefaultWorkerPool())
-                .onItem().transformToMulti(id -> broadcaster.subscribe(id));
+                .onItem().transformToMulti(id -> broadcaster.subscribe(Channel.TASK, id));
     }
 
 }

@@ -22,6 +22,8 @@ import org.acme.dto.WorkspaceDto;
 import org.acme.mapper.WorkspaceMapper;
 import org.acme.models.jpa.entity.TaskEntity;
 import org.acme.models.jpa.entity.WorkspaceEntity;
+import static org.acme.services.ExecutionOutputBroadcaster.Channel;
+
 import org.acme.services.ExecutionOutputBroadcaster;
 import org.acme.services.WorkspaceService;
 import org.acme.services.workspace.Workspace;
@@ -180,6 +182,6 @@ public class WorkspaceResource {
                 })
                 .runSubscriptionOn(Infrastructure.getDefaultWorkerPool())
                 .onItem().transformToMulti(wsId ->
-                        wsId != null ? broadcaster.subscribe(wsId) : Multi.createFrom().empty());
+                        wsId != null ? broadcaster.subscribe(Channel.WORKSPACE, wsId) : Multi.createFrom().empty());
     }
 }
