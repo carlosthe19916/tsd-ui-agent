@@ -22,7 +22,7 @@ interface ITaskSearchContext {
     TaskDto,
     "projectName" | "title" | "status" | "createdAt" | "updatedAt",
     "title" | "createdAt" | "updatedAt",
-    "" | "status" | "projectId",
+    "" | "status" | "projectId" | "hasWorkspace",
     string
   >;
   totalItemCount: number;
@@ -90,6 +90,13 @@ export const TaskSearchProvider: React.FunctionComponent<ITaskProvider> = ({
           value: String(p.id),
           label: p.name,
         })),
+      },
+      {
+        categoryKey: "hasWorkspace",
+        title: "Has workspace",
+        type: FilterType.toggle,
+        label: "Has workspace",
+        showOutsideDropdown: true,
       },
     ],
     isExpansionEnabled: true,
