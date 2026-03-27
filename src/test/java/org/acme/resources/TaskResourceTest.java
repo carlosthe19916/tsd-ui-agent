@@ -18,6 +18,7 @@ import org.acme.services.sync.SyncManager;
 
 import org.acme.services.ChangeRequestService;
 import org.acme.services.workspace.WorkspaceManager;
+import org.acme.services.workspace.WorkspaceManagerResolver;
 import org.acme.services.workspace.filesystem.FilesystemWorkspace;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -51,7 +52,7 @@ class TaskResourceTest {
     RequirementSummarizerService aiService;
 
     @InjectMock
-    WorkspaceManager workspaceManager;
+    WorkspaceManagerResolver workspaceManagerResolver;
 
     @InjectMock
     ChangeRequestService changeRequestService;
@@ -69,10 +70,17 @@ class TaskResourceTest {
         doNothing().when(gitManager).addForkRemote(anyString(), anyString());
         when(gitManager.addWorktree(anyString(), anyString()))
                 .thenAnswer(invocation -> "/tmp/tsd-agent-ui-test/repo/trees/" + invocation.getArgument(1));
-        when(workspaceManager.provision(any()))
+        WorkspaceManager mockManager = org.mockito.Mockito.mock(WorkspaceManager.class);
+        when(mockManager.provision(any()))
                 .thenAnswer(invocation -> new FilesystemWorkspace("/tmp/tsd-agent-ui-test/repo/trees/plan-worktree"));
-        when(workspaceManager.getWorkspace(anyString()))
+        when(mockManager.provision(any(), any()))
+                .thenAnswer(invocation -> new FilesystemWorkspace("/tmp/tsd-agent-ui-test/repo/trees/plan-worktree"));
+        when(mockManager.getWorkspace(anyString()))
                 .thenAnswer(invocation -> java.util.Optional.of(new FilesystemWorkspace(invocation.getArgument(0))));
+        when(workspaceManagerResolver.resolve((org.acme.models.jpa.entity.ExecutionMode) any()))
+                .thenReturn(mockManager);
+        when(workspaceManagerResolver.resolve((org.acme.services.workspace.ExecutionMode) any()))
+                .thenReturn(mockManager);
         when(gitManager.getCurrentBranch(anyString())).thenReturn("main");
         doNothing().when(changeRequestService).triggerChangeRequest(any());
         doNothing().when(gitManager).deleteClonedDirectory(anyString());

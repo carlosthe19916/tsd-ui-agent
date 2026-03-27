@@ -1,6 +1,6 @@
 import axios from "axios";
 
-import type { GitDto, New, WorkspaceDto } from "./models";
+import type { ExecutionMode, GitDto, New, WorkspaceDto } from "./models";
 
 const BASE_URL = "/api/gits";
 const WORKSPACES_URL = "/api/workspaces";
@@ -22,11 +22,16 @@ export const getWorkspaces = (gitId: number, hasTask?: boolean) =>
     .get<WorkspaceDto[]>(WORKSPACES_URL, { params: { gitId, hasTask } })
     .then((response) => response.data);
 
-export const createWorkspace = (gitId: number, taskId?: number) =>
+export const createWorkspace = (
+  gitId: number,
+  taskId?: number,
+  executionMode?: ExecutionMode,
+) =>
   axios
     .post<WorkspaceDto>(WORKSPACES_URL, {
       git: { id: gitId },
       ...(taskId ? { task: { id: taskId } } : {}),
+      ...(executionMode ? { executionMode } : {}),
     })
     .then((response) => response.data);
 

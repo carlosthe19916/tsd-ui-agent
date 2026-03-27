@@ -10,10 +10,11 @@ import org.acme.services.codeagent.CodingAgentService;
 import org.acme.services.ai.RequirementSummarizerService;
 import org.acme.services.sync.ExternalIssueContext;
 import org.acme.services.sync.SyncManager;
+import org.acme.models.jpa.entity.ExecutionMode;
 import org.acme.services.workspace.Workspace;
 import org.acme.services.workspace.WorkspaceException;
 import org.acme.services.workspace.WorkspaceHealthStatus;
-import org.acme.services.workspace.WorkspaceManager;
+import org.acme.services.workspace.WorkspaceManagerResolver;
 import org.jboss.logging.Logger;
 
 import java.time.Instant;
@@ -35,7 +36,7 @@ public class PlanService {
     CodingAgentService codingAgentService;
 
     @Inject
-    WorkspaceManager workspaceManager;
+    WorkspaceManagerResolver workspaceManagerResolver;
 
     @Inject
     ChangeRequestService changeRequestService;
@@ -61,7 +62,7 @@ public class PlanService {
         requestContext.activate();
         try {
             // Phase 1: Collect data in a short transaction
-            record PlanGenerationContext(String workspaceId, String requirement) {}
+            record PlanGenerationContext(String workspaceId, String requirement, ExecutionMode executionMode) {}
 
             PlanGenerationContext ctx = QuarkusTransaction.requiringNew().call(() -> {
                 TaskEntity task = TaskEntity.findById(taskId);
@@ -73,7 +74,7 @@ public class PlanService {
                     LOG.warnf("Task %d has no provisioned workspace for plan generation", taskId);
                     return null;
                 }
-                return new PlanGenerationContext(task.workspace.workspaceId, task.plan.requirement);
+                return new PlanGenerationContext(task.workspace.workspaceId, task.plan.requirement, task.workspace.executionMode);
             });
 
             if (ctx == null) {
@@ -81,7 +82,7 @@ public class PlanService {
             }
 
             // Phase 2: Call coding agent outside of any transaction
-            Workspace workspace = workspaceManager.getWorkspace(ctx.workspaceId())
+            Workspace workspace = workspaceManagerResolver.resolve(ctx.executionMode()).getWorkspace(ctx.workspaceId())
                     .orElseThrow(() -> new WorkspaceException("Workspace not found: " + ctx.workspaceId()));
             if (workspace.healthStatus().status() != WorkspaceHealthStatus.Status.RUNNING) {
                 throw new WorkspaceException("Workspace is not running");
@@ -124,7 +125,7 @@ public class PlanService {
         requestContext.activate();
         try {
             // Phase 1: Collect data in a short transaction
-            record PlanExecutionContext(String workspaceId, String planText) {}
+            record PlanExecutionContext(String workspaceId, String planText, ExecutionMode executionMode) {}
 
             PlanExecutionContext ctx = QuarkusTransaction.requiringNew().call(() -> {
                 TaskEntity task = TaskEntity.findById(taskId);
@@ -136,7 +137,7 @@ public class PlanService {
                     LOG.warnf("Task %d has no provisioned workspace for plan execution", taskId);
                     return null;
                 }
-                return new PlanExecutionContext(task.workspace.workspaceId, task.plan.plan);
+                return new PlanExecutionContext(task.workspace.workspaceId, task.plan.plan, task.workspace.executionMode);
             });
 
             if (ctx == null) {
@@ -144,7 +145,7 @@ public class PlanService {
             }
 
             // Phase 2: Delegate to coding agent outside of any transaction
-            Workspace workspace = workspaceManager.getWorkspace(ctx.workspaceId())
+            Workspace workspace = workspaceManagerResolver.resolve(ctx.executionMode()).getWorkspace(ctx.workspaceId())
                     .orElseThrow(() -> new WorkspaceException("Workspace not found: " + ctx.workspaceId()));
             if (workspace.healthStatus().status() != WorkspaceHealthStatus.Status.RUNNING) {
                 throw new WorkspaceException("Workspace is not running");

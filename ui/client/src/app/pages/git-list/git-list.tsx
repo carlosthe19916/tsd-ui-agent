@@ -71,6 +71,7 @@ import { ProvisioningOutputModal } from "../task-list/components/provisioning-ou
 const GitWorkspaceCell: React.FC<{ git: GitDto }> = ({ git }) => {
   const { data: workspaces } = useFetchWorkspaces(git.id, false);
   const createMutation = useCreateWorkspaceMutation();
+  const [isCreateOpen, setIsCreateOpen] = React.useState(false);
   const count = workspaces?.length ?? 0;
   const isGitProvisioning =
     git.isProvisioningInProgress || !!git.provisioningError;
@@ -85,15 +86,47 @@ const GitWorkspaceCell: React.FC<{ git: GitDto }> = ({ git }) => {
         <small>workspace{count !== 1 ? "s" : ""}</small>
       </FlexItem>
       <FlexItem>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => createMutation.mutate(git.id)}
-          isDisabled={createMutation.isPending || isGitProvisioning}
-          isLoading={createMutation.isPending}
+        <Dropdown
+          isOpen={isCreateOpen}
+          onSelect={() => setIsCreateOpen(false)}
+          onOpenChange={setIsCreateOpen}
+          toggle={(toggleRef) => (
+            <MenuToggle
+              ref={toggleRef}
+              onClick={() => setIsCreateOpen(!isCreateOpen)}
+              isExpanded={isCreateOpen}
+              variant="secondary"
+              isDisabled={createMutation.isPending || isGitProvisioning}
+            >
+              {createMutation.isPending ? "Creating..." : "Create workspace"}
+            </MenuToggle>
+          )}
         >
-          Create workspace
-        </Button>
+          <DropdownList>
+            <DropdownItem
+              key="filesystem"
+              onClick={() =>
+                createMutation.mutate({
+                  gitId: git.id,
+                  executionMode: "FILESYSTEM",
+                })
+              }
+            >
+              Local filesystem
+            </DropdownItem>
+            <DropdownItem
+              key="container"
+              onClick={() =>
+                createMutation.mutate({
+                  gitId: git.id,
+                  executionMode: "DOCKER",
+                })
+              }
+            >
+              Container
+            </DropdownItem>
+          </DropdownList>
+        </Dropdown>
       </FlexItem>
     </Flex>
   );

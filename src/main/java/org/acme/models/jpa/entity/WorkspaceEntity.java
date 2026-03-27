@@ -3,6 +3,8 @@ package org.acme.models.jpa.entity;
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
@@ -34,6 +36,10 @@ public class WorkspaceEntity extends PanacheEntityBase {
     // if filesystem then the path to the git worktree, if container then container id
     @Column(name = "workspace_id")
     public String workspaceId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "execution_mode")
+    public ExecutionMode executionMode;
 
     @Version
     public int version;

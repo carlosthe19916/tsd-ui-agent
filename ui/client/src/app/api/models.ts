@@ -57,12 +57,15 @@ export interface Label {
 
 export type TaskStatus = "OPEN" | "IN_PROGRESS" | "CLOSED";
 
+export type ExecutionMode = "FILESYSTEM" | "DOCKER";
+
 export interface WorkspaceDto {
   id?: number;
   git?: GitDto;
   isProvisioningInProgress?: boolean;
   provisioningError?: string;
   workspaceId?: string;
+  executionMode?: ExecutionMode;
   task?: { id: number };
 }
 

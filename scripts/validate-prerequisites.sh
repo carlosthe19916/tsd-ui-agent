@@ -207,7 +207,7 @@ main() {
     check_command git true
 
     print_header "Filesystem Mode (Local Development with Git Worktrees)"
-    print_info "Required when tsd-agent.execution-mode=FILESYSTEM"
+    print_info "Required for Local filesystem workspaces"
     check_java_version
     check_maven_wrapper
     check_postgresql
@@ -215,7 +215,7 @@ main() {
     check_coding_agents
 
     print_header "Docker Mode (Devcontainer-based Execution)"
-    print_info "Required when tsd-agent.execution-mode=DOCKER (default)"
+    print_info "Required for Container workspaces"
     check_container_runtime
     check_command devcontainer false
 
@@ -232,18 +232,18 @@ main() {
         echo "You can start the application in different execution modes:"
         echo ""
         echo -e "${BLUE}Filesystem Mode (Local Development):${NC}"
-        echo "  Configure: tsd-agent.execution-mode=FILESYSTEM in application.properties"
         echo "  Start: ./mvnw quarkus:dev"
-        echo "  Requires: JDK 25, Ollama, Claude/OpenCode CLI"
         echo "  Note: PostgreSQL provided by Quarkus Dev Services"
         echo ""
-        echo -e "${BLUE}Docker Mode (Devcontainer - Default):${NC}"
-        echo "  Configure: tsd-agent.execution-mode=DOCKER in application.properties"
-        echo "  Start: Use devcontainer CLI or Docker Compose"
+        echo "  Workspace types are selected per-workspace from the UI:"
+        echo ""
+        echo -e "${BLUE}Local filesystem:${NC}"
+        echo "  Requires: JDK 25, Ollama, Claude/OpenCode CLI"
+        echo ""
+        echo -e "${BLUE}Container (Devcontainer):${NC}"
         echo "  Requires: Docker/Podman, Devcontainer CLI"
         echo ""
-        echo -e "${BLUE}Kubernetes Mode (Eclipse Che/K8s):${NC}"
-        echo "  Configure: tsd-agent.execution-mode=KUBERNETES in application.properties"
+        echo -e "${BLUE}Kubernetes (Eclipse Che/K8s):${NC}"
         echo "  Requires: Kubernetes cluster, Devfile support"
         exit 0
     else

@@ -14,11 +14,12 @@ import org.acme.services.changerequest.ChangeRequestParams;
 import org.acme.services.changerequest.ChangeRequestProvider;
 import org.acme.services.changerequest.ChangeRequestResult;
 import org.acme.services.git.GitManager;
+import org.acme.models.jpa.entity.ExecutionMode;
 import org.acme.services.workspace.Workspace;
 import org.acme.services.workspace.WorkspaceException;
 import org.acme.services.workspace.WorkspaceHealthStatus;
 import org.acme.services.workspace.WorkspaceGitOperations;
-import org.acme.services.workspace.WorkspaceManager;
+import org.acme.services.workspace.WorkspaceManagerResolver;
 import org.jboss.logging.Logger;
 
 import java.time.Instant;
@@ -29,7 +30,7 @@ public class ChangeRequestService {
     private static final Logger LOG = Logger.getLogger(ChangeRequestService.class);
 
     @Inject
-    WorkspaceManager workspaceManager;
+    WorkspaceManagerResolver workspaceManagerResolver;
 
     @Inject
     WorkspaceGitOperations workspaceGit;
@@ -54,7 +55,8 @@ public class ChangeRequestService {
                     Long planId, String gitToken, String gitBranch,
                     GitVendorType vendorType,
                     String taskUrl, SourceType sourceType, String taskExternalId,
-                    String jiraApiUrl, String jiraToken
+                    String jiraApiUrl, String jiraToken,
+                    ExecutionMode executionMode
             ) {}
 
             ChangeRequestContext context = QuarkusTransaction.requiringNew().call(() -> {
@@ -71,7 +73,8 @@ public class ChangeRequestService {
                         task.workspace.git.branch, task.workspace.git.vendorType,
                         task.url, task.type, task.externalId,
                         task.type == SourceType.JIRA ? task.project.apiUrl : null,
-                        task.type == SourceType.JIRA ? task.project.credential.token : null
+                        task.type == SourceType.JIRA ? task.project.credential.token : null,
+                        task.workspace.executionMode
                 );
             });
 
@@ -79,7 +82,7 @@ public class ChangeRequestService {
                 return;
             }
 
-            Workspace workspace = workspaceManager.getWorkspace(context.workspaceId())
+            Workspace workspace = workspaceManagerResolver.resolve(context.executionMode()).getWorkspace(context.workspaceId())
                     .orElseThrow(() -> new WorkspaceException("Workspace not found: " + context.workspaceId()));
             if (workspace.healthStatus().status() != WorkspaceHealthStatus.Status.RUNNING) {
                 throw new WorkspaceException("Workspace is not running");

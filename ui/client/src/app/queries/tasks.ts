@@ -1,6 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import type { HubRequestParams, New, PlanDto, TaskDto } from "@app/api/models";
+import type {
+  ExecutionMode,
+  HubRequestParams,
+  New,
+  PlanDto,
+  TaskDto,
+} from "@app/api/models";
 import { createWorkspace, deleteWorkspace } from "@app/api/git-api";
 import {
   createChangeRequest,
@@ -195,8 +201,15 @@ export const useDeleteWorkspaceForTaskMutation = (onSuccess?: () => void) => {
 export const useCreateWorkspaceAndLinkMutation = (onSuccess?: () => void) => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ gitId, taskId }: { gitId: number; taskId: number }) =>
-      createWorkspace(gitId, taskId),
+    mutationFn: ({
+      gitId,
+      taskId,
+      executionMode,
+    }: {
+      gitId: number;
+      taskId: number;
+      executionMode: ExecutionMode;
+    }) => createWorkspace(gitId, taskId, executionMode),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [TASK_QUERY_KEY] });
       onSuccess?.();

@@ -3,6 +3,7 @@ package org.acme.mapper;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.acme.dto.WorkspaceDto;
+import org.acme.models.jpa.entity.ExecutionMode;
 import org.acme.models.jpa.entity.GitEntity;
 import org.acme.models.jpa.entity.WorkspaceEntity;
 
@@ -18,6 +19,9 @@ public class WorkspaceMapper {
         dto.isProvisioningInProgress = entity.isProvisioningInProgress;
         dto.provisioningError = entity.provisioningError;
         dto.workspaceId = entity.workspaceId;
+        if (entity.executionMode != null) {
+            dto.executionMode = entity.executionMode.name();
+        }
         if (entity.git != null) {
             dto.git = gitMapper.toDto(entity.git);
         }
@@ -28,6 +32,11 @@ public class WorkspaceMapper {
         WorkspaceEntity entity = new WorkspaceEntity();
         if (dto.git != null && dto.git.id != null) {
             entity.git = GitEntity.findById(dto.git.id);
+        }
+        if (dto.executionMode != null) {
+            entity.executionMode = ExecutionMode.valueOf(dto.executionMode);
+        } else {
+            entity.executionMode = ExecutionMode.FILESYSTEM;
         }
         return entity;
     }

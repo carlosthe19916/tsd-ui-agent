@@ -12,5 +12,7 @@ public class WorkspaceDto {
 
     public String workspaceId;
 
+    public String executionMode;
+
     public TaskDto task;
 }

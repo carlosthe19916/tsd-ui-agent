@@ -15,8 +15,9 @@ import org.acme.dto.WorkspaceDto;
 import org.acme.mapper.WorkspaceMapper;
 import org.acme.models.jpa.entity.TaskEntity;
 import org.acme.models.jpa.entity.WorkspaceEntity;
+import org.acme.models.jpa.entity.ExecutionMode;
 import org.acme.services.workspace.Workspace;
-import org.acme.services.workspace.WorkspaceManager;
+import org.acme.services.workspace.WorkspaceManagerResolver;
 import org.acme.services.workspace.WorkspaceRequest;
 import org.jboss.logging.Logger;
 
@@ -29,7 +30,7 @@ public class WorkspaceService {
     WorkspaceMapper workspaceMapper;
 
     @Inject
-    WorkspaceManager workspaceManager;
+    WorkspaceManagerResolver workspaceManagerResolver;
 
     @Inject
     TransactionManager transactionManager;
@@ -72,7 +73,7 @@ public class WorkspaceService {
         ManagedContext requestContext = Arc.container().requestContext();
         requestContext.activate();
         try {
-            record ProvisionContext(String gitUrl, String gitBranch, String gitToken, String forkUrl) {}
+            record ProvisionContext(String gitUrl, String gitBranch, String gitToken, String forkUrl, ExecutionMode executionMode) {}
 
             ProvisionContext context = QuarkusTransaction.requiringNew().call(() -> {
                 WorkspaceEntity entity = WorkspaceEntity.findById(workspaceEntityId);
@@ -84,7 +85,8 @@ public class WorkspaceService {
                         entity.git.url,
                         entity.git.branch,
                         entity.git.credential != null ? entity.git.credential.token : null,
-                        entity.git.forkUrl
+                        entity.git.forkUrl,
+                        entity.executionMode
                 );
             });
 
@@ -93,7 +95,7 @@ public class WorkspaceService {
             }
 
             WorkspaceRequest request = new WorkspaceRequest(context.gitUrl(), context.gitBranch(), context.gitToken(), context.forkUrl());
-            Workspace ws = workspaceManager.provision(request, line -> broadcaster.publish(Channel.WORKSPACE, workspaceEntityId, line));
+            Workspace ws = workspaceManagerResolver.resolve(context.executionMode()).provision(request, line -> broadcaster.publish(Channel.WORKSPACE, workspaceEntityId, line));
 
             QuarkusTransaction.requiringNew().run(() -> {
                 WorkspaceEntity entity = WorkspaceEntity.findById(workspaceEntityId);
@@ -127,7 +129,7 @@ public class WorkspaceService {
     public void delete(WorkspaceEntity entity) {
         if (entity.workspaceId != null) {
             try {
-                workspaceManager.destroy(entity.workspaceId);
+                workspaceManagerResolver.resolve(entity.executionMode).destroy(entity.workspaceId);
             } catch (Exception e) {
                 LOG.warnf("Failed to destroy runtime workspace %s: %s", entity.workspaceId, e.getMessage());
             }
