@@ -107,7 +107,6 @@ const TaskListContent: React.FC = () => {
   const [outputTaskId, setOutputTaskId] = React.useState<number | null>(null);
   const [runAllTask, setRunAllTask] = React.useState<TaskDto | null>(null);
 
-
   const createPlanMutation = useCreateTaskPlanMutation(() =>
     setCreatePlanTask(null),
   );

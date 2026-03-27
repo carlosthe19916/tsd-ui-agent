@@ -466,9 +466,7 @@ export const GitList: React.FC = () => {
                                     variant="link"
                                     size="sm"
                                     icon={<TerminalIcon />}
-                                    onClick={() =>
-                                      setProvisionLogGitId(git.id)
-                                    }
+                                    onClick={() => setProvisionLogGitId(git.id)}
                                   >
                                     View Log
                                   </Button>

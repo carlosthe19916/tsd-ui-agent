@@ -243,10 +243,7 @@ export const WorkspaceCommands: React.FC<{ ws: WorkspaceDto }> = ({ ws }) => {
 
 export const ProvisioningOutputPanel: React.FC<{
   id: number;
-  streamFn?: (
-    id: number,
-    signal?: AbortSignal,
-  ) => AsyncGenerator<string>;
+  streamFn?: (id: number, signal?: AbortSignal) => AsyncGenerator<string>;
 }> = ({ id, streamFn = streamWorkspaceOutput }) => {
   const { isDark } = React.useContext(ThemeContext);
   const [logLines, setLogLines] = React.useState<string[]>([]);
