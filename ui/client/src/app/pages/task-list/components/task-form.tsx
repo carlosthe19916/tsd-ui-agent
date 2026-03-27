@@ -1,4 +1,4 @@
-import React from "react";
+import type React from "react";
 import type { Control } from "react-hook-form";
 
 import { Form } from "@patternfly/react-core";

@@ -12,7 +12,7 @@ const MAPPINGS_QUERY_KEY = "project-git-mappings";
 export const useFetchMappings = (projectId: number | undefined) => {
   return useQuery({
     queryKey: [MAPPINGS_QUERY_KEY, projectId],
-    queryFn: () => getMappings(projectId!),
+    queryFn: () => getMappings(projectId as number),
     enabled: projectId !== undefined,
   });
 };
