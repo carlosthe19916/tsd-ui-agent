@@ -2,6 +2,8 @@
 
 A Quarkus-based backend that manages software development tasks imported from external trackers (GitHub Issues, Jira) and orchestrates AI-assisted code changes via Claude CLI or OpenCode.
 
+> *"Life is Beautiful"*
+
 ## Prerequisites
 
 The application supports three execution modes (configured via `tsd-agent.execution-mode`): **FILESYSTEM** (local development), **DOCKER** (devcontainer-based, default), and **KUBERNETES** (Eclipse Che/K8s). Prerequisites vary by mode.
