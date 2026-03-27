@@ -273,6 +273,21 @@ const TaskListContent: React.FC = () => {
                               }
                             />
                           </FlexItem>
+                          {task.plan?.changeRequestUrl && (
+                            <FlexItem>
+                              PR:{" "}
+                              <a
+                                href={task.plan.changeRequestUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                #
+                                {task.plan.changeRequestUrl.match(
+                                  /\/(\d+)\/?$/,
+                                )?.[1] ?? "PR"}
+                              </a>
+                            </FlexItem>
+                          )}
                           {(task.plan.isPlanGenerationInProgress ||
                             task.plan.isExecutionPlanInProgress) && (
                             <FlexItem>

@@ -232,9 +232,9 @@ public class TaskResource {
         }
         PlanEntity plan = planMapper.toEntity(dto);
 
-        // Auto-populate requirement from task description if not provided
+        // Auto-populate requirement from task title and description if not provided
         if (plan.requirement == null || plan.requirement.isBlank()) {
-            plan.requirement = (task.description != null && !task.description.isBlank()) ? task.description : task.title;
+            plan.requirement = buildInitialRequirement(task);
         }
 
         plan.persist();
@@ -269,7 +269,7 @@ public class TaskResource {
         // Create plan if it does not exist
         if (task.plan == null) {
             PlanEntity plan = new PlanEntity();
-            plan.requirement = (task.description != null && !task.description.isBlank()) ? task.description : task.title;
+            plan.requirement = buildInitialRequirement(task);
             plan.createdAt = java.time.Instant.now();
             plan.updatedAt = plan.createdAt;
             plan.persist();
@@ -548,6 +548,14 @@ public class TaskResource {
         return Response.status(Response.Status.ACCEPTED)
                 .entity(planMapper.toDto(task.plan))
                 .build();
+    }
+
+    private static String buildInitialRequirement(TaskEntity task) {
+        boolean hasDescription = task.description != null && !task.description.isBlank();
+        if (hasDescription) {
+            return task.title + "\n\n" + task.description;
+        }
+        return task.title;
     }
 
     @GET

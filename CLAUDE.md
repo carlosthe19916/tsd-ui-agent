@@ -4,14 +4,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Build & Run
 
+### Backend
+
 ```shell
 ./mvnw quarkus:dev          # Dev mode with live reload (requires Ollama running locally)
 ./mvnw test                 # Run all unit tests
 ./mvnw test -Dtest=ClassName#methodName  # Run a single test
-./mvnw verify -Pnative      # Native build + integration tests
 ```
 
 **Prerequisites:** JDK 25, PostgreSQL, Ollama with `granite3.3:8b` for local LLM.
+
+### Frontend
+
+```shell
+npm ci    # Install dependencies, executed only once
+npm run format:fix && npm run lint:fix && npm run lint # Lint and format validation
+```
 
 ## Architecture
 
