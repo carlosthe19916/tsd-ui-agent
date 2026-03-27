@@ -11,6 +11,9 @@ import type {
 
 const BASE_URL = "/api/tasks";
 
+export const createTask = (task: New<TaskDto>): Promise<TaskDto> =>
+  axios.post<TaskDto>(BASE_URL, task).then((res) => res.data);
+
 export const serializeTaskRequestParams = (
   params: HubRequestParams,
 ): URLSearchParams => {

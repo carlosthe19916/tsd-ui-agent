@@ -9,10 +9,11 @@ import type { New, ProjectGitMappingDto } from "@app/api/models";
 
 const MAPPINGS_QUERY_KEY = "project-git-mappings";
 
-export const useFetchMappings = (projectId: number) => {
+export const useFetchMappings = (projectId: number | undefined) => {
   return useQuery({
     queryKey: [MAPPINGS_QUERY_KEY, projectId],
-    queryFn: () => getMappings(projectId),
+    queryFn: () => getMappings(projectId as number),
+    enabled: projectId !== undefined,
   });
 };
 

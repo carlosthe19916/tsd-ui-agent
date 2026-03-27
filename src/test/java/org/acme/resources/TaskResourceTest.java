@@ -142,6 +142,52 @@ class TaskResourceTest {
         return ext;
     }
 
+    // Manual task creation tests
+
+    @Test
+    void testCreateManualTask() {
+        TaskDto dto = new TaskDto();
+        dto.title = "My manual task";
+
+        given()
+                .contentType(ContentType.JSON)
+                .body(dto)
+                .when().post("/tasks")
+                .then()
+                .statusCode(201)
+                .body("id", notNullValue())
+                .body("title", is("My manual task"))
+                .body("status", is("OPEN"))
+                .body("type", is("MANUAL"))
+                .body("externalId", org.hamcrest.Matchers.startsWith("manual-"))
+                .body("createdAt", notNullValue())
+                .body("updatedAt", notNullValue())
+                .body("project", nullValue());
+    }
+
+    @Test
+    void testCreateManualTaskAppearsInList() {
+        TaskDto dto = new TaskDto();
+        dto.title = "Searchable manual task " + System.nanoTime();
+
+        int taskId = given()
+                .contentType(ContentType.JSON)
+                .body(dto)
+                .when().post("/tasks")
+                .then()
+                .statusCode(201)
+                .extract().path("id");
+
+        given()
+                .queryParam("filterText", dto.title)
+                .when().get("/tasks")
+                .then()
+                .statusCode(200)
+                .body("meta.count", is(1))
+                .body("data[0].id", is(taskId))
+                .body("data[0].type", is("MANUAL"));
+    }
+
     @Test
     void testListAll() {
         createProjectAndSync(SourceType.GITHUB, List.of(

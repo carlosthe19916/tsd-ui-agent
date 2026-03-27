@@ -41,7 +41,7 @@ function resolveGitId(
 ): string {
   if (!gits || gits.length === 0) return "";
 
-  if (task.type === "GITHUB" && task.project.apiUrl) {
+  if (task.type === "GITHUB" && task.project?.apiUrl) {
     const prefix = "https://api.github.com/repos/";
     if (task.project.apiUrl.startsWith(prefix)) {
       const ownerRepo = task.project.apiUrl.substring(prefix.length);
@@ -69,7 +69,7 @@ function resolveGitId(
 
 export const WorkspaceCell: React.FC<WorkspaceCellProps> = ({ task }) => {
   const { data: gits } = useFetchGits();
-  const { data: mappings } = useFetchMappings(task.project.id);
+  const { data: mappings } = useFetchMappings(task.project?.id);
   const createMutation = useCreateWorkspaceAndLinkMutation();
 
   const [confirmDelete, setConfirmDelete] = React.useState(false);

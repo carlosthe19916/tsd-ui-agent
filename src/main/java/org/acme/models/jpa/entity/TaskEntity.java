@@ -61,9 +61,8 @@ public class TaskEntity extends PanacheEntityBase {
     @Column(name = "updated_at")
     public Instant updatedAt;
 
-    @NotNull
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "project_id", nullable = false)
+    @JoinColumn(name = "project_id")
     public ProjectEntity project;
 
     @Column(name = "labels")

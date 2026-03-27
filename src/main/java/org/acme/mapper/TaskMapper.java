@@ -34,7 +34,7 @@ public class TaskMapper {
         dto.type = entity.type;
         dto.createdAt = entity.createdAt;
         dto.updatedAt = entity.updatedAt;
-        dto.project = projectMapper.toDto(entity.project);
+        dto.project = entity.project != null ? projectMapper.toDto(entity.project) : null;
         dto.plan = entity.plan != null ? planMapper.toDto(entity.plan) : null;
         dto.workspace = entity.workspace != null ? workspaceMapper.toDto(entity.workspace) : null;
         return dto;

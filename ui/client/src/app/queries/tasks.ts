@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import type { HubRequestParams, New, PlanDto } from "@app/api/models";
+import type { HubRequestParams, New, PlanDto, TaskDto } from "@app/api/models";
 import { createWorkspace, deleteWorkspace } from "@app/api/git-api";
 import {
   createChangeRequest,
+  createTask,
   createTaskPlan,
   enrichRequirement,
   executePlan,
@@ -33,6 +34,17 @@ export const useFetchTasks = (params: HubRequestParams) => {
           task.plan?.isChangeRequestInProgress,
       );
       return hasInProgress ? 3000 : false;
+    },
+  });
+};
+
+export const useCreateTaskMutation = (onSuccess?: () => void) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (task: New<TaskDto>) => createTask(task),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [TASK_QUERY_KEY] });
+      onSuccess?.();
     },
   });
 };
