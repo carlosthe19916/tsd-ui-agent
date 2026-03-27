@@ -29,7 +29,7 @@ import org.acme.services.WorkspaceService;
 import org.acme.services.workspace.Workspace;
 import org.acme.services.workspace.WorkspaceCommand;
 import org.acme.services.workspace.WorkspaceHealthStatus;
-import org.acme.services.workspace.WorkspaceManager;
+import org.acme.services.workspace.WorkspaceManagerResolver;
 import org.jboss.resteasy.reactive.RestStreamElementType;
 
 import java.util.HashMap;
@@ -50,7 +50,7 @@ public class WorkspaceResource {
     WorkspaceService workspaceService;
 
     @Inject
-    WorkspaceManager workspaceManager;
+    WorkspaceManagerResolver workspaceManagerResolver;
 
     @Inject
     ExecutionOutputBroadcaster broadcaster;
@@ -114,7 +114,8 @@ public class WorkspaceResource {
         if (entity.workspaceId == null) {
             return WorkspaceHealthStatus.stopped("not provisioned");
         }
-        Workspace workspace = workspaceManager.getWorkspace(entity.workspaceId)
+        Workspace workspace = workspaceManagerResolver.resolve(entity.executionMode)
+                .getWorkspace(entity.workspaceId)
                 .orElseThrow(NotFoundException::new);
         return workspace.healthStatus();
     }
@@ -127,7 +128,8 @@ public class WorkspaceResource {
         if (entity.workspaceId == null) {
             return List.of();
         }
-        return workspaceManager.getWorkspace(entity.workspaceId)
+        return workspaceManagerResolver.resolve(entity.executionMode)
+                .getWorkspace(entity.workspaceId)
                 .map(Workspace::commands)
                 .orElse(List.of());
     }
@@ -140,7 +142,8 @@ public class WorkspaceResource {
         if (entity.workspaceId == null) {
             throw new BadRequestException("Workspace not provisioned");
         }
-        Workspace workspace = workspaceManager.getWorkspace(entity.workspaceId)
+        Workspace workspace = workspaceManagerResolver.resolve(entity.executionMode)
+                .getWorkspace(entity.workspaceId)
                 .orElseThrow(NotFoundException::new);
         workspace.start();
         return Response.noContent().build();
@@ -154,7 +157,8 @@ public class WorkspaceResource {
         if (entity.workspaceId == null) {
             throw new BadRequestException("Workspace not provisioned");
         }
-        Workspace workspace = workspaceManager.getWorkspace(entity.workspaceId)
+        Workspace workspace = workspaceManagerResolver.resolve(entity.executionMode)
+                .getWorkspace(entity.workspaceId)
                 .orElseThrow(NotFoundException::new);
         workspace.stop();
         return Response.noContent().build();

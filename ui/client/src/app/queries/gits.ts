@@ -13,7 +13,7 @@ import {
   stopWorkspace,
   updateGit,
 } from "@app/api/git-api";
-import type { GitDto, New } from "@app/api/models";
+import type { ExecutionMode, GitDto, New } from "@app/api/models";
 
 const GIT_QUERY_KEY = "gits";
 const WORKSPACES_QUERY_KEY = "workspaces";
@@ -82,8 +82,14 @@ export const useFetchWorkspaces = (gitId: number, hasTask?: boolean) => {
 export const useCreateWorkspaceMutation = (onSuccess?: () => void) => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (gitId: number) => createWorkspace(gitId),
-    onSuccess: (_response, gitId) => {
+    mutationFn: ({
+      gitId,
+      executionMode,
+    }: {
+      gitId: number;
+      executionMode: ExecutionMode;
+    }) => createWorkspace(gitId, undefined, executionMode),
+    onSuccess: (_response, { gitId }) => {
       queryClient.invalidateQueries({
         queryKey: [WORKSPACES_QUERY_KEY, gitId],
       });

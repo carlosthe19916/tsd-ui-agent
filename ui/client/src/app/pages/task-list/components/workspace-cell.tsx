@@ -3,6 +3,9 @@ import React from "react";
 import {
   Button,
   ButtonVariant,
+  Dropdown,
+  DropdownItem,
+  DropdownList,
   Flex,
   FlexItem,
   MenuToggle,
@@ -14,7 +17,7 @@ import {
 import TerminalIcon from "@patternfly/react-icons/dist/esm/icons/terminal-icon";
 import TrashIcon from "@patternfly/react-icons/dist/esm/icons/trash-icon";
 
-import type { GitDto, TaskDto } from "@app/api/models";
+import type { ExecutionMode, GitDto, TaskDto } from "@app/api/models";
 import { ConfirmDialog } from "@app/components/ConfirmDialog";
 import { ProvisioningOutputModal } from "./provisioning-output-modal";
 import {
@@ -85,6 +88,7 @@ export const WorkspaceCell: React.FC<WorkspaceCellProps> = ({ task }) => {
 
   const [selectedGitId, setSelectedGitId] = React.useState<string>("");
   const [isOpen, setIsOpen] = React.useState(false);
+  const [isCreateOpen, setIsCreateOpen] = React.useState(false);
 
   React.useEffect(() => {
     if (!selectedGitId && defaultGitId) {
@@ -186,11 +190,12 @@ export const WorkspaceCell: React.FC<WorkspaceCellProps> = ({ task }) => {
 
   const selectedGit = gits?.find((g) => String(g.id) === selectedGitId);
 
-  const handleCreate = () => {
+  const handleCreate = (executionMode: ExecutionMode) => {
     if (!selectedGitId) return;
     createMutation.mutate({
       gitId: Number(selectedGitId),
       taskId: task.id,
+      executionMode,
     });
   };
 
@@ -238,15 +243,37 @@ export const WorkspaceCell: React.FC<WorkspaceCellProps> = ({ task }) => {
         </Select>
       </FlexItem>
       <FlexItem>
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={handleCreate}
-          isDisabled={!selectedGitId || createMutation.isPending}
-          isLoading={createMutation.isPending}
+        <Dropdown
+          isOpen={isCreateOpen}
+          onSelect={() => setIsCreateOpen(false)}
+          onOpenChange={setIsCreateOpen}
+          toggle={(toggleRef) => (
+            <MenuToggle
+              ref={toggleRef}
+              onClick={() => setIsCreateOpen(!isCreateOpen)}
+              isExpanded={isCreateOpen}
+              variant="primary"
+              isDisabled={!selectedGitId || createMutation.isPending}
+            >
+              {createMutation.isPending ? "Creating..." : "Create workspace"}
+            </MenuToggle>
+          )}
         >
-          {createMutation.isPending ? "Creating..." : "Create workspace"}
-        </Button>
+          <DropdownList>
+            <DropdownItem
+              key="filesystem"
+              onClick={() => handleCreate("FILESYSTEM")}
+            >
+              Local filesystem
+            </DropdownItem>
+            <DropdownItem
+              key="container"
+              onClick={() => handleCreate("DOCKER")}
+            >
+              Container
+            </DropdownItem>
+          </DropdownList>
+        </Dropdown>
       </FlexItem>
     </Flex>
   );

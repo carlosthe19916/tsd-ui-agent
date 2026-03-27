@@ -4,7 +4,7 @@ A Quarkus-based backend that manages software development tasks imported from ex
 
 ## Prerequisites
 
-The application supports three execution modes (configured via `tsd-agent.execution-mode`): **FILESYSTEM** (local development), **DOCKER** (devcontainer-based, default), and **KUBERNETES** (Eclipse Che/K8s). Prerequisites vary by mode.
+The application supports three workspace types, selectable per-workspace from the UI: **FILESYSTEM** (local development), **DOCKER** (devcontainer-based), and **KUBERNETES** (Eclipse Che/K8s). Prerequisites vary by type.
 
 ### Core Requirements (All Modes)
 - **Git** - Version control

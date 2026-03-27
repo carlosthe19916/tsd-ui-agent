@@ -5,7 +5,7 @@ import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
 import org.acme.dto.GitDto;
 import org.acme.dto.WorkspaceDto;
-import org.acme.services.workspace.WorkspaceManager;
+import org.acme.services.workspace.WorkspaceManagerResolver;
 import org.acme.services.workspace.filesystem.FilesystemWorkspace;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,14 +25,19 @@ import static org.mockito.Mockito.when;
 class WorkspaceResourceTest {
 
     @InjectMock
-    WorkspaceManager workspaceManager;
+    WorkspaceManagerResolver workspaceManagerResolver;
 
     @BeforeEach
     void setup() {
-        when(workspaceManager.provision(any()))
+        org.acme.services.workspace.WorkspaceManager mockManager = org.mockito.Mockito.mock(org.acme.services.workspace.WorkspaceManager.class);
+        when(mockManager.provision(any()))
                 .thenAnswer(invocation -> new FilesystemWorkspace("/tmp/tsd-agent-ui-test/repo/trees/ws-test"));
-        when(workspaceManager.provision(any(), any()))
+        when(mockManager.provision(any(), any()))
                 .thenAnswer(invocation -> new FilesystemWorkspace("/tmp/tsd-agent-ui-test/repo/trees/ws-test"));
+        when(workspaceManagerResolver.resolve((org.acme.models.jpa.entity.ExecutionMode) any()))
+                .thenReturn(mockManager);
+        when(workspaceManagerResolver.resolve((org.acme.services.workspace.ExecutionMode) any()))
+                .thenReturn(mockManager);
     }
 
     private int createGit(String url) {
@@ -116,10 +121,15 @@ class WorkspaceResourceTest {
 
     @Test
     void testCreateWorkspaceProvisioningError() {
-        when(workspaceManager.provision(any()))
+        org.acme.services.workspace.WorkspaceManager errorManager = org.mockito.Mockito.mock(org.acme.services.workspace.WorkspaceManager.class);
+        when(errorManager.provision(any()))
                 .thenThrow(new RuntimeException("provision failed"));
-        when(workspaceManager.provision(any(), any()))
+        when(errorManager.provision(any(), any()))
                 .thenThrow(new RuntimeException("provision failed"));
+        when(workspaceManagerResolver.resolve((org.acme.models.jpa.entity.ExecutionMode) any()))
+                .thenReturn(errorManager);
+        when(workspaceManagerResolver.resolve((org.acme.services.workspace.ExecutionMode) any()))
+                .thenReturn(errorManager);
 
         int gitId = createGit("https://github.com/ws/provision-error.git");
 

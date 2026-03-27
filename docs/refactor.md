@@ -8,7 +8,7 @@ The app currently runs all git operations and Claude CLI commands as local proce
 - Docker: Each task runs in a devcontainer (devcontainer CLI)
 - Kubernetes: Each task runs in a pod managed via devfile.io / Eclipse Che
 
-The execution mode is a global app-level setting (tsd-agent.execution-mode). Implementation is incremental: Phase 1 (abstractions + Filesystem), Phase 2 (Docker/devcontainers), Phase 3 (Kubernetes/devfile).
+The execution mode is selected per-workspace by the user from the UI. Implementation is incremental: Phase 1 (abstractions + Filesystem), Phase 2 (Docker/devcontainers), Phase 3 (Kubernetes/devfile).
 
  ---
 Phase 1: Core Abstractions + Filesystem Refactor
@@ -60,7 +60,7 @@ New files in org.acme.services.workspace.filesystem:
 
 New file: src/main/java/org/acme/services/workspace/WorkspaceManagerProducer.java
 
-Uses @Produces @ApplicationScoped to return the correct WorkspaceManager based on tsd-agent.execution-mode config property. For Phase 1, only FilesystemWorkspaceManager is wired.
+Replaced by WorkspaceManagerResolver, which resolves the correct WorkspaceManager per-workspace based on the ExecutionMode stored on each WorkspaceEntity.
 
 1.6 Refactor CodingAgentService interface
 
@@ -125,7 +125,7 @@ Modify: src/main/java/org/acme/models/jpa/entity/PlanEntity.java
 
 Modify: src/main/resources/application.properties
 
-tsd-agent.execution-mode=FILESYSTEM
+(Execution mode is now per-workspace, selected by the user from the UI)
 
 1.14 Update existing tests
 
@@ -274,7 +274,7 @@ Files Modified (Phase 1)
 ├────────────────────────────────────────┼──────────────────────────────────────────────────────────────────┤
 │ models/jpa/entity/PlanEntity.java      │ Add workspaceId field                                            │
 ├────────────────────────────────────────┼──────────────────────────────────────────────────────────────────┤
-│ resources/application.properties       │ Add tsd-agent.execution-mode                                     │
+│ resources/application.properties       │ (execution mode removed — now per-workspace)                     │
 ├────────────────────────────────────────┼──────────────────────────────────────────────────────────────────┤
 │ services/PlanServiceTest.java          │ Update for new interfaces                                        │
 ├────────────────────────────────────────┼──────────────────────────────────────────────────────────────────┤
@@ -298,5 +298,5 @@ Verification
 
 1. Phase 1: Run ./mvnw test — all existing tests must pass after refactor
 2. Phase 1: Manual test: create a task, generate plan, execute plan, create PR — same workflow as before in Filesystem mode
-3. Phase 2: Manual test: set tsd-agent.execution-mode=DOCKER, verify container created via docker ps, plan generation works inside container, devcontainer exec runs git/claude commands
-4. Phase 3: Manual test: set tsd-agent.execution-mode=KUBERNETES, verify pod created via kubectl get pods, plan works inside pod
+3. Phase 2: Manual test: create a workspace with "Container" type from the UI, verify container created via docker ps, plan generation works inside container, devcontainer exec runs git/claude commands
+4. Phase 3: Manual test: create a workspace with Kubernetes type, verify pod created via kubectl get pods, plan works inside pod
