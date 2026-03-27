@@ -87,7 +87,8 @@ public class TaskResource {
             @QueryParam("status") String status,
             @QueryParam("offset") @DefaultValue("0") @Max(9_000) int offset,
             @QueryParam("limit") @DefaultValue("10") @Max(1_000) int limit,
-            @QueryParam("sort_by") List<String> sortBy
+            @QueryParam("sort_by") List<String> sortBy,
+            @QueryParam("hasWorkspace") Boolean hasWorkspace
     ) {
         StringBuilder query = new StringBuilder();
         Map<String, Object> params = new HashMap<>();
@@ -107,6 +108,15 @@ public class TaskResource {
             if (!query.isEmpty()) query.append(" and");
             query.append(" status = :status");
             params.put("status", TaskStatus.valueOf(status));
+        }
+
+        if (hasWorkspace != null) {
+            if (!query.isEmpty()) query.append(" and");
+            if (hasWorkspace) {
+                query.append(" workspace is not null");
+            } else {
+                query.append(" workspace is null");
+            }
         }
 
         Sort sort = buildSort(sortBy);
