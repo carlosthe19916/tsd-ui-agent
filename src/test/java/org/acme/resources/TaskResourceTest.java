@@ -709,7 +709,7 @@ class TaskResourceTest {
                 .when().post("/tasks/{taskId}/plan", taskId)
                 .then()
                 .statusCode(201)
-                .body("requirement", is("Detailed task description"))
+                .body("requirement", is("Task with description\n\nDetailed task description"))
                 .body("isRequirementInProgress", is(false));
 
         // Trigger enrichment via separate endpoint
