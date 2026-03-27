@@ -44,6 +44,14 @@ public class ChangeRequestService {
         Thread.startVirtualThread(() -> doChangeRequest(taskId));
     }
 
+    private String normalizeStatus(String state) {
+        if (state == null) return "open";
+        return switch (state.toLowerCase()) {
+            case "opened" -> "open";
+            default -> state.toLowerCase();
+        };
+    }
+
     void doChangeRequest(Long taskId) {
         ManagedContext requestContext = Arc.container().requestContext();
         requestContext.activate();
@@ -176,12 +184,16 @@ public class ChangeRequestService {
             }
 
             String finalHtmlUrl = htmlUrl;
+            String finalTitle = result.title();
+            String finalStatus = normalizeStatus(result.status());
             QuarkusTransaction.requiringNew().run(() -> {
                 TaskEntity task = TaskEntity.findById(taskId);
                 if (task != null && task.plan != null) {
                     task.plan.isChangeRequestInProgress = false;
                     task.plan.changeRequestError = null;
                     task.plan.changeRequestUrl = finalHtmlUrl;
+                    task.plan.changeRequestTitle = finalTitle;
+                    task.plan.changeRequestStatus = finalStatus;
                     task.plan.updatedAt = Instant.now();
                     task.plan.persist();
                 }

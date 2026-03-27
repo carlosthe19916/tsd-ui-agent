@@ -49,7 +49,8 @@ public class GitLabChangeRequestProvider implements ChangeRequestProvider {
                         params.title(),
                         params.description(),
                         targetProjectId));
-        return new ChangeRequestResult(mr.webUrl());
+        String status = mr.state() != null && mr.state().equalsIgnoreCase("opened") ? "open" : mr.state();
+        return new ChangeRequestResult(mr.webUrl(), mr.title(), status);
     }
 
     @Override
@@ -68,7 +69,9 @@ public class GitLabChangeRequestProvider implements ChangeRequestProvider {
         if (mrs.isEmpty()) {
             throw new IllegalStateException("MR already exists but could not be found via API");
         }
-        return new ChangeRequestResult(mrs.getFirst().webUrl());
+        MergeRequestResponse mr = mrs.getFirst();
+        String status = mr.state() != null && mr.state().equalsIgnoreCase("opened") ? "open" : mr.state();
+        return new ChangeRequestResult(mr.webUrl(), mr.title(), status);
     }
 
     private static String encodePath(String ownerRepo) {

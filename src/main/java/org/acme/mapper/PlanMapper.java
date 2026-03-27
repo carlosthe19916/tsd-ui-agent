@@ -26,6 +26,8 @@ public class PlanMapper {
         dto.isChangeRequestInProgress = entity.isChangeRequestInProgress;
         dto.changeRequestError = entity.changeRequestError;
         dto.changeRequestUrl = entity.changeRequestUrl;
+        dto.changeRequestTitle = entity.changeRequestTitle;
+        dto.changeRequestStatus = entity.changeRequestStatus;
         return dto;
     }
 
@@ -50,6 +52,12 @@ public class PlanMapper {
         }
         if (dto.requirement != null) {
             entity.requirement = dto.requirement;
+        }
+        if (dto.changeRequestTitle != null) {
+            entity.changeRequestTitle = dto.changeRequestTitle;
+        }
+        if (dto.changeRequestStatus != null) {
+            entity.changeRequestStatus = dto.changeRequestStatus;
         }
         entity.updatedAt = Instant.now();
     }

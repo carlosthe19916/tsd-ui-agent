@@ -82,6 +82,8 @@ export interface PlanDto {
   isChangeRequestInProgress?: boolean;
   changeRequestError?: string;
   changeRequestUrl?: string;
+  changeRequestTitle?: string;
+  changeRequestStatus?: string;
 }
 
 export interface TaskDto {

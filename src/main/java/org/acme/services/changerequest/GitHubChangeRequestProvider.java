@@ -43,7 +43,7 @@ public class GitHubChangeRequestProvider implements ChangeRequestProvider {
         try {
             PullRequestResponse pr = api.createPullRequest(owner, repo,
                     new CreatePullRequest(params.title(), head, params.baseBranch(), params.description()));
-            return new ChangeRequestResult(pr.htmlUrl());
+            return new ChangeRequestResult(pr.htmlUrl(), pr.title(), pr.state());
         } catch (ClientWebApplicationException e) {
             Response response = e.getResponse();
             String body = response != null ? response.readEntity(String.class) : "no response body";
@@ -65,7 +65,8 @@ public class GitHubChangeRequestProvider implements ChangeRequestProvider {
         if (prs.isEmpty()) {
             throw new IllegalStateException("PR already exists but could not be found via API");
         }
-        return new ChangeRequestResult(prs.getFirst().htmlUrl());
+        PullRequestResponse pr = prs.getFirst();
+        return new ChangeRequestResult(pr.htmlUrl(), pr.title(), pr.state());
     }
 
     private String computeHead(ChangeRequestParams params) {

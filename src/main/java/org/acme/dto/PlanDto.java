@@ -33,4 +33,8 @@ public class PlanDto {
     public String changeRequestError;
 
     public String changeRequestUrl;
+
+    public String changeRequestTitle;
+
+    public String changeRequestStatus;
 }

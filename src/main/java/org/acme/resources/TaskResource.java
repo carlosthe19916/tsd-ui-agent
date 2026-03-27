@@ -56,7 +56,7 @@ import java.util.stream.Collectors;
 public class TaskResource {
 
     private static final Set<String> SORTABLE_FIELDS = Set.of(
-            "title", "status", "createdAt", "updatedAt", "project.name"
+            "title", "status", "createdAt", "updatedAt", "project.name", "plan.changeRequestStatus"
     );
 
     @Inject
@@ -88,7 +88,9 @@ public class TaskResource {
             @QueryParam("offset") @DefaultValue("0") @Max(9_000) int offset,
             @QueryParam("limit") @DefaultValue("10") @Max(1_000) int limit,
             @QueryParam("sort_by") List<String> sortBy,
-            @QueryParam("hasWorkspace") Boolean hasWorkspace
+            @QueryParam("hasWorkspace") Boolean hasWorkspace,
+            @QueryParam("hasChangeRequest") Boolean hasChangeRequest,
+            @QueryParam("changeRequestStatus") String changeRequestStatus
     ) {
         StringBuilder query = new StringBuilder();
         Map<String, Object> params = new HashMap<>();
@@ -117,6 +119,21 @@ public class TaskResource {
             } else {
                 query.append(" workspace is null");
             }
+        }
+
+        if (hasChangeRequest != null) {
+            if (!query.isEmpty()) query.append(" and");
+            if (hasChangeRequest) {
+                query.append(" plan.changeRequestUrl is not null");
+            } else {
+                query.append(" (plan is null or plan.changeRequestUrl is null)");
+            }
+        }
+
+        if (changeRequestStatus != null && !changeRequestStatus.isBlank()) {
+            if (!query.isEmpty()) query.append(" and");
+            query.append(" plan.changeRequestStatus = :changeRequestStatus");
+            params.put("changeRequestStatus", changeRequestStatus);
         }
 
         Sort sort = buildSort(sortBy);
