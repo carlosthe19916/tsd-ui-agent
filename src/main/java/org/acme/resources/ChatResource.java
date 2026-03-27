@@ -45,7 +45,6 @@ public class ChatResource {
 
         // Set up request-scoped context for @Tool methods
         chatContext.taskId = taskId;
-        chatContext.task = task;
         if (task.workspace != null && task.workspace.workspaceId != null) {
             chatContext.workspace = workspaceManagerResolver
                     .resolve(task.workspace.executionMode)
