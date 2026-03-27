@@ -66,7 +66,6 @@ export const ExecutionOutputPanel: React.FC<ExecutionOutputPanelProps> = ({
     <div style={{ marginTop: "var(--pf-t--global--spacer--md)" }}>
       <LogViewer
         data={data}
-        hasLineNumbers
         height={400}
         isTextWrapped={false}
         scrollToRow={logLines.length}
