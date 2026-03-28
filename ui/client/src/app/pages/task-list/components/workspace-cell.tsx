@@ -86,15 +86,12 @@ export const WorkspaceCell: React.FC<WorkspaceCellProps> = ({ task }) => {
     [task, gits, mappings],
   );
 
-  const [selectedGitId, setSelectedGitId] = React.useState<string>("");
+  const [selectedGitIdOverride, setSelectedGitIdOverride] =
+    React.useState<string>("");
   const [isOpen, setIsOpen] = React.useState(false);
   const [isCreateOpen, setIsCreateOpen] = React.useState(false);
 
-  React.useEffect(() => {
-    if (!selectedGitId && defaultGitId) {
-      setSelectedGitId(defaultGitId);
-    }
-  }, [defaultGitId, selectedGitId]);
+  const selectedGitId = selectedGitIdOverride || defaultGitId;
 
   if (task.workspace) {
     const ws = task.workspace;
@@ -206,7 +203,7 @@ export const WorkspaceCell: React.FC<WorkspaceCellProps> = ({ task }) => {
           isOpen={isOpen}
           selected={selectedGitId || undefined}
           onSelect={(_event, value) => {
-            setSelectedGitId(String(value));
+            setSelectedGitIdOverride(String(value));
             setIsOpen(false);
           }}
           onOpenChange={setIsOpen}

@@ -2,7 +2,6 @@ import React from "react";
 
 import {
   Button,
-  ButtonVariant,
   DescriptionList,
   DescriptionListDescription,
   DescriptionListGroup,
@@ -18,12 +17,10 @@ import {
   Tabs,
   TabTitleText,
 } from "@patternfly/react-core";
-import { Language } from "@patternfly/react-code-editor";
 import TerminalIcon from "@patternfly/react-icons/dist/esm/icons/terminal-icon";
 
 import type { TaskDto } from "@app/api/models";
-import { ConfirmDialog } from "@app/components/ConfirmDialog";
-import { ThemedCodeEditor } from "@app/components/ThemedCodeEditor";
+import { DraftEditor } from "@app/components/DraftEditor";
 import { WebTerminal } from "@app/components/WebTerminal";
 import { ExecutionOutputModal } from "@app/pages/task-list/components/execution-output-modal";
 import { PlanProgressStepper } from "@app/pages/task-list/components/plan-progress-stepper";
@@ -31,12 +28,11 @@ import {
   PlanModal,
   RequirementModal,
 } from "@app/pages/task-list/components/plan-wizard-modal";
+import { useTaskPlanActions } from "@app/pages/task-list/components/use-task-plan-actions";
 import { WorkspaceCell } from "@app/pages/task-list/components/workspace-cell";
 import {
   useCreateChangeRequestMutation,
-  useCreateTaskPlanMutation,
   usePatchTaskPlanMutation,
-  useRunAllPlanPhasesMutation,
 } from "@app/queries/tasks";
 import { formatDateTime } from "@app/utils/utils";
 
@@ -48,31 +44,19 @@ export const TaskContextSidebar: React.FC<TaskContextSidebarProps> = ({
   task,
 }) => {
   const [activeTab, setActiveTab] = React.useState<string | number>(1);
-  const [requirement, setRequirement] = React.useState(
-    task.plan?.requirement ?? "",
-  );
-  const [plan, setPlan] = React.useState(task.plan?.plan ?? "");
   const [requirementTask, setRequirementTask] = React.useState<TaskDto | null>(
     null,
   );
   const [planTask, setPlanTask] = React.useState<TaskDto | null>(null);
-
-  React.useEffect(() => {
-    setRequirement(task.plan?.requirement ?? "");
-    setPlan(task.plan?.plan ?? "");
-  }, [task.plan?.requirement, task.plan?.plan]);
   const [outputTaskId, setOutputTaskId] = React.useState<number | null>(null);
-  const [createPlanTask, setCreatePlanTask] = React.useState<TaskDto | null>(
-    null,
-  );
-  const [runAllTask, setRunAllTask] = React.useState<TaskDto | null>(null);
 
+  const {
+    setCreatePlanTask,
+    setRunAllTask,
+    dialogs: planActionDialogs,
+  } = useTaskPlanActions();
   const patchPlanMutation = usePatchTaskPlanMutation();
   const changeRequestMutation = useCreateChangeRequestMutation();
-  const createPlanMutation = useCreateTaskPlanMutation(() =>
-    setCreatePlanTask(null),
-  );
-  const runAllMutation = useRunAllPlanPhasesMutation(() => setRunAllTask(null));
 
   return (
     <>
@@ -223,58 +207,32 @@ export const TaskContextSidebar: React.FC<TaskContextSidebarProps> = ({
                   eventKey={1}
                   title={<TabTitleText>Requirements</TabTitleText>}
                 >
-                  <div style={{ marginTop: 8 }}>
-                    <ThemedCodeEditor
-                      language={Language.markdown}
-                      code={requirement}
-                      onCodeChange={setRequirement}
-                      height="29vh"
-                      isLineNumbersVisible
-                    />
-                    <Button
-                      variant="primary"
-                      onClick={() =>
-                        patchPlanMutation.mutate({
-                          taskId: task.id,
-                          plan: { requirement },
-                        })
-                      }
-                      isLoading={patchPlanMutation.isPending}
-                      isDisabled={
-                        requirement === (task.plan?.requirement ?? "")
-                      }
-                      style={{ marginTop: 8 }}
-                    >
-                      Save
-                    </Button>
-                  </div>
+                  <DraftEditor
+                    key={task.plan.requirement ?? ""}
+                    serverValue={task.plan.requirement ?? ""}
+                    onSave={(value) =>
+                      patchPlanMutation.mutate({
+                        taskId: task.id,
+                        plan: { requirement: value },
+                      })
+                    }
+                    isSaving={patchPlanMutation.isPending}
+                  />
                 </Tab>
               )}
               {task.plan && (
                 <Tab eventKey={2} title={<TabTitleText>Plan</TabTitleText>}>
-                  <div style={{ marginTop: 8 }}>
-                    <ThemedCodeEditor
-                      language={Language.markdown}
-                      code={plan}
-                      onCodeChange={setPlan}
-                      height="29vh"
-                      isLineNumbersVisible
-                    />
-                    <Button
-                      variant="primary"
-                      onClick={() =>
-                        patchPlanMutation.mutate({
-                          taskId: task.id,
-                          plan: { plan },
-                        })
-                      }
-                      isLoading={patchPlanMutation.isPending}
-                      isDisabled={plan === (task.plan?.plan ?? "")}
-                      style={{ marginTop: 8 }}
-                    >
-                      Save
-                    </Button>
-                  </div>
+                  <DraftEditor
+                    key={task.plan.plan ?? ""}
+                    serverValue={task.plan.plan ?? ""}
+                    onSave={(value) =>
+                      patchPlanMutation.mutate({
+                        taskId: task.id,
+                        plan: { plan: value },
+                      })
+                    }
+                    isSaving={patchPlanMutation.isPending}
+                  />
                 </Tab>
               )}
               <Tab
@@ -313,44 +271,7 @@ export const TaskContextSidebar: React.FC<TaskContextSidebarProps> = ({
         onClose={() => setOutputTaskId(null)}
       />
 
-      <ConfirmDialog
-        isOpen={runAllTask !== null}
-        title="Create plan and run"
-        titleIconVariant="warning"
-        message={`This will create a plan and run all phases (requirement enrichment, plan generation, execution, and change request) for "${runAllTask?.title}". This operation can take a long time.`}
-        confirmBtnLabel="Run all"
-        cancelBtnLabel="Cancel"
-        confirmBtnVariant={ButtonVariant.danger}
-        inProgress={runAllMutation.isPending}
-        onConfirm={() => {
-          if (runAllTask) {
-            runAllMutation.mutate(runAllTask.id);
-          }
-        }}
-        onClose={() => setRunAllTask(null)}
-        onCancel={() => setRunAllTask(null)}
-      />
-
-      <ConfirmDialog
-        isOpen={createPlanTask !== null}
-        title="Create plan"
-        titleIconVariant="info"
-        message={`Create a new plan for "${createPlanTask?.title}"? This will auto-populate the requirement from the task description.`}
-        confirmBtnLabel="Create"
-        cancelBtnLabel="Cancel"
-        confirmBtnVariant={ButtonVariant.primary}
-        inProgress={createPlanMutation.isPending}
-        onConfirm={() => {
-          if (createPlanTask) {
-            createPlanMutation.mutate({
-              taskId: createPlanTask.id,
-              plan: { plan: "" },
-            });
-          }
-        }}
-        onClose={() => setCreatePlanTask(null)}
-        onCancel={() => setCreatePlanTask(null)}
-      />
+      {planActionDialogs}
     </>
   );
 };

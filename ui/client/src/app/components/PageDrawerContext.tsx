@@ -1,4 +1,4 @@
-import React from "react";
+import React, { use } from "react";
 import {
   Drawer,
   DrawerActions,
@@ -117,7 +117,7 @@ export const PageDrawerContent: React.FC<PageDrawerContentProps> = ({
     setDrawerPanelContent,
     setDrawerPanelContentProps,
     setDrawerPageKey,
-  } = React.useContext(PageDrawerContext);
+  } = use(PageDrawerContext);
 
   React.useEffect(() => {
     setIsDrawerExpanded(isExpanded);

@@ -1,4 +1,5 @@
-import React from "react";
+import type React from "react";
+import { use } from "react";
 
 import { CodeEditor } from "@patternfly/react-code-editor";
 
@@ -10,6 +11,6 @@ type ThemedCodeEditorProps = Omit<
 >;
 
 export const ThemedCodeEditor: React.FC<ThemedCodeEditorProps> = (props) => {
-  const { isDark } = React.useContext(ThemeContext);
+  const { isDark } = use(ThemeContext);
   return <CodeEditor isDarkTheme={isDark} {...props} />;
 };
