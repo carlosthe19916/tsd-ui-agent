@@ -5,12 +5,12 @@ import io.quarkus.arc.ManagedContext;
 import io.quarkus.narayana.jta.QuarkusTransaction;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import org.acme.models.jpa.entity.ExecutionMode;
 import org.acme.models.jpa.entity.TaskEntity;
-import org.acme.services.codeagent.CodingAgentService;
 import org.acme.services.ai.RequirementSummarizerService;
+import org.acme.services.codeagent.CodingAgentService;
 import org.acme.services.sync.ExternalIssueContext;
 import org.acme.services.sync.SyncManager;
-import org.acme.models.jpa.entity.ExecutionMode;
 import org.acme.services.workspace.Workspace;
 import org.acme.services.workspace.WorkspaceException;
 import org.acme.services.workspace.WorkspaceHealthStatus;
@@ -42,24 +42,32 @@ public class PlanService {
     ChangeRequestService changeRequestService;
 
     public void triggerFullPipeline(Long taskId) {
-        Thread.startVirtualThread(() -> doFullPipeline(taskId));
+        Thread.startVirtualThread(() -> runWithRequestContext(() -> doFullPipeline(taskId)));
     }
 
     public void triggerRequirementEnrichment(Long taskId) {
-        Thread.startVirtualThread(() -> doRequirementEnrichment(taskId));
+        Thread.startVirtualThread(() -> runWithRequestContext(() -> doRequirementEnrichment(taskId)));
     }
 
     public void triggerPlanGeneration(Long taskId) {
-        Thread.startVirtualThread(() -> doPlanGeneration(taskId));
+        Thread.startVirtualThread(() -> runWithRequestContext(() -> doPlanGeneration(taskId)));
     }
 
     public void triggerPlanExecution(Long taskId) {
-        Thread.startVirtualThread(() -> doPlanExecution(taskId));
+        Thread.startVirtualThread(() -> runWithRequestContext(() -> doPlanExecution(taskId)));
     }
 
-    void doPlanGeneration(Long taskId) {
+    private void runWithRequestContext(Runnable action) {
         ManagedContext requestContext = Arc.container().requestContext();
         requestContext.activate();
+        try {
+            action.run();
+        } finally {
+            requestContext.terminate();
+        }
+    }
+
+    public void doPlanGeneration(Long taskId) {
         try {
             // Phase 1: Collect data in a short transaction
             record PlanGenerationContext(String workspaceId, String requirement, ExecutionMode executionMode) {}
@@ -115,14 +123,10 @@ public class PlanService {
             } catch (Exception inner) {
                 LOG.errorf(inner, "Failed to set error status for task %d plan generation", taskId);
             }
-        } finally {
-            requestContext.terminate();
         }
     }
 
-    void doPlanExecution(Long taskId) {
-        ManagedContext requestContext = Arc.container().requestContext();
-        requestContext.activate();
+    public void doPlanExecution(Long taskId) {
         try {
             // Phase 1: Collect data in a short transaction
             record PlanExecutionContext(String workspaceId, String planText, ExecutionMode executionMode) {}
@@ -178,12 +182,10 @@ public class PlanService {
             } catch (Exception inner) {
                 LOG.errorf(inner, "Failed to set error status for task %d plan execution", taskId);
             }
-        } finally {
-            requestContext.terminate();
         }
     }
 
-    void doFullPipeline(Long taskId) {
+    private void doFullPipeline(Long taskId) {
         // Phase 1: Requirement enrichment (flag already set by endpoint)
         doRequirementEnrichment(taskId);
         if (!transitionToNextPhase(taskId, "requirement")) return;
@@ -201,8 +203,6 @@ public class PlanService {
     }
 
     private boolean transitionToNextPhase(Long taskId, String completedPhase) {
-        ManagedContext ctx = Arc.container().requestContext();
-        ctx.activate();
         try {
             return QuarkusTransaction.requiringNew().call(() -> {
                 TaskEntity task = TaskEntity.findById(taskId);
@@ -234,14 +234,10 @@ public class PlanService {
         } catch (Exception e) {
             LOG.errorf(e, "Failed to transition to next phase after '%s' for task %d", completedPhase, taskId);
             return false;
-        } finally {
-            ctx.terminate();
         }
     }
 
-    void doRequirementEnrichment(Long taskId) {
-        ManagedContext requestContext = Arc.container().requestContext();
-        requestContext.activate();
+    public void doRequirementEnrichment(Long taskId) {
         try {
             // Phase 1: Collect data in a short transaction
             ExternalIssueContext context = QuarkusTransaction.requiringNew().call(() -> {
@@ -312,8 +308,6 @@ public class PlanService {
             } catch (Exception inner) {
                 LOG.errorf(inner, "Failed to set ERROR status for task %d discovery", taskId);
             }
-        } finally {
-            requestContext.terminate();
         }
     }
 }

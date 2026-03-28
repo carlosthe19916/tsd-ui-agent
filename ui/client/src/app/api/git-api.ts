@@ -38,6 +38,16 @@ export const createWorkspace = (
 export const deleteWorkspace = (wsId: number) =>
   axios.delete<void>(`${WORKSPACES_URL}/${wsId}`);
 
+export const commitWorkspace = (wsId: number, message: string) =>
+  axios
+    .post<void>(`${WORKSPACES_URL}/${wsId}/git/commit`, { message })
+    .then((response) => response.data);
+
+export const commitAndPushWorkspace = (wsId: number, message: string) =>
+  axios
+    .post<void>(`${WORKSPACES_URL}/${wsId}/git/commit-and-push`, { message })
+    .then((response) => response.data);
+
 export const getWorkspaceStatus = (wsId: number) =>
   axios
     .get<{
@@ -87,6 +97,29 @@ export const streamWorkspaceOutput = async function* (
     reader.cancel();
   }
 };
+
+export interface GitChangedFile {
+  status: string;
+  path: string;
+}
+
+export const getWorkspaceChangedFiles = (
+  wsId: number,
+): Promise<GitChangedFile[]> =>
+  axios
+    .get<GitChangedFile[]>(`${WORKSPACES_URL}/${wsId}/git/changed-files`)
+    .then((response) => response.data);
+
+export const getWorkspaceDiff = (
+  wsId: number,
+  filePath?: string,
+): Promise<string> =>
+  axios
+    .get<string>(`${WORKSPACES_URL}/${wsId}/git/diff`, {
+      params: filePath ? { path: filePath } : {},
+      transformResponse: [(data: string) => data],
+    })
+    .then((response) => response.data);
 
 export const streamGitOutput = async function* (
   gitId: number,

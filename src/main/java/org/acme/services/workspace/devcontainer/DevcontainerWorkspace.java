@@ -7,14 +7,20 @@ import org.acme.services.workspace.WorkspaceCommandType;
 import org.acme.services.workspace.WorkspaceException;
 import org.acme.services.workspace.WorkspaceHealthStatus;
 
+import com.pty4j.PtyProcess;
+import com.pty4j.PtyProcessBuilder;
+
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -126,6 +132,22 @@ public class DevcontainerWorkspace implements Workspace {
         }
 
         return commands;
+    }
+
+    @Override
+    public PtyProcess createPtyProcess(int cols, int rows) throws IOException {
+        return new PtyProcessBuilder()
+                .setCommand(new String[]{
+                        containerRuntime, "exec", "-it",
+                        "--user", remoteUser,
+                        "-w", containerWorkingDir,
+                        containerId,
+                        "/bin/bash"
+                })
+                .setEnvironment(new HashMap<>(System.getenv()))
+                .setInitialColumns(cols)
+                .setInitialRows(rows)
+                .start();
     }
 
     @Override

@@ -12,7 +12,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class ExecutionOutputBroadcaster {
 
     public enum Channel {
-        GIT, WORKSPACE, TASK
+        GIT, WORKSPACE, TASK, CHAT
     }
 
     private final ConcurrentHashMap<String, OutputSession> sessions = new ConcurrentHashMap<>();

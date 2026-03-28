@@ -31,12 +31,16 @@
     "@patternfly/react-tokens": "^6.4.0",
     "@tanstack/react-query": "^5.90.11",
     "@tanstack/react-query-devtools": "^5.61.0",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
     "axios": "^1.13.6",
     "react": "^19.1.1",
+    "react-diff-view": "^3.3.2",
     "react-dom": "^19.1.1",
     "react-hook-form": "^7.71.2",
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.8.1",
+    "unidiff": "^1.0.4",
     "yup": "^1.7.1"
   },
   "devDependencies": {

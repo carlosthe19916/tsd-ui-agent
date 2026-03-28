@@ -7,6 +7,7 @@ import { CredentialList } from "./pages/credential-list";
 import { GitList } from "./pages/git-list";
 import { ProjectList } from "./pages/project-list";
 import { TaskList } from "./pages/task-list";
+import { TaskDetail } from "./pages/task-detail";
 
 export const Paths = {
   home: "/",
@@ -14,6 +15,7 @@ export const Paths = {
   credentials: "/credentials",
   gits: "/gits",
   tasks: "/tasks",
+  taskDetail: "/tasks/:taskId",
 } as const;
 
 export const AppRoutes = createBrowserRouter(
@@ -41,6 +43,10 @@ export const AppRoutes = createBrowserRouter(
         {
           path: Paths.tasks,
           element: <TaskList />,
+        },
+        {
+          path: Paths.taskDetail,
+          element: <TaskDetail />,
         },
         {
           path: "*",

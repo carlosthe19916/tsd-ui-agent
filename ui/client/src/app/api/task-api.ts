@@ -154,11 +154,42 @@ export const streamPlanOutput = async function* (
   }
 };
 
+export const getTask = (taskId: number): Promise<TaskDto> =>
+  axios.get<TaskDto>(`${BASE_URL}/${taskId}`).then((res) => res.data);
+
+export const streamChatOutput = async function* (
+  taskId: number,
+  signal?: AbortSignal,
+): AsyncGenerator<string> {
+  const response = await fetch(`/api/tasks/${taskId}/chat/output`, { signal });
+  if (!response.ok) throw new Error(`Stream failed: ${response.status}`);
+  const reader = response.body?.getReader();
+  if (!reader) return;
+  const decoder = new TextDecoder();
+  let buffer = "";
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+      for (const line of lines) {
+        if (line.startsWith("data:")) {
+          yield line.slice(5);
+        }
+      }
+    }
+  } finally {
+    reader.cancel();
+  }
+};
+
 export const sendChatMessage = async function* (
   taskId: number,
   content: string,
 ): AsyncGenerator<string> {
-  const response = await fetch(`/api/tasks/${taskId}/plan/chat`, {
+  const response = await fetch(`/api/tasks/${taskId}/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ content }),
