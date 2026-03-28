@@ -18,6 +18,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import org.acme.dto.GitChangedFileDto;
 import org.acme.dto.WorkspaceDto;
 import org.acme.mapper.WorkspaceMapper;
 import org.acme.models.jpa.entity.TaskEntity;
@@ -32,6 +33,7 @@ import org.acme.services.workspace.WorkspaceHealthStatus;
 import org.acme.services.workspace.WorkspaceManagerResolver;
 import org.jboss.resteasy.reactive.RestStreamElementType;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -171,6 +173,85 @@ public class WorkspaceResource {
                 .orElseThrow(NotFoundException::new);
         workspaceService.delete(entity);
         return Response.noContent().build();
+    }
+
+    @GET
+    @Path("/{id}/git/changed-files")
+    public List<GitChangedFileDto> changedFiles(@PathParam("id") Long id) {
+        WorkspaceEntity entity = (WorkspaceEntity) WorkspaceEntity.findByIdOptional(id)
+                .orElseThrow(NotFoundException::new);
+        if (entity.workspaceId == null) {
+            return List.of();
+        }
+        Workspace workspace = workspaceManagerResolver.resolve(entity.executionMode)
+                .getWorkspace(entity.workspaceId)
+                .orElseThrow(NotFoundException::new);
+
+        String output = workspace.exec("git", "status", "--porcelain");
+        List<GitChangedFileDto> files = new ArrayList<>();
+        for (String line : output.split("\n")) {
+            if (line.isBlank()) continue;
+            GitChangedFileDto dto = new GitChangedFileDto();
+            dto.status = line.substring(0, 2).trim();
+            dto.path = line.substring(3);
+            files.add(dto);
+        }
+        return files;
+    }
+
+    @GET
+    @Path("/{id}/git/diff")
+    @Produces(MediaType.TEXT_PLAIN)
+    public String diff(@PathParam("id") Long id, @QueryParam("path") String filePath) {
+        WorkspaceEntity entity = (WorkspaceEntity) WorkspaceEntity.findByIdOptional(id)
+                .orElseThrow(NotFoundException::new);
+        if (entity.workspaceId == null) {
+            throw new BadRequestException("Workspace not provisioned");
+        }
+        Workspace workspace = workspaceManagerResolver.resolve(entity.executionMode)
+                .getWorkspace(entity.workspaceId)
+                .orElseThrow(NotFoundException::new);
+
+        if (filePath != null && !filePath.isBlank()) {
+            String diff = workspace.exec("git", "diff", "HEAD", "--", filePath);
+            if (diff.isBlank()) {
+                diff = buildNewFileDiff(workspace, filePath);
+            }
+            return diff;
+        }
+
+        String trackedDiff = workspace.exec("git", "diff", "HEAD");
+        String untrackedStatus = workspace.exec("git", "status", "--porcelain");
+        StringBuilder result = new StringBuilder(trackedDiff);
+        for (String line : untrackedStatus.split("\n")) {
+            if (line.startsWith("??")) {
+                String path = line.substring(3);
+                String newFileDiff = buildNewFileDiff(workspace, path);
+                if (!newFileDiff.isEmpty()) {
+                    if (!result.isEmpty()) result.append("\n");
+                    result.append(newFileDiff);
+                }
+            }
+        }
+        return result.toString();
+    }
+
+    private String buildNewFileDiff(Workspace workspace, String filePath) {
+        String content = workspace.exec("cat", filePath);
+        if (content.isEmpty()) {
+            return "";
+        }
+        String[] lines = content.split("\n", -1);
+        StringBuilder diff = new StringBuilder();
+        diff.append("diff --git a/").append(filePath).append(" b/").append(filePath).append("\n");
+        diff.append("new file mode 100644\n");
+        diff.append("--- /dev/null\n");
+        diff.append("+++ b/").append(filePath).append("\n");
+        diff.append("@@ -0,0 +1,").append(lines.length).append(" @@\n");
+        for (String line : lines) {
+            diff.append("+").append(line).append("\n");
+        }
+        return diff.toString();
     }
 
     @GET

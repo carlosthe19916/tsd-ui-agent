@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import ReactMarkdown from "react-markdown";
 import * as yup from "yup";
 
-import { CodeEditor, Language } from "@patternfly/react-code-editor";
+import { Language } from "@patternfly/react-code-editor";
 import {
   Alert,
   Button,
@@ -31,7 +31,7 @@ import ColumnsIcon from "@patternfly/react-icons/dist/esm/icons/columns-icon";
 import EyeIcon from "@patternfly/react-icons/dist/esm/icons/eye-icon";
 import RobotIcon from "@patternfly/react-icons/dist/esm/icons/robot-icon";
 
-import { ThemeContext } from "@app/components/ThemeContext";
+import { ThemedCodeEditor } from "@app/components/ThemedCodeEditor";
 import { useFormChangeHandler } from "@app/hooks/useFormChangeHandler";
 import { useFetchTaskPlan, useGeneratePlanMutation } from "@app/queries/tasks";
 import { RequirementChatbot } from "./requirement-chatbot";
@@ -63,7 +63,6 @@ export const PlanStep: React.FC<PlanStepProps> = ({
   initialState,
   onStateChanged,
 }) => {
-  const { isDark } = React.useContext(ThemeContext);
   const [viewMode, setViewMode] = React.useState<ViewMode>("editor");
   const [isChatbotOpen, setIsChatbotOpen] = React.useState(false);
 
@@ -193,8 +192,7 @@ export const PlanStep: React.FC<PlanStepProps> = ({
             <Grid hasGutter>
               {viewMode !== "preview" && (
                 <GridItem span={viewMode === "split" ? 6 : 12}>
-                  <CodeEditor
-                    isDarkTheme={isDark}
+                  <ThemedCodeEditor
                     language={Language.markdown}
                     code={plan}
                     onCodeChange={(value) =>

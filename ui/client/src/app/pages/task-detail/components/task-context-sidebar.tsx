@@ -18,11 +18,12 @@ import {
   Tabs,
   TabTitleText,
 } from "@patternfly/react-core";
-import { CodeEditor, Language } from "@patternfly/react-code-editor";
+import { Language } from "@patternfly/react-code-editor";
 import TerminalIcon from "@patternfly/react-icons/dist/esm/icons/terminal-icon";
 
 import type { TaskDto } from "@app/api/models";
 import { ConfirmDialog } from "@app/components/ConfirmDialog";
+import { ThemedCodeEditor } from "@app/components/ThemedCodeEditor";
 import { WebTerminal } from "@app/components/WebTerminal";
 import { ExecutionOutputModal } from "@app/pages/task-list/components/execution-output-modal";
 import { PlanProgressStepper } from "@app/pages/task-list/components/plan-progress-stepper";
@@ -193,17 +194,17 @@ export const TaskContextSidebar: React.FC<TaskContextSidebarProps> = ({
                     )}
                     {(task.plan.isPlanGenerationInProgress ||
                       task.plan.isExecutionPlanInProgress) && (
-                        <div style={{ marginTop: 8 }}>
-                          <Button
-                            variant="link"
-                            size="sm"
-                            icon={<TerminalIcon />}
-                            onClick={() => setOutputTaskId(task.id)}
-                          >
-                            View Output
-                          </Button>
-                        </div>
-                      )}
+                      <div style={{ marginTop: 8 }}>
+                        <Button
+                          variant="link"
+                          size="sm"
+                          icon={<TerminalIcon />}
+                          onClick={() => setOutputTaskId(task.id)}
+                        >
+                          View Output
+                        </Button>
+                      </div>
+                    )}
                   </DescriptionListDescription>
                 </DescriptionListGroup>
               </DescriptionList>
@@ -223,8 +224,7 @@ export const TaskContextSidebar: React.FC<TaskContextSidebarProps> = ({
                   title={<TabTitleText>Requirements</TabTitleText>}
                 >
                   <div style={{ marginTop: 8 }}>
-                    <CodeEditor
-                      isDarkTheme
+                    <ThemedCodeEditor
                       language={Language.markdown}
                       code={requirement}
                       onCodeChange={setRequirement}
@@ -253,8 +253,7 @@ export const TaskContextSidebar: React.FC<TaskContextSidebarProps> = ({
               {task.plan && (
                 <Tab eventKey={2} title={<TabTitleText>Plan</TabTitleText>}>
                   <div style={{ marginTop: 8 }}>
-                    <CodeEditor
-                      isDarkTheme
+                    <ThemedCodeEditor
                       language={Language.markdown}
                       code={plan}
                       onCodeChange={setPlan}
@@ -286,7 +285,9 @@ export const TaskContextSidebar: React.FC<TaskContextSidebarProps> = ({
                   </TabTitleText>
                 }
               >
-                {task.workspace?.workspaceId && task.workspace?.id && <WebTerminal workspaceEntityId={task.workspace.id} />}
+                {task.workspace?.workspaceId && task.workspace?.id && (
+                  <WebTerminal workspaceEntityId={task.workspace.id} />
+                )}
               </Tab>
             </Tabs>
           </GridItem>

@@ -88,6 +88,29 @@ export const streamWorkspaceOutput = async function* (
   }
 };
 
+export interface GitChangedFile {
+  status: string;
+  path: string;
+}
+
+export const getWorkspaceChangedFiles = (
+  wsId: number,
+): Promise<GitChangedFile[]> =>
+  axios
+    .get<GitChangedFile[]>(`${WORKSPACES_URL}/${wsId}/git/changed-files`)
+    .then((response) => response.data);
+
+export const getWorkspaceDiff = (
+  wsId: number,
+  filePath?: string,
+): Promise<string> =>
+  axios
+    .get<string>(`${WORKSPACES_URL}/${wsId}/git/diff`, {
+      params: filePath ? { path: filePath } : {},
+      transformResponse: [(data: string) => data],
+    })
+    .then((response) => response.data);
+
 export const streamGitOutput = async function* (
   gitId: number,
   signal?: AbortSignal,

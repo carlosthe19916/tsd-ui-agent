@@ -6,7 +6,9 @@ import {
   deleteGit,
   deleteWorkspace,
   getGits,
+  getWorkspaceChangedFiles,
   getWorkspaceCommands,
+  getWorkspaceDiff,
   getWorkspaceStatus,
   getWorkspaces,
   startWorkspace,
@@ -19,6 +21,8 @@ const GIT_QUERY_KEY = "gits";
 const WORKSPACES_QUERY_KEY = "workspaces";
 const WORKSPACE_STATUS_QUERY_KEY = "workspace-status";
 const WORKSPACE_COMMANDS_QUERY_KEY = "workspace-commands";
+const WORKSPACE_CHANGED_FILES_KEY = "workspace-changed-files";
+const WORKSPACE_DIFF_KEY = "workspace-diff";
 
 export const useFetchGits = () => {
   return useQuery({
@@ -141,6 +145,31 @@ export const useStopWorkspaceMutation = () => {
         queryKey: [WORKSPACE_STATUS_QUERY_KEY, wsId],
       });
     },
+  });
+};
+
+export const useFetchWorkspaceChangedFiles = (
+  wsId: number | undefined,
+  enabled: boolean,
+) => {
+  return useQuery({
+    queryKey: [WORKSPACE_CHANGED_FILES_KEY, wsId],
+    queryFn: () => getWorkspaceChangedFiles(wsId as number),
+    enabled: enabled && wsId != null,
+    refetchInterval: 5000,
+  });
+};
+
+export const useFetchWorkspaceDiff = (
+  wsId: number | undefined,
+  filePath: string | undefined,
+  enabled: boolean,
+) => {
+  return useQuery({
+    queryKey: [WORKSPACE_DIFF_KEY, wsId, filePath],
+    queryFn: () => getWorkspaceDiff(wsId as number, filePath),
+    enabled: enabled && wsId != null && filePath != null,
+    refetchInterval: 5000,
   });
 };
 
