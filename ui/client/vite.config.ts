@@ -54,13 +54,13 @@ export default defineConfig({
       ],
     }),
     ...(process.env.TEMPLATE_ENGINE === "on"
-      ? [
+      ? []
+      : [
           ViteEjsPlugin({
             _env: encodeEnv(TSD_ENV, SERVER_ENV_KEYS),
             branding: brandingStrings,
           }),
-        ]
-      : []),
+      ]),
     ...(process.env.TEMPLATE_ENGINE === "on"
       ? [
           {
