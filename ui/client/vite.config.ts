@@ -1,6 +1,5 @@
 /// <reference types="vitest/config" />
 
-import fs from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 
@@ -53,30 +52,10 @@ export default defineConfig({
         },
       ],
     }),
-    ...(process.env.NODE_ENV === "development"
-      ? [
-          ViteEjsPlugin({
-            _env: encodeEnv(TSD_ENV, SERVER_ENV_KEYS),
-            branding: brandingStrings,
-          }),
-        ]
-      : []),
-    ...(process.env.NODE_ENV === "production"
-      ? [
-          {
-            name: "copy-index",
-            closeBundle: () => {
-              const distDir = path.resolve(__dirname, "dist");
-              const src = path.join(distDir, "index.html");
-              const dest = path.join(distDir, "index.html.ejs");
-
-              if (fs.existsSync(src)) {
-                fs.renameSync(src, dest);
-              }
-            },
-          },
-        ]
-      : []),
+    ViteEjsPlugin({
+      _env: encodeEnv(TSD_ENV, SERVER_ENV_KEYS),
+      branding: brandingStrings,
+    }),
   ],
   resolve: {
     alias: {
@@ -98,7 +77,6 @@ export default defineConfig({
       "/api": {
         target: TSD_ENV.TSD_API_URL || "http://localhost:8080",
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ""),
         configure: (proxy) => {
           proxy.on("proxyRes", (proxyRes, _req, res) => {
             if (

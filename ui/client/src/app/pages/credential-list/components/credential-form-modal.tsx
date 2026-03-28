@@ -3,6 +3,7 @@ import type React from "react";
 import {
   Button,
   ButtonVariant,
+  Form,
   Modal,
   ModalBody,
   ModalFooter,
@@ -55,32 +56,34 @@ const CredentialFormModalContent: React.FC<
       <ModalHeader
         title={isEditing ? "Edit credential" : "Create credential"}
       />
-      <ModalBody>
-        <CredentialForm
-          control={form.control}
-          isEditing={isEditing}
-          isTokenEnabled={isTokenEnabled}
-          onToggleToken={setIsTokenEnabled}
-        />
-      </ModalBody>
-      <ModalFooter>
-        <Button
-          key="submit"
-          variant={ButtonVariant.primary}
-          isDisabled={isSubmitDisabled}
-          onClick={onSubmit}
-        >
-          {isEditing ? "Save" : "Create"}
-        </Button>
-        <Button
-          key="cancel"
-          variant={ButtonVariant.link}
-          isDisabled={isCancelDisabled}
-          onClick={onClose}
-        >
-          Cancel
-        </Button>
-      </ModalFooter>
+      <Form onSubmit={onSubmit}>
+        <ModalBody>
+          <CredentialForm
+            control={form.control}
+            isEditing={isEditing}
+            isTokenEnabled={isTokenEnabled}
+            onToggleToken={setIsTokenEnabled}
+          />
+        </ModalBody>
+        <ModalFooter>
+          <Button
+            key="submit"
+            variant={ButtonVariant.primary}
+            isDisabled={isSubmitDisabled}
+            type="submit"
+          >
+            {isEditing ? "Save" : "Create"}
+          </Button>
+          <Button
+            key="cancel"
+            variant={ButtonVariant.link}
+            isDisabled={isCancelDisabled}
+            onClick={onClose}
+          >
+            Cancel
+          </Button>
+        </ModalFooter>
+      </Form>
     </Modal>
   );
 };

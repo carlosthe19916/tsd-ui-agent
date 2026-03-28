@@ -4,6 +4,7 @@ import {
   Bullseye,
   Button,
   ButtonVariant,
+  Form,
   Modal,
   ModalBody,
   ModalFooter,
@@ -93,27 +94,29 @@ const GitFormModalForm: React.FC<GitFormModalFormProps> = ({
       <ModalHeader
         title={isEditing ? "Edit git repository" : "Create git repository"}
       />
-      <ModalBody>
-        <GitForm control={form.control} />
-      </ModalBody>
-      <ModalFooter>
-        <Button
-          key="submit"
-          variant={ButtonVariant.primary}
-          isDisabled={isSubmitDisabled}
-          onClick={onSubmit}
-        >
-          {isEditing ? "Save" : "Create"}
-        </Button>
-        <Button
-          key="cancel"
-          variant={ButtonVariant.link}
-          isDisabled={isCancelDisabled}
-          onClick={onClose}
-        >
-          Cancel
-        </Button>
-      </ModalFooter>
+      <Form onSubmit={onSubmit}>
+        <ModalBody>
+          <GitForm control={form.control} />
+        </ModalBody>
+        <ModalFooter>
+          <Button
+            key="submit"
+            variant={ButtonVariant.primary}
+            isDisabled={isSubmitDisabled}
+            type="submit"
+          >
+            {isEditing ? "Save" : "Create"}
+          </Button>
+          <Button
+            key="cancel"
+            variant={ButtonVariant.link}
+            isDisabled={isCancelDisabled}
+            onClick={onClose}
+          >
+            Cancel
+          </Button>
+        </ModalFooter>
+      </Form>
     </Modal>
   );
 };

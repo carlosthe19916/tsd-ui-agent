@@ -1,7 +1,7 @@
 import type React from "react";
 import type { Control } from "react-hook-form";
 
-import { Checkbox, Form } from "@patternfly/react-core";
+import { Checkbox } from "@patternfly/react-core";
 
 import { HookFormPFTextInput } from "@app/components/HookFormPFFields";
 
@@ -21,7 +21,7 @@ export const CredentialForm: React.FC<CredentialFormProps> = ({
   onToggleToken,
 }) => {
   return (
-    <Form>
+    <>
       <HookFormPFTextInput
         control={control}
         name="name"
@@ -46,6 +46,6 @@ export const CredentialForm: React.FC<CredentialFormProps> = ({
           onChange={(_event, checked) => onToggleToken(checked)}
         />
       )}
-    </Form>
+    </>
   );
 };

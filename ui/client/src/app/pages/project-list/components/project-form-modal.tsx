@@ -3,6 +3,7 @@ import type React from "react";
 import {
   Button,
   ButtonVariant,
+  Form,
   Modal,
   ModalBody,
   ModalFooter,
@@ -47,27 +48,29 @@ const ProjectFormModalContent: React.FC<
       aria-label={isEditing ? "Edit project" : "Create project"}
     >
       <ModalHeader title={isEditing ? "Edit project" : "Create project"} />
-      <ModalBody>
-        <ProjectForm control={form.control} />
-      </ModalBody>
-      <ModalFooter>
-        <Button
-          key="submit"
-          variant={ButtonVariant.primary}
-          isDisabled={isSubmitDisabled}
-          onClick={onSubmit}
-        >
-          {isEditing ? "Save" : "Create"}
-        </Button>
-        <Button
-          key="cancel"
-          variant={ButtonVariant.link}
-          isDisabled={isCancelDisabled}
-          onClick={onClose}
-        >
-          Cancel
-        </Button>
-      </ModalFooter>
+      <Form onSubmit={onSubmit}>
+        <ModalBody>
+          <ProjectForm control={form.control} />
+        </ModalBody>
+        <ModalFooter>
+          <Button
+            key="submit"
+            variant={ButtonVariant.primary}
+            isDisabled={isSubmitDisabled}
+            type="submit"
+          >
+            {isEditing ? "Save" : "Create"}
+          </Button>
+          <Button
+            key="cancel"
+            variant={ButtonVariant.link}
+            isDisabled={isCancelDisabled}
+            onClick={onClose}
+          >
+            Cancel
+          </Button>
+        </ModalFooter>
+      </Form>
     </Modal>
   );
 };
