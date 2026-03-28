@@ -38,6 +38,16 @@ export const createWorkspace = (
 export const deleteWorkspace = (wsId: number) =>
   axios.delete<void>(`${WORKSPACES_URL}/${wsId}`);
 
+export const commitWorkspace = (wsId: number, message: string) =>
+  axios
+    .post<void>(`${WORKSPACES_URL}/${wsId}/git/commit`, { message })
+    .then((response) => response.data);
+
+export const commitAndPushWorkspace = (wsId: number, message: string) =>
+  axios
+    .post<void>(`${WORKSPACES_URL}/${wsId}/git/commit-and-push`, { message })
+    .then((response) => response.data);
+
 export const getWorkspaceStatus = (wsId: number) =>
   axios
     .get<{

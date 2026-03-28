@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
+  commitAndPushWorkspace,
+  commitWorkspace,
   createGit,
   createWorkspace,
   deleteGit,
@@ -170,6 +172,40 @@ export const useFetchWorkspaceDiff = (
     queryFn: () => getWorkspaceDiff(wsId as number, filePath),
     enabled: enabled && wsId != null && filePath != null,
     refetchInterval: 5000,
+  });
+};
+
+export const useCommitMutation = (onSuccess?: () => void) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ wsId, message }: { wsId: number; message: string }) =>
+      commitWorkspace(wsId, message),
+    onSuccess: (_response, { wsId }) => {
+      queryClient.invalidateQueries({
+        queryKey: [WORKSPACE_CHANGED_FILES_KEY, wsId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [WORKSPACE_DIFF_KEY, wsId],
+      });
+      onSuccess?.();
+    },
+  });
+};
+
+export const useCommitAndPushMutation = (onSuccess?: () => void) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ wsId, message }: { wsId: number; message: string }) =>
+      commitAndPushWorkspace(wsId, message),
+    onSuccess: (_response, { wsId }) => {
+      queryClient.invalidateQueries({
+        queryKey: [WORKSPACE_CHANGED_FILES_KEY, wsId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: [WORKSPACE_DIFF_KEY, wsId],
+      });
+      onSuccess?.();
+    },
   });
 };
 

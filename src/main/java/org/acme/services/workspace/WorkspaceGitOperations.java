@@ -25,7 +25,7 @@ public class WorkspaceGitOperations {
     }
 
     public void pushToUrl(Workspace workspace, String url, String refspec) {
-        workspace.exec("git", "push", "--force", url, refspec);
+        workspace.exec("git", "push", url, refspec);
     }
 
     public String getCurrentBranch(Workspace workspace) {

@@ -1,12 +1,17 @@
 import React from "react";
 import {
+  ActionGroup,
+  Alert,
   Button,
   EmptyState,
   EmptyStateBody,
+  Form,
+  FormGroup,
   Label,
   Spinner,
   Split,
   SplitItem,
+  TextInput,
   Title,
 } from "@patternfly/react-core";
 import ArrowLeftIcon from "@patternfly/react-icons/dist/esm/icons/arrow-left-icon";
@@ -15,6 +20,8 @@ import "react-diff-view/style/index.css";
 import styles from "./git-diff-drawer.module.css";
 
 import {
+  useCommitAndPushMutation,
+  useCommitMutation,
   useFetchWorkspaceChangedFiles,
   useFetchWorkspaceDiff,
 } from "@app/queries/gits";
@@ -169,11 +176,22 @@ export const GitDiffDrawer: React.FC<GitDiffDrawerProps> = ({
   workspaceId,
 }) => {
   const [selectedFile, setSelectedFile] = React.useState<string | null>(null);
+  const [commitMessage, setCommitMessage] = React.useState("");
 
   const { data: changedFiles, isLoading } = useFetchWorkspaceChangedFiles(
     workspaceId,
     !selectedFile,
   );
+
+  const commitMutation = useCommitMutation(() => setCommitMessage(""));
+  const commitAndPushMutation = useCommitAndPushMutation(() =>
+    setCommitMessage(""),
+  );
+
+  const hasChanges = (changedFiles?.length ?? 0) > 0;
+  const isCommitting =
+    commitMutation.isPending || commitAndPushMutation.isPending;
+  const commitError = commitMutation.error || commitAndPushMutation.error;
 
   if (selectedFile) {
     return (
@@ -206,6 +224,77 @@ export const GitDiffDrawer: React.FC<GitDiffDrawerProps> = ({
         </Title>
       </div>
       <FileListPanel files={changedFiles ?? []} onSelect={setSelectedFile} />
+
+      {hasChanges && (
+        <div
+          style={{
+            padding: "12px",
+            borderTop: "1px solid var(--pf-t--global--border--color--default)",
+          }}
+        >
+          <Form
+            onSubmit={(e) => {
+              e.preventDefault();
+              commitMutation.mutate({
+                wsId: workspaceId,
+                message: commitMessage,
+              });
+            }}
+          >
+            <FormGroup label="Commit message" fieldId="commit-message">
+              <TextInput
+                id="commit-message"
+                value={commitMessage}
+                onChange={(_e, val) => setCommitMessage(val)}
+                placeholder="Describe your changes..."
+                isDisabled={isCommitting}
+              />
+            </FormGroup>
+            {commitError && (
+              <Alert
+                variant="danger"
+                isInline
+                isPlain
+                title={
+                  commitError instanceof Error
+                    ? commitError.message
+                    : "Commit failed"
+                }
+              />
+            )}
+            <ActionGroup>
+              <Button
+                variant="primary"
+                size="sm"
+                isDisabled={!commitMessage.trim() || isCommitting}
+                isLoading={commitMutation.isPending}
+                onClick={() =>
+                  commitMutation.mutate({
+                    wsId: workspaceId,
+                    message: commitMessage,
+                  })
+                }
+              >
+                Commit
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                isDisabled={!commitMessage.trim() || isCommitting}
+                isLoading={commitAndPushMutation.isPending}
+                onClick={() =>
+                  commitAndPushMutation.mutate({
+                    wsId: workspaceId,
+                    message: commitMessage,
+                  })
+                }
+              >
+                Commit & Push
+              </Button>
+            </ActionGroup>
+          </Form>
+        </div>
+      )}
     </div>
   );
 };

@@ -18,7 +18,9 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import jakarta.enterprise.inject.Instance;
 import org.acme.dto.GitChangedFileDto;
+import org.acme.dto.GitCommitRequestDto;
 import org.acme.dto.WorkspaceDto;
 import org.acme.mapper.WorkspaceMapper;
 import org.acme.models.jpa.entity.TaskEntity;
@@ -27,8 +29,10 @@ import static org.acme.services.ExecutionOutputBroadcaster.Channel;
 
 import org.acme.services.ExecutionOutputBroadcaster;
 import org.acme.services.WorkspaceService;
+import org.acme.services.changerequest.ChangeRequestProvider;
 import org.acme.services.workspace.Workspace;
 import org.acme.services.workspace.WorkspaceCommand;
+import org.acme.services.workspace.WorkspaceGitOperations;
 import org.acme.services.workspace.WorkspaceHealthStatus;
 import org.acme.services.workspace.WorkspaceManagerResolver;
 import org.jboss.resteasy.reactive.RestStreamElementType;
@@ -56,6 +60,12 @@ public class WorkspaceResource {
 
     @Inject
     ExecutionOutputBroadcaster broadcaster;
+
+    @Inject
+    WorkspaceGitOperations workspaceGit;
+
+    @Inject
+    Instance<ChangeRequestProvider> changeRequestProviders;
 
     @GET
     public List<WorkspaceDto> list(@QueryParam("gitId") Long gitId, @QueryParam("hasTask") Boolean hasTask) {
@@ -252,6 +262,63 @@ public class WorkspaceResource {
             diff.append("+").append(line).append("\n");
         }
         return diff.toString();
+    }
+
+    @POST
+    @Path("/{id}/git/commit")
+    public Response commit(@PathParam("id") Long id, GitCommitRequestDto request) {
+        if (request == null || request.message == null || request.message.isBlank()) {
+            throw new BadRequestException("Commit message is required");
+        }
+        WorkspaceEntity entity = (WorkspaceEntity) WorkspaceEntity.findByIdOptional(id)
+                .orElseThrow(NotFoundException::new);
+        if (entity.workspaceId == null) {
+            throw new BadRequestException("Workspace not provisioned");
+        }
+        Workspace workspace = workspaceManagerResolver.resolve(entity.executionMode)
+                .getWorkspace(entity.workspaceId)
+                .orElseThrow(NotFoundException::new);
+
+        workspaceGit.addAll(workspace);
+        workspaceGit.commit(workspace, request.message);
+        return Response.noContent().build();
+    }
+
+    @POST
+    @Path("/{id}/git/commit-and-push")
+    public Response commitAndPush(@PathParam("id") Long id, GitCommitRequestDto request) {
+        if (request == null || request.message == null || request.message.isBlank()) {
+            throw new BadRequestException("Commit message is required");
+        }
+        WorkspaceEntity entity = (WorkspaceEntity) WorkspaceEntity.findByIdOptional(id)
+                .orElseThrow(NotFoundException::new);
+        if (entity.workspaceId == null) {
+            throw new BadRequestException("Workspace not provisioned");
+        }
+        Workspace workspace = workspaceManagerResolver.resolve(entity.executionMode)
+                .getWorkspace(entity.workspaceId)
+                .orElseThrow(NotFoundException::new);
+
+        workspaceGit.addAll(workspace);
+        workspaceGit.commit(workspace, request.message);
+
+        String branchName = workspaceGit.getCurrentBranch(workspace);
+        String pushTargetUrl = entity.git.forkUrl != null ? entity.git.forkUrl : entity.git.url;
+        String token = entity.git.credential != null ? entity.git.credential.token : null;
+
+        if (token != null) {
+            ChangeRequestProvider provider = changeRequestProviders.stream()
+                    .filter(p -> p.supports(entity.git.vendorType))
+                    .findFirst()
+                    .orElseThrow(() -> new BadRequestException("No provider for " + entity.git.vendorType));
+            String authenticatedUrl = provider.buildAuthenticatedPushUrl(pushTargetUrl, token);
+            workspaceGit.pushToUrl(workspace, authenticatedUrl, "HEAD:" + branchName);
+        } else if (entity.git.forkUrl == null) {
+            workspaceGit.push(workspace, "origin", branchName);
+        } else {
+            workspaceGit.push(workspace, "fork", branchName);
+        }
+        return Response.noContent().build();
     }
 
     @GET
