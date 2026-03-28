@@ -24,7 +24,6 @@ import {
   FlexItem,
   Grid,
   GridItem,
-  Icon,
   Label,
   LabelGroup,
   MenuToggle,
@@ -38,15 +37,12 @@ import {
   ToolbarGroup,
   ToolbarItem,
 } from "@patternfly/react-core";
-import CheckCircleIcon from "@patternfly/react-icons/dist/esm/icons/check-circle-icon";
 import EllipsisVIcon from "@patternfly/react-icons/dist/esm/icons/ellipsis-v-icon";
-import InProgressIcon from "@patternfly/react-icons/dist/esm/icons/in-progress-icon";
-import PendingIcon from "@patternfly/react-icons/dist/esm/icons/pending-icon";
 import SortAmountDownIcon from "@patternfly/react-icons/dist/esm/icons/sort-amount-down-icon";
 import SortAmountUpIcon from "@patternfly/react-icons/dist/esm/icons/sort-amount-up-icon";
 import TerminalIcon from "@patternfly/react-icons/dist/esm/icons/terminal-icon";
 
-import type { TaskDto, TaskStatus } from "@app/api/models";
+import type { TaskDto } from "@app/api/models";
 import { ConfirmDialog } from "@app/components/ConfirmDialog";
 import { ConditionalDataListBody } from "@app/components/DataListControls";
 import { FilterToolbar } from "@app/components/FilterToolbar";
@@ -65,19 +61,6 @@ import { TaskFormModal } from "./components/task-form-modal";
 import { WorkspaceCell } from "./components/workspace-cell";
 import { RequirementModal, PlanModal } from "./components/plan-wizard-modal";
 import { TaskSearchContext, TaskSearchProvider } from "./task-context";
-
-const statusIcon = (status: TaskStatus) => {
-  switch (status) {
-    case "OPEN":
-      return <PendingIcon />;
-    case "IN_PROGRESS":
-      return <InProgressIcon />;
-    case "CLOSED":
-      return (
-        <CheckCircleIcon color="var(--pf-t--global--color--status--success--default)" />
-      );
-  }
-};
 
 const TaskListContent: React.FC = () => {
   const { tableControls, totalItemCount, isFetching, fetchError } =
@@ -221,9 +204,6 @@ const TaskListContent: React.FC = () => {
                 />
                 <DataListItemCells
                   dataListCells={[
-                    <DataListCell isIcon key="icon" width={1}>
-                      <Icon>{statusIcon(task.status)}</Icon>
-                    </DataListCell>,
                     <DataListCell key="info" width={2}>
                       <Flex
                         direction={{ default: "column" }}
