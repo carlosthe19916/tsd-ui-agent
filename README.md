@@ -1,5 +1,18 @@
 # TSD UI Agent
+B
 
+
+A
+D
+C
+A
+B
+A
+D
+C
+D
+C
+C
 hola
 
 A Quarkus-based backend that manages software development tasks imported from external trackers (GitHub Issues, Jira) and orchestrates AI-assisted code changes via Claude CLI or OpenCode.
