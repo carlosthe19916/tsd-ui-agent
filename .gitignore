@@ -47,6 +47,8 @@ nb-configuration.xml
 *.db
 
 META-INF/
+!src/test/resources/META-INF/
+!src/test/resources/META-INF/services/
 **/managed_context/*
 **/test_suite_analysis/*
 test_suite_analysis/
