@@ -7,7 +7,7 @@ RUN \
   npm version && \
   npm config ls && \
   npm ci --verbose --ignore-scripts --no-audit && \
-  npm run build && \
+  TEMPLATE_ENGINE=on npm run build && \
   npm run dist
 
 # Runner image

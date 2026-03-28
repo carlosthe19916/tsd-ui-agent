@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-BASE_URL="${BASE_URL:-http://localhost:8080}"
+BASE_URL="${BASE_URL:-http://localhost:8080/api}"
 
 # Validate required environment variables
 : "${GITHUB_PAT:?Environment variable GITHUB_PAT is not set}"

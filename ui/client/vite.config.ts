@@ -52,10 +52,30 @@ export default defineConfig({
         },
       ],
     }),
-    ViteEjsPlugin({
-      _env: encodeEnv(TSD_ENV, SERVER_ENV_KEYS),
-      branding: brandingStrings,
-    }),
+    ...(process.env.TEMPLATE_ENGINE === "on"
+      ? [
+          ViteEjsPlugin({
+            _env: encodeEnv(TSD_ENV, SERVER_ENV_KEYS),
+            branding: brandingStrings,
+          }),
+        ]
+      : []),
+    ...(process.env.TEMPLATE_ENGINE === "on"
+      ? [
+          {
+            name: "copy-index",
+            closeBundle: () => {
+              const distDir = path.resolve(__dirname, "dist");
+              const src = path.join(distDir, "index.html");
+              const dest = path.join(distDir, "index.html.ejs");
+
+              if (fs.existsSync(src)) {
+                fs.renameSync(src, dest);
+              }
+            },
+          },
+        ]
+      : []),
   ],
   resolve: {
     alias: {
