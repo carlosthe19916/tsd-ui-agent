@@ -60,7 +60,7 @@ export default defineConfig({
             _env: encodeEnv(TSD_ENV, SERVER_ENV_KEYS),
             branding: brandingStrings,
           }),
-      ]),
+        ]),
     ...(process.env.TEMPLATE_ENGINE === "on"
       ? [
           {
