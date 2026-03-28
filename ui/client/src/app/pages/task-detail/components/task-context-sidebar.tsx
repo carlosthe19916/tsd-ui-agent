@@ -23,6 +23,7 @@ import TerminalIcon from "@patternfly/react-icons/dist/esm/icons/terminal-icon";
 
 import type { TaskDto } from "@app/api/models";
 import { ConfirmDialog } from "@app/components/ConfirmDialog";
+import { WebTerminal } from "@app/components/WebTerminal";
 import { ExecutionOutputModal } from "@app/pages/task-list/components/execution-output-modal";
 import { PlanProgressStepper } from "@app/pages/task-list/components/plan-progress-stepper";
 import {
@@ -209,67 +210,83 @@ export const TaskContextSidebar: React.FC<TaskContextSidebarProps> = ({
             </FlexItem>
           )}
         </GridItem>
-        {task.plan && (
+        {(task.plan || task.workspace?.workspaceId) && (
           <GridItem>
             <Tabs
               activeKey={activeTab}
               onSelect={(_ev, key) => setActiveTab(key)}
               isFilled
             >
+              {task.plan && (
+                <Tab
+                  eventKey={1}
+                  title={<TabTitleText>Requirements</TabTitleText>}
+                >
+                  <div style={{ marginTop: 8 }}>
+                    <CodeEditor
+                      isDarkTheme
+                      language={Language.markdown}
+                      code={requirement}
+                      onCodeChange={setRequirement}
+                      height="29vh"
+                      isLineNumbersVisible
+                    />
+                    <Button
+                      variant="primary"
+                      onClick={() =>
+                        patchPlanMutation.mutate({
+                          taskId: task.id,
+                          plan: { requirement },
+                        })
+                      }
+                      isLoading={patchPlanMutation.isPending}
+                      isDisabled={
+                        requirement === (task.plan?.requirement ?? "")
+                      }
+                      style={{ marginTop: 8 }}
+                    >
+                      Save
+                    </Button>
+                  </div>
+                </Tab>
+              )}
+              {task.plan && (
+                <Tab eventKey={2} title={<TabTitleText>Plan</TabTitleText>}>
+                  <div style={{ marginTop: 8 }}>
+                    <CodeEditor
+                      isDarkTheme
+                      language={Language.markdown}
+                      code={plan}
+                      onCodeChange={setPlan}
+                      height="29vh"
+                      isLineNumbersVisible
+                    />
+                    <Button
+                      variant="primary"
+                      onClick={() =>
+                        patchPlanMutation.mutate({
+                          taskId: task.id,
+                          plan: { plan },
+                        })
+                      }
+                      isLoading={patchPlanMutation.isPending}
+                      isDisabled={plan === (task.plan?.plan ?? "")}
+                      style={{ marginTop: 8 }}
+                    >
+                      Save
+                    </Button>
+                  </div>
+                </Tab>
+              )}
               <Tab
-                eventKey={1}
-                title={<TabTitleText>Requirements</TabTitleText>}
+                eventKey={3}
+                title={
+                  <TabTitleText>
+                    <TerminalIcon /> Terminal
+                  </TabTitleText>
+                }
               >
-                <div style={{ marginTop: 8 }}>
-                  <CodeEditor
-                    isDarkTheme
-                    language={Language.markdown}
-                    code={requirement}
-                    onCodeChange={setRequirement}
-                    height="30vh"
-                    isLineNumbersVisible
-                  />
-                  <Button
-                    variant="primary"
-                    onClick={() =>
-                      patchPlanMutation.mutate({
-                        taskId: task.id,
-                        plan: { requirement },
-                      })
-                    }
-                    isLoading={patchPlanMutation.isPending}
-                    isDisabled={requirement === (task.plan?.requirement ?? "")}
-                    style={{ marginTop: 8 }}
-                  >
-                    Save
-                  </Button>
-                </div>
-              </Tab>
-              <Tab eventKey={2} title={<TabTitleText>Plan</TabTitleText>}>
-                <div style={{ marginTop: 8 }}>
-                  <CodeEditor
-                    isDarkTheme
-                    language={Language.markdown}
-                    code={plan}
-                    onCodeChange={setPlan}
-                    height="30vh"
-                    isLineNumbersVisible
-                  />
-                  <Button
-                    variant="primary"
-                    onClick={() =>
-                      patchPlanMutation.mutate({
-                        taskId: task.id,
-                        plan: { plan },
-                      })
-                    }
-                    isLoading={patchPlanMutation.isPending}
-                    isDisabled={plan === (task.plan?.plan ?? "")}
-                    style={{ marginTop: 8 }}
-                  >
-                    Save
-                  </Button>
-                </div>
+                {task.workspace?.workspaceId && task.workspace?.id && <WebTerminal workspaceEntityId={task.workspace.id} />}
               </Tab>
             </Tabs>
           </GridItem>

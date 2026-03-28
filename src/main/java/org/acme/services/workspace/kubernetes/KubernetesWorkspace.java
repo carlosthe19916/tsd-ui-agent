@@ -109,6 +109,11 @@ public class KubernetesWorkspace implements Workspace {
     }
 
     @Override
+    public com.pty4j.PtyProcess createPtyProcess(int cols, int rows) throws java.io.IOException {
+        throw new UnsupportedOperationException("Terminal not supported for Kubernetes workspaces");
+    }
+
+    @Override
     public String exec(String... command) throws WorkspaceException {
         try {
             ByteArrayOutputStream out = new ByteArrayOutputStream();

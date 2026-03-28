@@ -1,6 +1,12 @@
 package org.acme.services.workspace;
 
+import com.pty4j.PtyProcess;
+import com.pty4j.PtyProcessBuilder;
+
+import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 public interface Workspace {
@@ -31,5 +37,17 @@ public interface Workspace {
 
     default List<WorkspaceCommand> commands() {
         return List.of();
+    }
+
+    default PtyProcess createPtyProcess(int cols, int rows) throws IOException {
+        Map<String, String> env = new HashMap<>(System.getenv());
+        env.put("TERM", "xterm-256color");
+        return new PtyProcessBuilder()
+                .setCommand(new String[]{"/bin/bash", "-l"})
+                .setDirectory(workingDirectory())
+                .setEnvironment(env)
+                .setInitialColumns(cols)
+                .setInitialRows(rows)
+                .start();
     }
 }

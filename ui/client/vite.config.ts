@@ -110,6 +110,11 @@ export default defineConfig({
           });
         },
       },
+      "/ws": {
+        target: TSD_ENV.TSD_API_URL || "http://localhost:8080",
+        changeOrigin: true,
+        ws: true,
+      },
     },
   },
   test: {
