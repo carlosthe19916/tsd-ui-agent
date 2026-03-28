@@ -16,7 +16,7 @@ export interface CredentialFormValues {
   token: string;
 }
 
-const createSchemaWithUniqueName = (excludeId?: number) =>
+const buildCredentialSchema = (excludeId?: number, isTokenRequired = true) =>
   yup.object({
     name: yup
       .string()
@@ -30,24 +30,9 @@ const createSchemaWithUniqueName = (excludeId?: number) =>
           return !exists;
         },
       ),
-    token: yup.string().required("Token is required"),
-  });
-
-const editTokenDisabledSchemaWithUniqueName = (excludeId?: number) =>
-  yup.object({
-    name: yup
-      .string()
-      .required("Name is required")
-      .test(
-        "unique-name",
-        "A credential with this name already exists",
-        async (value) => {
-          if (!value) return true;
-          const exists = await checkCredentialNameExists(value, excludeId);
-          return !exists;
-        },
-      ),
-    token: yup.string().defined(),
+    token: isTokenRequired
+      ? yup.string().required("Token is required")
+      : yup.string().defined(),
   });
 
 const mapCredentialToFormValues = (
@@ -75,10 +60,8 @@ export const useCredentialForm = (
   const createMutation = useCreateCredentialMutation(onClose);
   const updateMutation = useUpdateCredentialMutation(onClose);
 
-  const schema =
-    isEditing && !isTokenEnabled
-      ? editTokenDisabledSchemaWithUniqueName(credential?.id)
-      : createSchemaWithUniqueName(credential?.id);
+  const isTokenRequired = !isEditing || isTokenEnabled;
+  const schema = buildCredentialSchema(credential?.id, isTokenRequired);
 
   const form = useForm<CredentialFormValues>({
     defaultValues: mapCredentialToFormValues(credential),

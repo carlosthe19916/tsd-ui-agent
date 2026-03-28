@@ -8,6 +8,7 @@ import type {
   SearchResultDto,
   TaskDto,
 } from "./models";
+import { readSSEStream } from "./sse-stream";
 
 const BASE_URL = "/api/tasks";
 
@@ -126,97 +127,18 @@ export const patchTaskPlan = (taskId: number, plan: Partial<PlanDto>) =>
     .patch<PlanDto>(`${BASE_URL}/${taskId}/plan`, plan)
     .then((response) => response.data);
 
-export const streamPlanOutput = async function* (
-  taskId: number,
-  signal?: AbortSignal,
-): AsyncGenerator<string> {
-  const response = await fetch(`/api/tasks/${taskId}/plan/output`, { signal });
-  if (!response.ok) throw new Error(`Stream failed: ${response.status}`);
-  const reader = response.body?.getReader();
-  if (!reader) return;
-  const decoder = new TextDecoder();
-  let buffer = "";
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
-      for (const line of lines) {
-        if (line.startsWith("data:")) {
-          yield line.slice(5);
-        }
-      }
-    }
-  } finally {
-    reader.cancel();
-  }
-};
+export const streamPlanOutput = (taskId: number, signal?: AbortSignal) =>
+  readSSEStream(`/api/tasks/${taskId}/plan/output`, { signal });
 
 export const getTask = (taskId: number): Promise<TaskDto> =>
   axios.get<TaskDto>(`${BASE_URL}/${taskId}`).then((res) => res.data);
 
-export const streamChatOutput = async function* (
-  taskId: number,
-  signal?: AbortSignal,
-): AsyncGenerator<string> {
-  const response = await fetch(`/api/tasks/${taskId}/chat/output`, { signal });
-  if (!response.ok) throw new Error(`Stream failed: ${response.status}`);
-  const reader = response.body?.getReader();
-  if (!reader) return;
-  const decoder = new TextDecoder();
-  let buffer = "";
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() || "";
-      for (const line of lines) {
-        if (line.startsWith("data:")) {
-          yield line.slice(5);
-        }
-      }
-    }
-  } finally {
-    reader.cancel();
-  }
-};
+export const streamChatOutput = (taskId: number, signal?: AbortSignal) =>
+  readSSEStream(`/api/tasks/${taskId}/chat/output`, { signal });
 
-export const sendChatMessage = async function* (
-  taskId: number,
-  content: string,
-): AsyncGenerator<string> {
-  const response = await fetch(`/api/tasks/${taskId}/chat`, {
+export const sendChatMessage = (taskId: number, content: string) =>
+  readSSEStream(`/api/tasks/${taskId}/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ content }),
   });
-
-  if (!response.ok) {
-    throw new Error(`Chat request failed: ${response.status}`);
-  }
-
-  const reader = response.body?.getReader();
-  if (!reader) return;
-
-  const decoder = new TextDecoder();
-  let buffer = "";
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() || "";
-
-    for (const line of lines) {
-      if (line.startsWith("data:")) {
-        yield line.slice(5);
-      }
-    }
-  }
-};

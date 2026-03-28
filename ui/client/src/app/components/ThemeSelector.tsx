@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import type React from "react";
+import { use, useState } from "react";
 
 import {
   Icon,
@@ -56,7 +57,7 @@ export const themesMetadata: ThemeMetadataType = {
 };
 
 export const ThemeSelector: React.FC = () => {
-  const { mode, setMode } = React.useContext(ThemeContext);
+  const { mode, setMode } = use(ThemeContext);
   const [isOpen, setIsOpen] = useState(false);
 
   const handleThemeChange = (

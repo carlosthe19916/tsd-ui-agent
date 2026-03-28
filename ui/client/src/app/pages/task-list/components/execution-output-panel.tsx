@@ -1,4 +1,4 @@
-import React from "react";
+import React, { use } from "react";
 
 import { Banner, Spinner } from "@patternfly/react-core";
 import { LogViewer } from "@patternfly/react-log-viewer";
@@ -15,7 +15,7 @@ export const ExecutionOutputPanel: React.FC<ExecutionOutputPanelProps> = ({
   taskId,
   isActive,
 }) => {
-  const { isDark } = React.useContext(ThemeContext);
+  const { isDark } = use(ThemeContext);
   const [logLines, setLogLines] = React.useState<string[]>([]);
   const [isStreaming, setIsStreaming] = React.useState(false);
   const linesRef = React.useRef<string[]>([]);

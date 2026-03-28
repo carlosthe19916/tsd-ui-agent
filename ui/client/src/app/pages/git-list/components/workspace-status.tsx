@@ -1,4 +1,4 @@
-import React from "react";
+import React, { use } from "react";
 
 import {
   Banner,
@@ -245,7 +245,7 @@ export const ProvisioningOutputPanel: React.FC<{
   id: number;
   streamFn?: (id: number, signal?: AbortSignal) => AsyncGenerator<string>;
 }> = ({ id, streamFn = streamWorkspaceOutput }) => {
-  const { isDark } = React.useContext(ThemeContext);
+  const { isDark } = use(ThemeContext);
   const [logLines, setLogLines] = React.useState<string[]>([]);
   const [isStreaming, setIsStreaming] = React.useState(false);
   const linesRef = React.useRef<string[]>([]);

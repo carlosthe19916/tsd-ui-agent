@@ -1,9 +1,6 @@
 import type React from "react";
 
-import { Bullseye, Spinner } from "@patternfly/react-core";
-
-import { StateError } from "@app/components/StateError";
-import { StateNoData } from "@app/components/StateNoData";
+import { AsyncStateRenderer } from "@app/components/AsyncStateRenderer";
 
 export interface IConditionalDataListBodyProps {
   isLoading?: boolean;
@@ -20,21 +17,17 @@ export const ConditionalDataListBody: React.FC<
   isLoading = false,
   isError = false,
   isNoData = false,
-  errorEmptyState = null,
-  noDataEmptyState = null,
+  errorEmptyState,
+  noDataEmptyState,
   children,
 }) => (
-  <>
-    {isLoading ? (
-      <Bullseye>
-        <Spinner size="xl" />
-      </Bullseye>
-    ) : isError ? (
-      <Bullseye>{errorEmptyState || <StateError />}</Bullseye>
-    ) : isNoData ? (
-      <Bullseye>{noDataEmptyState || <StateNoData />}</Bullseye>
-    ) : (
-      children
-    )}
-  </>
+  <AsyncStateRenderer
+    isLoading={isLoading}
+    isError={isError}
+    isEmpty={isNoData}
+    errorContent={errorEmptyState}
+    emptyContent={noDataEmptyState}
+  >
+    {children}
+  </AsyncStateRenderer>
 );
