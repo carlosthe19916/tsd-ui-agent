@@ -22,6 +22,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -157,6 +158,8 @@ public class DevcontainerWorkspace implements Workspace {
                     .redirectErrorStream(true);
             Process process = pb.start();
             process.getOutputStream().close();
+            AtomicBoolean timedOut = new AtomicBoolean(false);
+            Thread watchdog = startWatchdog(process, timedOut);
 
             String output;
             try (BufferedReader reader = new BufferedReader(
@@ -164,9 +167,8 @@ public class DevcontainerWorkspace implements Workspace {
                 output = reader.lines().collect(Collectors.joining("\n"));
             }
 
-            boolean finished = process.waitFor(30, TimeUnit.MINUTES);
-            if (!finished) {
-                process.destroyForcibly();
+            watchdog.join();
+            if (timedOut.get()) {
                 throw new WorkspaceException("Command timed out: " + String.join(" ", command));
             }
 
@@ -193,6 +195,8 @@ public class DevcontainerWorkspace implements Workspace {
                     .redirectErrorStream(true);
             Process process = pb.start();
             process.getOutputStream().close();
+            AtomicBoolean timedOut = new AtomicBoolean(false);
+            Thread watchdog = startWatchdog(process, timedOut);
 
             try (BufferedReader reader = new BufferedReader(
                     new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
@@ -202,9 +206,8 @@ public class DevcontainerWorkspace implements Workspace {
                 }
             }
 
-            boolean finished = process.waitFor(30, TimeUnit.MINUTES);
-            if (!finished) {
-                process.destroyForcibly();
+            watchdog.join();
+            if (timedOut.get()) {
                 throw new WorkspaceException("Command timed out: " + String.join(" ", command));
             }
 
@@ -228,6 +231,8 @@ public class DevcontainerWorkspace implements Workspace {
             ProcessBuilder pb = buildExecProcess(command)
                     .redirectErrorStream(true);
             Process process = pb.start();
+            AtomicBoolean timedOut = new AtomicBoolean(false);
+            Thread watchdog = startWatchdog(process, timedOut);
 
             try (OutputStream os = process.getOutputStream()) {
                 os.write(stdin);
@@ -239,9 +244,8 @@ public class DevcontainerWorkspace implements Workspace {
                 output = reader.lines().collect(Collectors.joining("\n"));
             }
 
-            boolean finished = process.waitFor(30, TimeUnit.MINUTES);
-            if (!finished) {
-                process.destroyForcibly();
+            watchdog.join();
+            if (timedOut.get()) {
                 throw new WorkspaceException("Command timed out: " + String.join(" ", command));
             }
 
@@ -266,6 +270,8 @@ public class DevcontainerWorkspace implements Workspace {
         try {
             ProcessBuilder pb = buildExecProcess(command).redirectErrorStream(true);
             Process process = pb.start();
+            AtomicBoolean timedOut = new AtomicBoolean(false);
+            Thread watchdog = startWatchdog(process, timedOut);
 
             try (OutputStream os = process.getOutputStream()) {
                 os.write(stdin);
@@ -278,9 +284,8 @@ public class DevcontainerWorkspace implements Workspace {
                 }
             }
 
-            boolean finished = process.waitFor(30, TimeUnit.MINUTES);
-            if (!finished) {
-                process.destroyForcibly();
+            watchdog.join();
+            if (timedOut.get()) {
                 throw new WorkspaceException("Command timed out: " + String.join(" ", command));
             }
 
@@ -296,6 +301,20 @@ public class DevcontainerWorkspace implements Workspace {
         } catch (Exception e) {
             throw new WorkspaceException("Failed to execute command: " + String.join(" ", command), e);
         }
+    }
+
+    private Thread startWatchdog(Process process, AtomicBoolean timedOut) {
+        return Thread.ofVirtual().start(() -> {
+            try {
+                boolean finished = process.waitFor(30, TimeUnit.MINUTES);
+                if (!finished) {
+                    timedOut.set(true);
+                    process.destroyForcibly();
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
     }
 
     private ProcessBuilder buildExecProcess(String... command) {

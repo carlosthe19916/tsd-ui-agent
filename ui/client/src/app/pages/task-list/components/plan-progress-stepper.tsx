@@ -262,15 +262,7 @@ export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
               ) : plan.isChangeRequestInProgress ? (
                 <div>Creating pull request...</div>
               ) : plan.changeRequestUrl ? (
-                <div>
-                  <a
-                    href={plan.changeRequestUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    View Pull Request
-                  </a>
-                </div>
+                <div>Pull request created.</div>
               ) : !workspace?.git?.credential ? (
                 <div>
                   No credential is configured in the git settings. A credential
@@ -289,7 +281,7 @@ export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
                   href={plan.changeRequestUrl}
                   target="_blank"
                 >
-                  Open PR
+                  View PR
                 </Button>
               ) : (
                 <Button

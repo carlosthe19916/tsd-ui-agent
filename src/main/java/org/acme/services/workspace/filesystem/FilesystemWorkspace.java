@@ -14,6 +14,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 public class FilesystemWorkspace implements Workspace {
@@ -41,6 +42,9 @@ public class FilesystemWorkspace implements Workspace {
                     .directory(new java.io.File(directory))
                     .redirectErrorStream(true);
             Process process = pb.start();
+            process.getOutputStream().close();
+            AtomicBoolean timedOut = new AtomicBoolean(false);
+            Thread watchdog = startWatchdog(process, timedOut);
 
             String output;
             try (BufferedReader reader = new BufferedReader(
@@ -48,9 +52,8 @@ public class FilesystemWorkspace implements Workspace {
                 output = reader.lines().collect(java.util.stream.Collectors.joining("\n"));
             }
 
-            boolean finished = process.waitFor(30, TimeUnit.MINUTES);
-            if (!finished) {
-                process.destroyForcibly();
+            watchdog.join();
+            if (timedOut.get()) {
                 throw new WorkspaceException("Command timed out: " + String.join(" ", command));
             }
 
@@ -77,6 +80,9 @@ public class FilesystemWorkspace implements Workspace {
                     .directory(new java.io.File(directory))
                     .redirectErrorStream(true);
             Process process = pb.start();
+            process.getOutputStream().close();
+            AtomicBoolean timedOut = new AtomicBoolean(false);
+            Thread watchdog = startWatchdog(process, timedOut);
 
             try (BufferedReader reader = new BufferedReader(
                     new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
@@ -86,9 +92,8 @@ public class FilesystemWorkspace implements Workspace {
                 }
             }
 
-            boolean finished = process.waitFor(30, TimeUnit.MINUTES);
-            if (!finished) {
-                process.destroyForcibly();
+            watchdog.join();
+            if (timedOut.get()) {
                 throw new WorkspaceException("Command timed out: " + String.join(" ", command));
             }
 
@@ -113,6 +118,8 @@ public class FilesystemWorkspace implements Workspace {
                     .directory(new java.io.File(directory))
                     .redirectErrorStream(true);
             Process process = pb.start();
+            AtomicBoolean timedOut = new AtomicBoolean(false);
+            Thread watchdog = startWatchdog(process, timedOut);
 
             try (OutputStream os = process.getOutputStream()) {
                 os.write(stdin);
@@ -124,9 +131,8 @@ public class FilesystemWorkspace implements Workspace {
                 output = reader.lines().collect(java.util.stream.Collectors.joining("\n"));
             }
 
-            boolean finished = process.waitFor(30, TimeUnit.MINUTES);
-            if (!finished) {
-                process.destroyForcibly();
+            watchdog.join();
+            if (timedOut.get()) {
                 throw new WorkspaceException("Command timed out: " + String.join(" ", command));
             }
 
@@ -170,6 +176,8 @@ public class FilesystemWorkspace implements Workspace {
                     .directory(new java.io.File(directory))
                     .redirectErrorStream(true);
             Process process = pb.start();
+            AtomicBoolean timedOut = new AtomicBoolean(false);
+            Thread watchdog = startWatchdog(process, timedOut);
 
             try (OutputStream os = process.getOutputStream()) {
                 os.write(stdin);
@@ -183,9 +191,8 @@ public class FilesystemWorkspace implements Workspace {
                 }
             }
 
-            boolean finished = process.waitFor(30, TimeUnit.MINUTES);
-            if (!finished) {
-                process.destroyForcibly();
+            watchdog.join();
+            if (timedOut.get()) {
                 throw new WorkspaceException("Command timed out: " + String.join(" ", command));
             }
 
@@ -201,5 +208,20 @@ public class FilesystemWorkspace implements Workspace {
         } catch (Exception e) {
             throw new WorkspaceException("Failed to execute command: " + String.join(" ", command), e);
         }
+    }
+
+    private Thread startWatchdog(Process process, AtomicBoolean timedOut) {
+        Thread watchdog = Thread.ofVirtual().start(() -> {
+            try {
+                boolean finished = process.waitFor(30, TimeUnit.MINUTES);
+                if (!finished) {
+                    timedOut.set(true);
+                    process.destroyForcibly();
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        return watchdog;
     }
 }
