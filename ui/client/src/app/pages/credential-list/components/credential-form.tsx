@@ -36,6 +36,7 @@ export const CredentialForm: React.FC<CredentialFormProps> = ({
         fieldId="token"
         isRequired={!isEditing || isTokenEnabled}
         type="password"
+        placeholder="email:token (Jira) or token (GitHub)"
         isDisabled={isEditing && !isTokenEnabled}
       />
       {isEditing && (

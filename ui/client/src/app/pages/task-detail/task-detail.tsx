@@ -16,6 +16,7 @@ import {
 import { Paths } from "@app/Routes";
 import { AsyncStateRenderer } from "@app/components/AsyncStateRenderer";
 import { PageDrawerContent } from "@app/components/PageDrawerContext";
+import { ThemedTerminal } from "@app/components/ThemedTerminal";
 import { useFetchTask } from "@app/queries/tasks";
 
 import { GitDiffDrawer } from "./components/git-diff-drawer";
@@ -28,6 +29,7 @@ export const TaskDetail: React.FC = () => {
 
   const { data: task, isLoading, isError } = useFetchTask(taskIdNum);
   const [isGitDrawerOpen, setIsGitDrawerOpen] = useState(false);
+  const [isTerminalOpen, setIsTerminalOpen] = useState(false);
 
   return (
     <AsyncStateRenderer isLoading={isLoading} isError={isError || !task}>
@@ -46,12 +48,22 @@ export const TaskDetail: React.FC = () => {
               <FlexItem flex={{ default: "flex_1" }} style={{ minWidth: 0 }}>
                 <Content component="h1">{task.title}</Content>
                 <TaskContextSidebar task={task} />
+                {isTerminalOpen &&
+                  task.workspace?.workspaceId &&
+                  task.workspace?.id && (
+                    <div style={{ marginTop: 16 }}>
+                      <ThemedTerminal workspaceEntityId={task.workspace.id} />
+                    </div>
+                  )}
               </FlexItem>
               {task.workspace?.id && (
                 <FlexItem>
                   <TaskActionBar
+                    workspaceId={task.workspace?.id as number}
                     onGitDiffClick={() => setIsGitDrawerOpen((prev) => !prev)}
                     isGitDiffActive={isGitDrawerOpen}
+                    onTerminalClick={() => setIsTerminalOpen((prev) => !prev)}
+                    isTerminalActive={isTerminalOpen}
                   />
                 </FlexItem>
               )}
