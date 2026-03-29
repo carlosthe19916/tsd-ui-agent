@@ -7,6 +7,8 @@ import {
   FormGroup,
   FormSelect,
   FormSelectOption,
+  Grid,
+  GridItem,
   Label,
   LabelGroup,
   Modal,
@@ -14,7 +16,10 @@ import {
   ModalFooter,
   ModalHeader,
   Spinner,
+  Stack,
+  StackItem,
   TextInput,
+  Title,
 } from "@patternfly/react-core";
 import { TrashIcon } from "@patternfly/react-icons";
 import { Table, Tbody, Td, Th, Thead, Tr } from "@patternfly/react-table";
@@ -121,123 +126,130 @@ const GitMappingModalContent: React.FC<
             <Spinner />
           </Bullseye>
         ) : (
-          <>
-            <Table aria-label="Existing mappings" variant="compact">
-              <Thead>
-                <Tr>
-                  <Th>Repository</Th>
-                  <Th>Space</Th>
-                  <Th>Labels</Th>
-                  <Th />
-                </Tr>
-              </Thead>
-              <Tbody>
-                {(mappings ?? []).length === 0 ? (
+          <Stack hasGutter>
+            <StackItem>
+              <Table aria-label="Existing mappings" variant="compact">
+                <Thead>
                   <Tr>
-                    <Td colSpan={4}>
-                      <Bullseye>No mappings configured yet.</Bullseye>
-                    </Td>
+                    <Th>Repository</Th>
+                    <Th>Space</Th>
+                    <Th>Labels</Th>
+                    <Th />
                   </Tr>
-                ) : (
-                  (mappings ?? []).map((m) => (
-                    <Tr key={m.id}>
-                      <Td>{gitMap.get(m.gitId)?.url ?? `Git #${m.gitId}`}</Td>
-                      <Td>{m.space}</Td>
-                      <Td>
-                        <LabelGroup>
-                          {(m.labels ?? []).map((l) => (
-                            <Label key={l}>{l}</Label>
-                          ))}
-                        </LabelGroup>
-                      </Td>
-                      <Td isActionCell>
-                        <Button
-                          variant={ButtonVariant.plain}
-                          aria-label="Delete mapping"
-                          onClick={() => deleteMutation.mutate(m.id)}
-                          isDisabled={deleteMutation.isPending}
-                        >
-                          <TrashIcon />
-                        </Button>
+                </Thead>
+                <Tbody>
+                  {(mappings ?? []).length === 0 ? (
+                    <Tr>
+                      <Td colSpan={4}>
+                        <Bullseye>No mappings configured yet.</Bullseye>
                       </Td>
                     </Tr>
-                  ))
-                )}
-              </Tbody>
-            </Table>
+                  ) : (
+                    (mappings ?? []).map((m) => (
+                      <Tr key={m.id}>
+                        <Td>{gitMap.get(m.gitId)?.url ?? `Git #${m.gitId}`}</Td>
+                        <Td>{m.space}</Td>
+                        <Td>
+                          <LabelGroup>
+                            {(m.labels ?? []).map((l) => (
+                              <Label key={l}>{l}</Label>
+                            ))}
+                          </LabelGroup>
+                        </Td>
+                        <Td isActionCell>
+                          <Button
+                            variant={ButtonVariant.plain}
+                            aria-label="Delete mapping"
+                            onClick={() => deleteMutation.mutate(m.id)}
+                            isDisabled={deleteMutation.isPending}
+                          >
+                            <TrashIcon />
+                          </Button>
+                        </Td>
+                      </Tr>
+                    ))
+                  )}
+                </Tbody>
+              </Table>
+            </StackItem>
+            <StackItem>
+              <Stack hasGutter>
+                <StackItem>
+                  <Title headingLevel="h4">Add mapping</Title>
+                </StackItem>
+                <StackItem>
+                  <Grid hasGutter>
+                    <GridItem span={4}>
+                      <FormGroup label="Repository" fieldId="mapping-git">
+                        <FormSelect
+                          id="mapping-git"
+                          value={selectedGitId}
+                          onChange={(_e, val) => setSelectedGitId(val)}
+                        >
+                          <FormSelectOption
+                            value=""
+                            label="Select a repository..."
+                            isPlaceholder
+                          />
+                          {(gits ?? []).map((g) => (
+                            <FormSelectOption
+                              key={g.id}
+                              value={String(g.id)}
+                              label={g.url}
+                            />
+                          ))}
+                        </FormSelect>
+                      </FormGroup>
+                    </GridItem>
 
-            <div style={{ marginTop: "1.5rem" }}>
-              <strong>Add mapping</strong>
+                    <GridItem span={4}>
+                      <FormGroup label="Space prefix" fieldId="mapping-space">
+                        <TextInput
+                          id="mapping-space"
+                          value={selectedSpace}
+                          onChange={(_e, val) => setSelectedSpace(val)}
+                          placeholder="e.g. MYPROJECT"
+                        />
+                      </FormGroup>
+                    </GridItem>
 
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr 1fr",
-                  gap: "1rem",
-                  marginTop: "0.5rem",
-                }}
-              >
-                <FormGroup label="Repository" fieldId="mapping-git">
-                  <FormSelect
-                    id="mapping-git"
-                    value={selectedGitId}
-                    onChange={(_e, val) => setSelectedGitId(val)}
+                    <GridItem span={4}>
+                      <FormGroup label="Labels" fieldId="mapping-labels">
+                        <LabelGroup>
+                          {labels.map((l) => (
+                            <Label key={l} onClose={() => handleRemoveLabel(l)}>
+                              {l}
+                            </Label>
+                          ))}
+                        </LabelGroup>
+                        <TextInput
+                          id="mapping-labels"
+                          value={labelInput}
+                          onChange={(_e, val) => setLabelInput(val)}
+                          onKeyDown={handleLabelKeyDown}
+                          onBlur={handleAddLabel}
+                          placeholder="Type and press Enter..."
+                        />
+                      </FormGroup>
+                    </GridItem>
+                  </Grid>
+                </StackItem>
+                <StackItem>
+                  <Button
+                    variant={ButtonVariant.primary}
+                    isDisabled={
+                      !selectedGitId ||
+                      !selectedSpace ||
+                      createMutation.isPending
+                    }
+                    onClick={handleAdd}
                   >
-                    <FormSelectOption
-                      value=""
-                      label="Select a repository..."
-                      isPlaceholder
-                    />
-                    {(gits ?? []).map((g) => (
-                      <FormSelectOption
-                        key={g.id}
-                        value={String(g.id)}
-                        label={g.url}
-                      />
-                    ))}
-                  </FormSelect>
-                </FormGroup>
-
-                <FormGroup label="Space prefix" fieldId="mapping-space">
-                  <TextInput
-                    id="mapping-space"
-                    value={selectedSpace}
-                    onChange={(_e, val) => setSelectedSpace(val)}
-                    placeholder="e.g. MYPROJECT"
-                  />
-                </FormGroup>
-
-                <FormGroup label="Labels" fieldId="mapping-labels">
-                  <LabelGroup style={{ marginBottom: "0.25rem" }}>
-                    {labels.map((l) => (
-                      <Label key={l} onClose={() => handleRemoveLabel(l)}>
-                        {l}
-                      </Label>
-                    ))}
-                  </LabelGroup>
-                  <TextInput
-                    id="mapping-labels"
-                    value={labelInput}
-                    onChange={(_e, val) => setLabelInput(val)}
-                    onKeyDown={handleLabelKeyDown}
-                    onBlur={handleAddLabel}
-                    placeholder="Type and press Enter..."
-                  />
-                </FormGroup>
-              </div>
-
-              <Button
-                variant={ButtonVariant.primary}
-                isDisabled={
-                  !selectedGitId || !selectedSpace || createMutation.isPending
-                }
-                onClick={handleAdd}
-                style={{ marginTop: "0.5rem" }}
-              >
-                Add
-              </Button>
-            </div>
-          </>
+                    Add
+                  </Button>
+                </StackItem>
+              </Stack>
+            </StackItem>
+          </Stack>
         )}
       </ModalBody>
       <ModalFooter>

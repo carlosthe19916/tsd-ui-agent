@@ -288,7 +288,7 @@ export const ProvisioningOutputPanel: React.FC<{
   const data = logLines.length > 0 ? logLines.join("\n") : " ";
 
   return (
-    <div style={{ marginTop: "var(--pf-t--global--spacer--sm)" }}>
+    <div>
       <LogViewer
         data={data}
         height={300}

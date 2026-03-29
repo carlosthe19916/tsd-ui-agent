@@ -38,6 +38,7 @@ import {
   TableHeaderContentWithControls,
   TableRowContentWithControls,
 } from "@app/components/TableControls";
+import { StateNoData } from "@app/components/StateNoData";
 import { ToolbarBulkSelector } from "@app/components/ToolbarBulkSelector";
 import { useBulkSelection } from "@app/hooks/useBulkSelection";
 import { useLocalTableControls } from "@app/hooks/table-controls";
@@ -267,6 +268,12 @@ export const ProjectList: React.FC = () => {
             isLoading={isFetching}
             isNoData={(projects ?? []).length === 0}
             numRenderedColumns={numRenderedColumns}
+            noDataEmptyState={
+              <StateNoData
+                title="No projects yet"
+                description="Projects connect to GitHub or Jira to import issues as tasks. Create a project to start syncing."
+              />
+            }
           >
             {currentPageItems?.map((project, rowIndex) => (
               <Tbody key={project.id} isExpanded={isCellExpanded(project)}>

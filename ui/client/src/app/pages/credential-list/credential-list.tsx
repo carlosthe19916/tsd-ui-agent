@@ -35,6 +35,8 @@ import {
   useFetchCredentials,
 } from "@app/queries/credentials";
 
+import { StateNoData } from "@app/components/StateNoData";
+
 import { CredentialFormModal } from "./components/credential-form-modal";
 
 type ModalState =
@@ -146,6 +148,12 @@ export const CredentialList: React.FC = () => {
             isLoading={isFetching}
             isNoData={(credentials ?? []).length === 0}
             numRenderedColumns={numRenderedColumns}
+            noDataEmptyState={
+              <StateNoData
+                title="No credentials yet"
+                description="Credentials are used to authenticate with GitHub, GitLab, and Jira. Create one to get started."
+              />
+            }
           >
             {currentPageItems?.map((credential, rowIndex) => (
               <Tbody

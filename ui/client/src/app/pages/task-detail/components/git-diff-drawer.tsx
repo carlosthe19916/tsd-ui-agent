@@ -2,15 +2,22 @@ import React from "react";
 import {
   ActionGroup,
   Alert,
+  Bullseye,
   Button,
+  Content,
+  Divider,
   EmptyState,
   EmptyStateBody,
+  Flex,
+  FlexItem,
   Form,
   FormGroup,
   Label,
   Spinner,
   Split,
   SplitItem,
+  Stack,
+  StackItem,
   TextInput,
   Title,
 } from "@patternfly/react-core";
@@ -61,47 +68,36 @@ const FileListPanel: React.FC<{
   }
 
   return (
-    <div>
+    <Stack>
       {files.map((file) => {
         const parts = file.path.split("/");
         const fileName = parts.pop();
         const dir = parts.length > 0 ? `${parts.join("/")}/` : "";
 
         return (
-          <div
-            key={file.path}
-            role="button"
-            tabIndex={0}
-            onClick={() => onSelect(file.path)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") onSelect(file.path);
-            }}
-            style={{
-              padding: "6px 12px",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              borderBottom:
-                "1px solid var(--pf-t--global--border--color--default)",
-            }}
-          >
-            <Label color={statusColor(file.status)} isCompact>
-              {file.status}
-            </Label>
-            <span
-              style={{
-                fontSize: 13,
-                fontFamily: "var(--pf-t--global--font--family--mono)",
-              }}
-            >
-              <span style={{ opacity: 0.6 }}>{dir}</span>
-              <span style={{ fontWeight: 600 }}>{fileName}</span>
-            </span>
-          </div>
+          <StackItem key={file.path}>
+            <Button variant="plain" isBlock onClick={() => onSelect(file.path)}>
+              <Flex
+                alignItems={{ default: "alignItemsCenter" }}
+                gap={{ default: "gapSm" }}
+              >
+                <FlexItem>
+                  <Label color={statusColor(file.status)} isCompact>
+                    {file.status}
+                  </Label>
+                </FlexItem>
+                <FlexItem>
+                  <Content component="small">
+                    <Content component="span">{dir}</Content>
+                    <Content component="strong">{fileName}</Content>
+                  </Content>
+                </FlexItem>
+              </Flex>
+            </Button>
+          </StackItem>
         );
       })}
-    </div>
+    </Stack>
   );
 };
 
@@ -122,53 +118,50 @@ const DiffViewPanel: React.FC<{
   }, [diffText]);
 
   return (
-    <div>
-      <Split hasGutter style={{ padding: "8px 12px", alignItems: "center" }}>
-        <SplitItem>
-          <Button
-            variant="plain"
-            aria-label="Back to file list"
-            onClick={onBack}
-            icon={<ArrowLeftIcon />}
-            size="sm"
-          />
-        </SplitItem>
-        <SplitItem isFilled>
-          <span
-            style={{
-              fontSize: 13,
-              fontFamily: "var(--pf-t--global--font--family--mono)",
-            }}
-          >
-            {filePath}
-          </span>
-        </SplitItem>
-      </Split>
-      {isLoading ? (
-        <div style={{ padding: 24, textAlign: "center" }}>
-          <Spinner size="lg" />
-        </div>
-      ) : files.length === 0 ? (
-        <EmptyState>
-          <EmptyStateBody>No diff available</EmptyStateBody>
-        </EmptyState>
-      ) : (
-        <div className={styles.diffContainer}>
-          {files.map((file) => (
-            <Diff
-              key={`${file.oldRevision}-${file.newRevision}`}
-              viewType="unified"
-              diffType={file.type}
-              hunks={file.hunks}
-            >
-              {(hunks) =>
-                hunks.map((hunk) => <Hunk key={hunk.content} hunk={hunk} />)
-              }
-            </Diff>
-          ))}
-        </div>
-      )}
-    </div>
+    <Stack hasGutter>
+      <StackItem>
+        <Split hasGutter>
+          <SplitItem>
+            <Button
+              variant="plain"
+              aria-label="Back to file list"
+              onClick={onBack}
+              icon={<ArrowLeftIcon />}
+              size="sm"
+            />
+          </SplitItem>
+          <SplitItem isFilled>
+            <Content component="small">{filePath}</Content>
+          </SplitItem>
+        </Split>
+      </StackItem>
+      <StackItem>
+        {isLoading ? (
+          <Bullseye>
+            <Spinner size="lg" />
+          </Bullseye>
+        ) : files.length === 0 ? (
+          <EmptyState>
+            <EmptyStateBody>No diff available</EmptyStateBody>
+          </EmptyState>
+        ) : (
+          <div className={styles.diffContainer}>
+            {files.map((file) => (
+              <Diff
+                key={`${file.oldRevision}-${file.newRevision}`}
+                viewType="unified"
+                diffType={file.type}
+                hunks={file.hunks}
+              >
+                {(hunks) =>
+                  hunks.map((hunk) => <Hunk key={hunk.content} hunk={hunk} />)
+                }
+              </Diff>
+            ))}
+          </div>
+        )}
+      </StackItem>
+    </Stack>
   );
 };
 
@@ -205,96 +198,103 @@ export const GitDiffDrawer: React.FC<GitDiffDrawerProps> = ({
 
   if (isLoading) {
     return (
-      <div style={{ padding: 24, textAlign: "center" }}>
+      <Bullseye>
         <Spinner size="lg" />
-      </div>
+      </Bullseye>
     );
   }
 
   return (
-    <div>
-      <div style={{ padding: "8px 12px" }}>
-        <Title headingLevel="h3" size="md">
-          Changed Files
+    <Stack hasGutter>
+      <StackItem>
+        <Flex
+          alignItems={{ default: "alignItemsCenter" }}
+          gap={{ default: "gapSm" }}
+        >
+          <FlexItem>
+            <Title headingLevel="h3" size="md">
+              Changed Files
+            </Title>
+          </FlexItem>
           {changedFiles && changedFiles.length > 0 && (
-            <Label isCompact style={{ marginLeft: 8 }}>
-              {changedFiles.length}
-            </Label>
+            <FlexItem>
+              <Label isCompact>{changedFiles.length}</Label>
+            </FlexItem>
           )}
-        </Title>
-      </div>
-      <FileListPanel files={changedFiles ?? []} onSelect={setSelectedFile} />
+        </Flex>
+      </StackItem>
+      <StackItem>
+        <FileListPanel files={changedFiles ?? []} onSelect={setSelectedFile} />
+      </StackItem>
 
       {hasChanges && (
-        <div
-          style={{
-            padding: "12px",
-            borderTop: "1px solid var(--pf-t--global--border--color--default)",
-          }}
-        >
-          <Form
-            onSubmit={(e) => {
-              e.preventDefault();
-              commitMutation.mutate({
-                wsId: workspaceId,
-                message: commitMessage,
-              });
-            }}
-          >
-            <FormGroup label="Commit message" fieldId="commit-message">
-              <TextInput
-                id="commit-message"
-                value={commitMessage}
-                onChange={(_e, val) => setCommitMessage(val)}
-                placeholder="Describe your changes..."
-                isDisabled={isCommitting}
-              />
-            </FormGroup>
-            {commitError && (
-              <Alert
-                variant="danger"
-                isInline
-                isPlain
-                title={
-                  commitError instanceof Error
-                    ? commitError.message
-                    : "Commit failed"
-                }
-              />
-            )}
-            <ActionGroup>
-              <Button
-                variant="primary"
-                size="sm"
-                isDisabled={!commitMessage.trim() || isCommitting}
-                isLoading={commitMutation.isPending}
-                onClick={() =>
-                  commitMutation.mutate({
-                    wsId: workspaceId,
-                    message: commitMessage,
-                  })
-                }
-              >
-                Commit
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                isDisabled={!commitMessage.trim() || isCommitting}
-                isLoading={commitAndPushMutation.isPending}
-                onClick={() =>
-                  commitAndPushMutation.mutate({
-                    wsId: workspaceId,
-                    message: commitMessage,
-                  })
-                }
-              >
-                Commit & Push
-              </Button>
-            </ActionGroup>
-          </Form>
-        </div>
+        <>
+          <Divider />
+          <StackItem>
+            <Form
+              onSubmit={(e) => {
+                e.preventDefault();
+                commitMutation.mutate({
+                  wsId: workspaceId,
+                  message: commitMessage,
+                });
+              }}
+            >
+              <FormGroup label="Commit message" fieldId="commit-message">
+                <TextInput
+                  id="commit-message"
+                  value={commitMessage}
+                  onChange={(_e, val) => setCommitMessage(val)}
+                  placeholder="Describe your changes..."
+                  isDisabled={isCommitting}
+                />
+              </FormGroup>
+              {commitError && (
+                <Alert
+                  variant="danger"
+                  isInline
+                  isPlain
+                  title={
+                    commitError instanceof Error
+                      ? commitError.message
+                      : "Commit failed"
+                  }
+                />
+              )}
+              <ActionGroup>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  isDisabled={!commitMessage.trim() || isCommitting}
+                  isLoading={commitMutation.isPending}
+                  onClick={() =>
+                    commitMutation.mutate({
+                      wsId: workspaceId,
+                      message: commitMessage,
+                    })
+                  }
+                >
+                  Commit
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  isDisabled={!commitMessage.trim() || isCommitting}
+                  isLoading={commitAndPushMutation.isPending}
+                  onClick={() =>
+                    commitAndPushMutation.mutate({
+                      wsId: workspaceId,
+                      message: commitMessage,
+                    })
+                  }
+                >
+                  Commit & Push
+                </Button>
+              </ActionGroup>
+            </Form>
+          </StackItem>
+        </>
       )}
-    </div>
+    </Stack>
   );
 };

@@ -219,7 +219,6 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ control }) => {
                     ? "Connection successful"
                     : (testResult.message ?? "Connection failed")
                 }
-                style={{ marginTop: "var(--pf-v5-global--spacer--sm)" }}
               />
             )}
           </>
@@ -265,7 +264,6 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ control }) => {
                     ? "Query successful"
                     : (testQueryResult.message ?? "Query failed")
                 }
-                style={{ marginTop: "var(--pf-v5-global--spacer--sm)" }}
               />
             )}
           </>

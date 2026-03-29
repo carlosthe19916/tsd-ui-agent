@@ -44,16 +44,14 @@ export const TaskDetail: React.FC = () => {
             </Breadcrumb>
           </PageSection>
           <PageSection isFilled>
-            <Flex flexWrap={{ default: "nowrap" }} style={{ height: "100%" }}>
-              <FlexItem flex={{ default: "flex_1" }} style={{ minWidth: 0 }}>
+            <Flex flexWrap={{ default: "nowrap" }}>
+              <FlexItem flex={{ default: "flex_1" }}>
                 <Content component="h1">{task.title}</Content>
                 <TaskContextSidebar task={task} />
                 {isTerminalOpen &&
                   task.workspace?.workspaceId &&
                   task.workspace?.id && (
-                    <div style={{ marginTop: 16 }}>
-                      <ThemedTerminal workspaceEntityId={task.workspace.id} />
-                    </div>
+                    <ThemedTerminal workspaceEntityId={task.workspace.id} />
                   )}
               </FlexItem>
               {task.workspace?.id && (

@@ -66,7 +66,7 @@ export const ExecutionOutputPanel: React.FC<ExecutionOutputPanelProps> = ({
   const rowCount = data.split("\n").length;
 
   return (
-    <div style={{ marginTop: "var(--pf-t--global--spacer--md)" }}>
+    <div>
       <LogViewer
         data={data}
         height={400}

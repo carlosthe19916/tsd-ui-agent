@@ -7,13 +7,21 @@ import {
 } from "@patternfly/react-core";
 import CubesIcon from "@patternfly/react-icons/dist/esm/icons/cubes-icon";
 
-export const StateNoData: React.FC = () => (
+export interface StateNoDataProps {
+  title?: string;
+  description?: string;
+}
+
+export const StateNoData: React.FC<StateNoDataProps> = ({
+  title = "No data available",
+  description = "No data available to be shown here.",
+}) => (
   <EmptyState
-    titleText={"No data available"}
+    titleText={title}
     headingLevel="h4"
     icon={CubesIcon}
     variant={EmptyStateVariant.sm}
   >
-    <EmptyStateBody>{"No data available to be shown here."}</EmptyStateBody>
+    <EmptyStateBody>{description}</EmptyStateBody>
   </EmptyState>
 );
