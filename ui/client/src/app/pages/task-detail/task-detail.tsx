@@ -9,8 +9,6 @@ import {
   Content,
   Flex,
   FlexItem,
-  Grid,
-  GridItem,
   PageSection,
   Title,
 } from "@patternfly/react-core";
@@ -22,7 +20,6 @@ import { useFetchTask } from "@app/queries/tasks";
 
 import { GitDiffDrawer } from "./components/git-diff-drawer";
 import { TaskActionBar } from "./components/task-action-bar";
-import { TaskChatPanel } from "./components/task-chat-panel";
 import { TaskContextSidebar } from "./components/task-context-sidebar";
 
 export const TaskDetail: React.FC = () => {
@@ -47,18 +44,8 @@ export const TaskDetail: React.FC = () => {
           <PageSection isFilled>
             <Flex flexWrap={{ default: "nowrap" }} style={{ height: "100%" }}>
               <FlexItem flex={{ default: "flex_1" }} style={{ minWidth: 0 }}>
-                <Grid hasGutter>
-                  <GridItem md={6}>
-                    <Content component="h1">{task.title}</Content>
-                    <TaskContextSidebar task={task} />
-                  </GridItem>
-                  <GridItem md={6}>
-                    <TaskChatPanel
-                      taskId={task.id}
-                      hasWorkspace={!!task.workspace?.workspaceId}
-                    />
-                  </GridItem>
-                </Grid>
+                <Content component="h1">{task.title}</Content>
+                <TaskContextSidebar task={task} />
               </FlexItem>
               {task.workspace?.id && (
                 <FlexItem>

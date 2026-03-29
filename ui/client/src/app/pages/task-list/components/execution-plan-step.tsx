@@ -10,10 +10,6 @@ import {
   Alert,
   Button,
   Content,
-  Drawer,
-  DrawerContent,
-  DrawerContentBody,
-  DrawerPanelContent,
   Grid,
   GridItem,
   Panel,
@@ -34,7 +30,6 @@ import RobotIcon from "@patternfly/react-icons/dist/esm/icons/robot-icon";
 import { ThemedCodeEditor } from "@app/components/ThemedCodeEditor";
 import { useFormChangeHandler } from "@app/hooks/useFormChangeHandler";
 import { useFetchTaskPlan, useGeneratePlanMutation } from "@app/queries/tasks";
-import { RequirementChatbot } from "./requirement-chatbot";
 
 interface PlanValues {
   plan: string;
@@ -64,7 +59,6 @@ export const PlanStep: React.FC<PlanStepProps> = ({
   onStateChanged,
 }) => {
   const [viewMode, setViewMode] = React.useState<ViewMode>("editor");
-  const [isChatbotOpen, setIsChatbotOpen] = React.useState(false);
 
   const form = useForm<PlanValues>({
     resolver: yupResolver(schema),
@@ -109,121 +103,98 @@ export const PlanStep: React.FC<PlanStepProps> = ({
           title="Git configuration is required to generate a plan with AI."
         />
       )}
-      <Drawer isExpanded={isChatbotOpen} isInline>
-        <DrawerContent
-          panelContent={
-            <DrawerPanelContent isResizable defaultSize="400px" minSize="250px">
-              <RequirementChatbot taskId={taskId} />
-            </DrawerPanelContent>
+      <Toolbar>
+        <ToolbarContent>
+          <ToolbarItem>
+            <ToggleGroup aria-label="View mode">
+              <ToggleGroupItem
+                icon={<CodeIcon />}
+                text="Editor"
+                aria-label="Editor view"
+                isSelected={viewMode === "editor"}
+                onChange={() => setViewMode("editor")}
+              />
+              <ToggleGroupItem
+                icon={<ColumnsIcon />}
+                text="Split"
+                aria-label="Split view"
+                isSelected={viewMode === "split"}
+                onChange={() => setViewMode("split")}
+              />
+              <ToggleGroupItem
+                icon={<EyeIcon />}
+                text="Preview"
+                aria-label="Preview view"
+                isSelected={viewMode === "preview"}
+                onChange={() => setViewMode("preview")}
+              />
+            </ToggleGroup>
+          </ToolbarItem>
+          <ToolbarItem align={{ default: "alignEnd" }}>
+            <Button
+              variant="secondary"
+              icon={<RobotIcon />}
+              onClick={() => generateMutation.mutate(taskId)}
+              isDisabled={!hasGit || isGenerating}
+              isLoading={generateMutation.isPending}
+            >
+              Generate with AI
+            </Button>
+          </ToolbarItem>
+        </ToolbarContent>
+      </Toolbar>
+      {isGenerating && (
+        <Alert
+          variant="info"
+          isInline
+          isPlain
+          title={
+            <>
+              <Spinner size="sm" /> AI is generating the plan...
+            </>
           }
-        >
-          <DrawerContentBody
-            style={isChatbotOpen ? { paddingRight: 10 } : undefined}
-          >
-            <Toolbar>
-              <ToolbarContent>
-                <ToolbarItem>
-                  <ToggleGroup aria-label="View mode">
-                    <ToggleGroupItem
-                      icon={<CodeIcon />}
-                      text="Editor"
-                      aria-label="Editor view"
-                      isSelected={viewMode === "editor"}
-                      onChange={() => setViewMode("editor")}
-                    />
-                    <ToggleGroupItem
-                      icon={<ColumnsIcon />}
-                      text="Split"
-                      aria-label="Split view"
-                      isSelected={viewMode === "split"}
-                      onChange={() => setViewMode("split")}
-                    />
-                    <ToggleGroupItem
-                      icon={<EyeIcon />}
-                      text="Preview"
-                      aria-label="Preview view"
-                      isSelected={viewMode === "preview"}
-                      onChange={() => setViewMode("preview")}
-                    />
-                  </ToggleGroup>
-                </ToolbarItem>
-                <ToolbarItem align={{ default: "alignEnd" }}>
-                  <Button
-                    variant="secondary"
-                    icon={<RobotIcon />}
-                    onClick={() => generateMutation.mutate(taskId)}
-                    isDisabled={!hasGit || isGenerating}
-                    isLoading={generateMutation.isPending}
-                  >
-                    Generate with AI
-                  </Button>
-                </ToolbarItem>
-                <ToolbarItem>
-                  <Button
-                    variant={isChatbotOpen ? "primary" : "secondary"}
-                    icon={<RobotIcon />}
-                    onClick={() => setIsChatbotOpen(!isChatbotOpen)}
-                  >
-                    Chat Bot
-                  </Button>
-                </ToolbarItem>
-              </ToolbarContent>
-            </Toolbar>
-            {isGenerating && (
-              <Alert
-                variant="info"
-                isInline
-                isPlain
-                title={
-                  <>
-                    <Spinner size="sm" /> AI is generating the plan...
-                  </>
-                }
-              />
-            )}
-            {planData?.planGenerationError && (
-              <Alert
-                variant="danger"
-                isInline
-                isPlain
-                title={planData.planGenerationError}
-              />
-            )}
-            <Grid hasGutter>
-              {viewMode !== "preview" && (
-                <GridItem span={viewMode === "split" ? 6 : 12}>
-                  <ThemedCodeEditor
-                    language={Language.markdown}
-                    code={plan}
-                    onCodeChange={(value) =>
-                      form.setValue("plan", value, {
-                        shouldValidate: true,
-                        shouldDirty: true,
-                      })
-                    }
-                    height="65vh"
-                    isLineNumbersVisible
-                    isHeaderPlain
-                  />
-                </GridItem>
-              )}
-              {viewMode !== "editor" && (
-                <GridItem span={viewMode === "split" ? 6 : 12}>
-                  <Panel variant="bordered" isScrollable>
-                    <PanelMain tabIndex={0} style={{ minHeight: "65.5vh" }}>
-                      <PanelMainBody>
-                        <Content>
-                          <ReactMarkdown>{plan}</ReactMarkdown>
-                        </Content>
-                      </PanelMainBody>
-                    </PanelMain>
-                  </Panel>
-                </GridItem>
-              )}
-            </Grid>
-          </DrawerContentBody>
-        </DrawerContent>
-      </Drawer>
+        />
+      )}
+      {planData?.planGenerationError && (
+        <Alert
+          variant="danger"
+          isInline
+          isPlain
+          title={planData.planGenerationError}
+        />
+      )}
+      <Grid hasGutter>
+        {viewMode !== "preview" && (
+          <GridItem span={viewMode === "split" ? 6 : 12}>
+            <ThemedCodeEditor
+              language={Language.markdown}
+              code={plan}
+              onCodeChange={(value) =>
+                form.setValue("plan", value, {
+                  shouldValidate: true,
+                  shouldDirty: true,
+                })
+              }
+              height="65vh"
+              isLineNumbersVisible
+              isHeaderPlain
+            />
+          </GridItem>
+        )}
+        {viewMode !== "editor" && (
+          <GridItem span={viewMode === "split" ? 6 : 12}>
+            <Panel variant="bordered" isScrollable>
+              <PanelMain tabIndex={0} style={{ minHeight: "65.5vh" }}>
+                <PanelMainBody>
+                  <Content>
+                    <ReactMarkdown>{plan}</ReactMarkdown>
+                  </Content>
+                </PanelMainBody>
+              </PanelMain>
+            </Panel>
+          </GridItem>
+        )}
+      </Grid>
     </div>
   );
 };

@@ -8,7 +8,6 @@ import org.acme.dto.PlanDto;
 import org.acme.dto.ProjectDto;
 import org.acme.models.jpa.entity.SourceType;
 import org.acme.models.jpa.entity.TaskStatus;
-import org.acme.services.ai.RequirementSummarizerService;
 import org.acme.services.sync.ExternalIssue;
 import org.acme.services.sync.SyncManager;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,9 +20,7 @@ import java.util.concurrent.TimeUnit;
 import static io.restassured.RestAssured.given;
 import static org.awaitility.Awaitility.await;
 import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 @QuarkusTest
@@ -32,16 +29,9 @@ class PlanServiceTest {
     @InjectMock
     SyncManager syncManager;
 
-    @InjectMock
-    RequirementSummarizerService aiService;
-
     @BeforeEach
     void setup() {
         when(syncManager.fetchIssues(any())).thenReturn(List.of());
-        when(syncManager.fetchComments(any())).thenReturn(List.of());
-        when(syncManager.fetchLabels(any())).thenReturn(List.of());
-        when(aiService.summarize(anyString(), anyString(), anyString(), anyString()))
-                .thenReturn("## Summary\nDefault test requirement");
     }
 
     private int createProjectAndSync(List<ExternalIssue> issues) {
@@ -127,18 +117,18 @@ class PlanServiceTest {
                 .statusCode(202)
                 .body("isRequirementInProgress", is(true));
 
-        // Poll for completion
+        // Poll for completion — requirement is set from task title
         await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
                 given()
                         .when().get("/tasks/{taskId}/plan", taskId)
                         .then()
                         .body("isRequirementInProgress", is(false))
-                        .body("requirement", is("## Summary\nDefault test requirement")));
+                        .body("requirement", is("Discovery task\n\nTest description")));
     }
 
     @Test
-    void testDiscoveryErrorSetsErrorStatus() {
-        int projectId = createProjectAndSync(List.of(issue("disc-err-1", "Error task")));
+    void testEnrichmentCompletesWithTitleOnly() {
+        int projectId = createProjectAndSync(List.of(issue("disc-err-1", "Title only task")));
         int taskId = getTaskId(projectId);
 
         // Create plan first
@@ -151,10 +141,6 @@ class PlanServiceTest {
                 .statusCode(201)
                 .body("isRequirementInProgress", is(false));
 
-        // Now configure the mock to throw and trigger enrichment
-        when(aiService.summarize(anyString(), anyString(), anyString(), anyString()))
-                .thenThrow(new RuntimeException("LLM unavailable"));
-
         given()
                 .when().post("/tasks/{taskId}/plan/enrich-requirement", taskId)
                 .then()
@@ -166,18 +152,11 @@ class PlanServiceTest {
                         .when().get("/tasks/{taskId}/plan", taskId)
                         .then()
                         .body("isRequirementInProgress", is(false))
-                        .body("requirementError", notNullValue()));
+                        .body("requirement", is("Title only task\n\nTest description")));
     }
 
     @Test
-    void testDiscoveryInProgressOnPlanCreation() {
-        // Make AI service block to keep discovery in progress
-        when(aiService.summarize(anyString(), anyString(), anyString(), anyString()))
-                .thenAnswer(invocation -> {
-                    Thread.sleep(3000);
-                    return "## Summary\nDelayed";
-                });
-
+    void testEnrichmentSetsRequirementFromTitleAndDescription() {
         int projectId = createProjectAndSync(List.of(issue("disc-conf-1", "Conflict task")));
         int taskId = getTaskId(projectId);
 
@@ -198,10 +177,12 @@ class PlanServiceTest {
                 .statusCode(202)
                 .body("isRequirementInProgress", is(true));
 
-        // Verify plan shows IN_PROGRESS while AI is working
-        given()
-                .when().get("/tasks/{taskId}/plan", taskId)
-                .then()
-                .body("isRequirementInProgress", is(true));
+        // Wait for enrichment to complete — requirement set from title + description
+        await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                given()
+                        .when().get("/tasks/{taskId}/plan", taskId)
+                        .then()
+                        .body("isRequirementInProgress", is(false))
+                        .body("requirement", is("Conflict task\n\nTest description")));
     }
 }

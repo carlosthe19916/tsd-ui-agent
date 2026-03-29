@@ -7,12 +7,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Backend
 
 ```shell
-./mvnw quarkus:dev          # Dev mode with live reload (requires Ollama running locally)
+./mvnw quarkus:dev          # Dev mode with live reload
 ./mvnw test                 # Run all unit tests
 ./mvnw test -Dtest=ClassName#methodName  # Run a single test
 ```
 
-**Prerequisites:** JDK 25, PostgreSQL, Ollama with `granite3.3:8b` for local LLM.
+**Prerequisites:** JDK 25, PostgreSQL, Claude CLI or OpenCode.
 
 ### Frontend
 
@@ -30,7 +30,7 @@ This is a **Quarkus 3.32.3** backend that manages software development tasks imp
 1. **Projects** (`/projects`) - Connect to GitHub/Jira via credentials and sync issues
 2. **Tasks** (`/tasks`) - Issues imported from projects; each task can have a Plan
 3. **Plans** (`/tasks/{id}/plan`) - Multi-step workflow per task:
-   - **Requirement**: enriched via LangChain4j AI (Ollama dev / Anthropic prod)
+   - **Requirement**: populated from task title and description
    - **Plan Generation**: Claude CLI analyzes codebase and produces implementation plan
    - **Plan Execution**: Claude CLI implements the plan in a git worktree
    - **Change Request**: Creates PR/MR via Camel git routes
@@ -57,12 +57,10 @@ org.acme
     git/                # Git operations (clone, worktree, PR creation)
       camel/            # Camel routes for git commands
     agent/              # AI coding agent abstraction (Claude CLI)
-    ai/                 # LangChain4j AI services (requirement enrichment, chat)
   validation/           # Custom Bean Validation constraints
 ```
 
-### LLM Configuration
+### Coding Agent Configuration
 
-- **Dev**: Ollama via OpenAI-compatible API (`localhost:11434`)
-- **Prod**: Anthropic Claude via `quarkus-langchain4j-anthropic`
-- Provider selection via `quarkus.langchain4j.chat-model.provider` per Quarkus profile
+- Claude CLI or OpenCode selected via `tsd-agent.coding-agent` property (`CLAUDE` or `OPENCODE`)
+- Plan generation and execution delegated to the configured coding agent running inside workspaces

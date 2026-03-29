@@ -41,7 +41,6 @@ import static org.acme.services.ExecutionOutputBroadcaster.Channel;
 import org.acme.services.ExecutionOutputBroadcaster;
 import org.acme.services.PlanService;
 import org.acme.services.TaskService;
-import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.resteasy.reactive.RestStreamElementType;
 
 import java.util.HashMap;
@@ -80,9 +79,6 @@ public class TaskResource {
 
     @Inject
     TransactionManager transactionManager;
-
-    @ConfigProperty(name = "tsd-agent.discovery.ai.enabled")
-    boolean aiDiscoveryEnabled;
 
     @POST
     public Response create(TaskDto dto) {
@@ -250,9 +246,6 @@ public class TaskResource {
     public Response runAllPhases(@PathParam("taskId") Long taskId) {
         TaskEntity task = (TaskEntity) TaskEntity.findByIdOptional(taskId)
                 .orElseThrow(NotFoundException::new);
-        if (!aiDiscoveryEnabled) {
-            throw new BadRequestException("AI discovery is not enabled");
-        }
         if (task.workspace == null) {
             throw new BadRequestException("Task has no workspace configuration");
         }
@@ -316,10 +309,6 @@ public class TaskResource {
         if (task.plan == null) {
             throw new NotFoundException("Task has no plan");
         }
-        if (!aiDiscoveryEnabled) {
-            throw new BadRequestException("AI discovery is not enabled");
-        }
-
         // Concurrency guard
         if (task.plan.isRequirementInProgress) {
             return Response.status(Response.Status.ACCEPTED)
@@ -396,9 +385,6 @@ public class TaskResource {
                 .orElseThrow(NotFoundException::new);
         if (task.plan == null) {
             throw new NotFoundException("Task has no plan");
-        }
-        if (!aiDiscoveryEnabled) {
-            throw new BadRequestException("AI discovery is not enabled");
         }
         if (task.workspace == null) {
             throw new BadRequestException("Task has no workspace configuration");

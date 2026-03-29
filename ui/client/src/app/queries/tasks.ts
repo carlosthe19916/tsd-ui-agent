@@ -12,7 +12,6 @@ import {
   createChangeRequest,
   createTask,
   createTaskPlan,
-  enrichRequirement,
   executePlan,
   generatePlan,
   getTask,
@@ -104,16 +103,6 @@ export const useGeneratePlanMutation = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (taskId: number) => generatePlan(taskId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [TASK_QUERY_KEY] });
-    },
-  });
-};
-
-export const useEnrichRequirementMutation = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (taskId: number) => enrichRequirement(taskId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [TASK_QUERY_KEY] });
     },

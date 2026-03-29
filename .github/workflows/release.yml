@@ -62,12 +62,16 @@ jobs:
         working-directory: ui
         run: npm version ${{ inputs.version }} --no-git-tag-version --allow-same-version --workspaces --include-workspace-root
 
-      - name: Commit release version and tag
+      - name: Commit release version
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add pom.xml ui/package.json ui/package-lock.json ui/*/package.json
           git diff --cached --quiet || git commit -m "release: set version ${{ inputs.version }}"
+
+      - name: Tag and push
+        if: ${{ inputs.dry-run == false }}
+        run: |
           git tag "v${{ inputs.version }}"
           git push origin HEAD --tags
 
@@ -89,10 +93,12 @@ jobs:
       version: ${{ inputs.version }}
       os: ${{ matrix.os }}
       arch-label: ${{ matrix.arch-label }}
+      dry-run: ${{ inputs.dry-run }}
 
   # ── Build and push container images ────────────────────────────────
   build-container:
     needs: prepare
+    if: ${{ inputs.dry-run == false }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -134,11 +140,12 @@ jobs:
   # ── Run JReleaser ──────────────────────────────────────────────────
   release:
     needs: [build-native, build-container]
+    if: ${{ !cancelled() && needs.build-native.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: "v${{ inputs.version }}"
+          ref: ${{ inputs.dry-run && '' || format('v{0}', inputs.version) }}
           fetch-depth: 0
 
       - uses: actions/download-artifact@v4

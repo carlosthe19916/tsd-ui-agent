@@ -10,7 +10,6 @@ import {
 
 import type { PlanDto, WorkspaceDto } from "@app/api/models";
 import {
-  useEnrichRequirementMutation,
   useExecutePlanMutation,
   useGeneratePlanMutation,
 } from "@app/queries/tasks";
@@ -111,7 +110,6 @@ export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
   onEditPlan,
   onChangeRequest,
 }) => {
-  const enrichMutation = useEnrichRequirementMutation();
   const generatePlanMutation = useGeneratePlanMutation();
   const executePlanMutation = useExecutePlanMutation();
   const reqVariant = getRequirementStepVariant(plan);
@@ -132,20 +130,9 @@ export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
             headerContent={<div>Requirement</div>}
             bodyContent={<div>{getRequirementPopupContent(plan)}</div>}
             footerContent={
-              <div style={{ display: "flex", gap: 16 }}>
-                <Button variant="link" isInline onClick={onEditRequirement}>
-                  {plan.requirement ? "Edit requirement" : "Add requirement"}
-                </Button>
-                <Button
-                  variant="link"
-                  isInline
-                  onClick={() => enrichMutation.mutate(taskId)}
-                  isDisabled={plan.isRequirementInProgress}
-                  isLoading={enrichMutation.isPending}
-                >
-                  Enrich with AI
-                </Button>
-              </div>
+              <Button variant="link" isInline onClick={onEditRequirement}>
+                {plan.requirement ? "Edit requirement" : "Add requirement"}
+              </Button>
             }
             triggerRef={stepRef}
           />
