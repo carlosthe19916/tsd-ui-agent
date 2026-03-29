@@ -27,7 +27,9 @@ export const brandingAssetPath = () =>
 const toForwardSlash = (p: string) => p.replace(/\\/g, "/");
 
 const brandingPath: string = toForwardSlash(brandingAssetPath());
-const manifestPath = toForwardSlash(path.resolve(brandingPath, "manifest.json"));
+const manifestPath = toForwardSlash(
+  path.resolve(brandingPath, "manifest.json"),
+);
 const faviconPath = toForwardSlash(path.resolve(brandingPath, "favicon.ico"));
 
 // https://vite.dev/config/
