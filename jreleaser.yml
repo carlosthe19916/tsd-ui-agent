@@ -83,15 +83,13 @@ release:
       close: false
       name: "{{tagName}}"
 
-# ── Signing (disabled by default, enable when ready) ─────────────────
+# ── Signing (cosign, key auto-generated per release) ─────────────────
+# Requires COSIGN_PASSWORD secret in GitHub Actions
 signing:
-  active: NEVER
-  # To enable GPG signing:
-  #   active: ALWAYS
-  #   armored: true
-  # To enable Cosign signing:
-  #   active: ALWAYS
-  #   mode: COSIGN
+  active: ALWAYS
+  cosign:
+    active: ALWAYS
+    version: v2.4.1
 
 # ── Distributions ────────────────────────────────────────────────────
 distributions:
@@ -111,31 +109,41 @@ distributions:
         transform: "tsd-ui-agent-{{projectVersion}}-windows-amd64.zip"
         platform: windows-x86_64
 
-# ── Packagers (uncomment to enable) ──────────────────────────────────
-# packagers:
-#   homebrew:
-#     active: ALWAYS
-#     repository:
-#       owner: carlosthe19916
-#       name: homebrew-tap
-#     commitAuthor:
-#       name: "release-bot"
-#       email: "release-bot@noreply"
-#   scoop:
-#     active: ALWAYS
-#     repository:
-#       owner: carlosthe19916
-#       name: scoop-bucket
-#     commitAuthor:
-#       name: "release-bot"
-#       email: "release-bot@noreply"
+# ── Packagers ────────────────────────────────────────────────────────
+# Requires a PAT with write access to the tap/bucket repos.
+# Set via JRELEASER_GITHUB_TOKEN or per-distribution overrides.
+# secrets.GITHUB_TOKEN does NOT work (scoped to current repo only).
+packagers:
+  brew:
+    active: ALWAYS
+    continueOnError: false
+    repository:
+      active: RELEASE
+      owner: carlosthe19916
+      name: homebrew-tap
+    commitAuthor:
+      name: "release-bot"
+      email: "release-bot@noreply"
+  scoop:
+    active: ALWAYS
+    continueOnError: false
+    repository:
+      active: RELEASE
+      owner: carlosthe19916
+      name: scoop-bucket
+    commitAuthor:
+      name: "release-bot"
+      email: "release-bot@noreply"
 
-# ── SBOM (uncomment to enable) ───────────────────────────────────────
-# catalog:
-#   sbom:
-#     cyclonedx:
-#       active: ALWAYS
-#       format: JSON
+# ── SBOM ─────────────────────────────────────────────────────────────
+catalog:
+  sbom:
+    cyclonedx:
+      active: ALWAYS
+      distributions: true
+      files: true
+      formats:
+        - JSON
 
 # ── Announce (uncomment to enable) ───────────────────────────────────
 # announce:

@@ -167,8 +167,9 @@ jobs:
           version: latest
         env:
           JRELEASER_PROJECT_VERSION: ${{ inputs.version }}
-          JRELEASER_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          JRELEASER_GITHUB_TOKEN: ${{ secrets.JRELEASER_GITHUB_TOKEN }}
           JRELEASER_DRY_RUN: ${{ inputs.dry-run }}
+          JRELEASER_COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
 
       - name: Upload JReleaser output
         if: always()
