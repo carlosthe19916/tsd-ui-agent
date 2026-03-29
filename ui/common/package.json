@@ -1,7 +1,7 @@
 {
   "name": "@tsd-ui/common",
   "description": "ESM module for code common to client and server",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "license": "Apache-2.0",
   "private": true,
   "type": "module",
