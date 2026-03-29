@@ -54,3 +54,7 @@ META-INF/
 test_suite_analysis/
 managed_context/
 .playwright-mcp
+
+# JReleaser
+out/jreleaser/
+artifacts/

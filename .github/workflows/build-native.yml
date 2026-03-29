@@ -1,0 +1,72 @@
+name: Build Native Binary
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+      os:
+        required: true
+        type: string
+        description: "Runner OS: ubuntu-latest, macos-13, macos-14, windows-latest"
+      arch-label:
+        required: true
+        type: string
+        description: "Label for artifact: linux-amd64, macos-amd64, macos-aarch64, windows-amd64"
+      graalvm-version:
+        required: false
+        type: string
+        default: "25-ea"
+
+jobs:
+  build:
+    runs-on: ${{ inputs.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: "v${{ inputs.version }}"
+
+      - uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: ${{ inputs.graalvm-version }}
+          distribution: graalvm
+          github-token: ${{ github.token }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Build native binary with UI
+        run: |
+          ./mvnw package -Dnative -Pui -DskipTests \
+            -Dquarkus.package.output-name=tsd-ui-agent
+        shell: bash
+
+      - name: Package (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          mkdir -p staging
+          cp target/tsd-ui-agent-runner staging/tsd-ui-agent
+          chmod +x staging/tsd-ui-agent
+          cd staging
+          tar czf ../tsd-ui-agent-${{ inputs.version }}-${{ inputs.arch-label }}.tar.gz tsd-ui-agent
+        shell: bash
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          mkdir staging
+          copy target\tsd-ui-agent-runner.exe staging\tsd-ui-agent.exe
+          cd staging
+          Compress-Archive -Path tsd-ui-agent.exe -DestinationPath ..\tsd-ui-agent-${{ inputs.version }}-${{ inputs.arch-label }}.zip
+        shell: pwsh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-${{ inputs.arch-label }}
+          path: tsd-ui-agent-${{ inputs.version }}-${{ inputs.arch-label }}.*
+          retention-days: 1

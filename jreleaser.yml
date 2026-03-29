@@ -1,0 +1,155 @@
+# JReleaser configuration for tsd-ui-agent
+# Docs: https://jreleaser.org/guide/latest/reference/index.html
+
+project:
+  name: tsd-ui-agent
+  description: TSD UI Agent - AI-assisted software development task manager
+  longDescription: |
+    TSD UI Agent is a Quarkus-based application that manages software development
+    tasks imported from external trackers (GitHub Issues, Jira) and orchestrates
+    AI-assisted code changes via Claude CLI and OpenCode.
+  links:
+    homepage: https://github.com/carlosthe19916/tsd-ui-agent
+  license: Apache-2.0
+  copyright: Carlos Feria
+  authors:
+    - Carlos Feria
+  tags:
+    - quarkus
+    - ai
+    - devcontainer
+    - agent
+  languages:
+    java:
+      groupId: org.acme
+      artifactId: tsd-ui-agent
+      multiProject: false
+  # Version is injected via --project-version in the workflow
+
+# ── Release ──────────────────────────────────────────────────────────
+release:
+  github:
+    owner: carlosthe19916
+    name: tsd-ui-agent
+    overwrite: true
+    draft: false
+    prerelease:
+      enabled: false
+      pattern: ".*-(RC|alpha|beta).*"
+    changelog:
+      enabled: true
+      formatted: ALWAYS
+      preset: conventional-commits
+      contributors:
+        enabled: true
+        format: "- {{contributorName}} ({{contributorUsernameAsLink}})"
+      labelers:
+        - label: feature
+          title: "(?i)^(?:feat|feature)"
+        - label: fix
+          title: "(?i)^(?:fix|bug)"
+        - label: enhancement
+          title: "(?i)^(?:enhance|improve|perf)"
+        - label: docs
+          title: "(?i)^(?:doc)"
+        - label: chore
+          title: "(?i)^(?:chore|build|ci)"
+        - label: refactor
+          title: "(?i)^(?:refactor)"
+      categories:
+        - title: "Features"
+          labels:
+            - feature
+        - title: "Bug Fixes"
+          labels:
+            - fix
+        - title: "Enhancements"
+          labels:
+            - enhancement
+        - title: "Documentation"
+          labels:
+            - docs
+        - title: "Maintenance"
+          labels:
+            - chore
+            - refactor
+      hide:
+        categories:
+          - merge
+        contributors:
+          - "GitHub"
+          - "dependabot"
+    milestone:
+      close: false
+      name: "{{tagName}}"
+
+# ── Signing (disabled by default, enable when ready) ─────────────────
+signing:
+  active: NEVER
+  # To enable GPG signing:
+  #   active: ALWAYS
+  #   armored: true
+  # To enable Cosign signing:
+  #   active: ALWAYS
+  #   mode: COSIGN
+
+# ── Distributions ────────────────────────────────────────────────────
+distributions:
+  tsd-ui-agent:
+    type: NATIVE_IMAGE
+    executable:
+      name: tsd-ui-agent
+      windowsExtension: exe
+    artifacts:
+      - path: artifacts/tsd-ui-agent-{{projectVersion}}-linux-amd64.tar.gz
+        transform: "tsd-ui-agent-{{projectVersion}}-linux-amd64.tar.gz"
+        platform: linux-x86_64
+      - path: artifacts/tsd-ui-agent-{{projectVersion}}-macos-amd64.tar.gz
+        transform: "tsd-ui-agent-{{projectVersion}}-macos-amd64.tar.gz"
+        platform: osx-x86_64
+      - path: artifacts/tsd-ui-agent-{{projectVersion}}-macos-aarch64.tar.gz
+        transform: "tsd-ui-agent-{{projectVersion}}-macos-aarch64.tar.gz"
+        platform: osx-aarch_64
+      - path: artifacts/tsd-ui-agent-{{projectVersion}}-windows-amd64.zip
+        transform: "tsd-ui-agent-{{projectVersion}}-windows-amd64.zip"
+        platform: windows-x86_64
+
+# ── Packagers (uncomment to enable) ──────────────────────────────────
+# packagers:
+#   homebrew:
+#     active: ALWAYS
+#     repository:
+#       owner: carlosthe19916
+#       name: homebrew-tap
+#     commitAuthor:
+#       name: "release-bot"
+#       email: "release-bot@noreply"
+#   scoop:
+#     active: ALWAYS
+#     repository:
+#       owner: carlosthe19916
+#       name: scoop-bucket
+#     commitAuthor:
+#       name: "release-bot"
+#       email: "release-bot@noreply"
+
+# ── SBOM (uncomment to enable) ───────────────────────────────────────
+# catalog:
+#   sbom:
+#     cyclonedx:
+#       active: ALWAYS
+#       format: JSON
+
+# ── Announce (uncomment to enable) ───────────────────────────────────
+# announce:
+#   discord:
+#     active: RELEASE
+#     webhook: "{{discordWebhook}}"
+#     message: "tsd-ui-agent {{projectVersion}} has been released! {{releaseNotesUrl}}"
+
+# ── Files (additional assets attached to the release) ────────────────
+files:
+  artifacts:
+    - path: artifacts/checksums.txt
+      extraProperties:
+        skipSigning: true
