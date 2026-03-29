@@ -104,9 +104,6 @@ distributions:
       - path: artifacts/tsd-ui-agent-{{projectVersion}}-linux-amd64.tar.gz
         transform: "tsd-ui-agent-{{projectVersion}}-linux-amd64.tar.gz"
         platform: linux-x86_64
-      - path: artifacts/tsd-ui-agent-{{projectVersion}}-macos-amd64.tar.gz
-        transform: "tsd-ui-agent-{{projectVersion}}-macos-amd64.tar.gz"
-        platform: osx-x86_64
       - path: artifacts/tsd-ui-agent-{{projectVersion}}-macos-aarch64.tar.gz
         transform: "tsd-ui-agent-{{projectVersion}}-macos-aarch64.tar.gz"
         platform: osx-aarch_64

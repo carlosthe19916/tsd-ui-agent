@@ -80,9 +80,7 @@ jobs:
         include:
           - os: ubuntu-latest
             arch-label: linux-amd64
-          - os: macos-13
-            arch-label: macos-amd64
-          - os: macos-14
+          - os: macos-latest
             arch-label: macos-aarch64
           - os: windows-latest
             arch-label: windows-amd64
