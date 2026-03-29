@@ -126,7 +126,7 @@ jobs:
 
       - name: Build and push container image
         run: |
-          ./mvnw -U -B package --file pom.xml -DskipTests -Pui \
+          ./mvnw -U -B package --file pom.xml -DskipTests -Dnative -Pui \
             -Dquarkus.container-image.build=true \
             -Dquarkus.container-image.push=true \
             -Dquarkus.container-image.registry=ghcr.io \

@@ -91,7 +91,7 @@ signing:
     active: NEVER
   cosign:
     active: ALWAYS
-    version: v2.4.1
+    version: 3.0.5
 
 # ── Distributions ────────────────────────────────────────────────────
 distributions:
