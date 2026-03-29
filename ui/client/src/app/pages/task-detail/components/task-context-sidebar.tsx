@@ -13,15 +13,10 @@ import {
   GridItem,
   Label,
   LabelGroup,
-  Tab,
-  Tabs,
-  TabTitleText,
 } from "@patternfly/react-core";
 import TerminalIcon from "@patternfly/react-icons/dist/esm/icons/terminal-icon";
 
 import type { TaskDto } from "@app/api/models";
-import { DraftEditor } from "@app/components/DraftEditor";
-import { WebTerminal } from "@app/components/WebTerminal";
 import { ExecutionOutputModal } from "@app/pages/task-list/components/execution-output-modal";
 import { PlanProgressStepper } from "@app/pages/task-list/components/plan-progress-stepper";
 import {
@@ -30,10 +25,7 @@ import {
 } from "@app/pages/task-list/components/plan-wizard-modal";
 import { useTaskPlanActions } from "@app/pages/task-list/components/use-task-plan-actions";
 import { WorkspaceCell } from "@app/pages/task-list/components/workspace-cell";
-import {
-  useCreateChangeRequestMutation,
-  usePatchTaskPlanMutation,
-} from "@app/queries/tasks";
+import { useCreateChangeRequestMutation } from "@app/queries/tasks";
 import { formatDateTime } from "@app/utils/utils";
 
 interface TaskContextSidebarProps {
@@ -43,7 +35,6 @@ interface TaskContextSidebarProps {
 export const TaskContextSidebar: React.FC<TaskContextSidebarProps> = ({
   task,
 }) => {
-  const [activeTab, setActiveTab] = React.useState<string | number>(1);
   const [requirementTask, setRequirementTask] = React.useState<TaskDto | null>(
     null,
   );
@@ -55,7 +46,6 @@ export const TaskContextSidebar: React.FC<TaskContextSidebarProps> = ({
     setRunAllTask,
     dialogs: planActionDialogs,
   } = useTaskPlanActions();
-  const patchPlanMutation = usePatchTaskPlanMutation();
   const changeRequestMutation = useCreateChangeRequestMutation();
 
   return (
@@ -195,61 +185,6 @@ export const TaskContextSidebar: React.FC<TaskContextSidebarProps> = ({
             </FlexItem>
           )}
         </GridItem>
-        {(task.plan || task.workspace?.workspaceId) && (
-          <GridItem>
-            <Tabs
-              activeKey={activeTab}
-              onSelect={(_ev, key) => setActiveTab(key)}
-              isFilled
-            >
-              {task.plan && (
-                <Tab
-                  eventKey={1}
-                  title={<TabTitleText>Requirements</TabTitleText>}
-                >
-                  <DraftEditor
-                    key={task.plan.requirement ?? ""}
-                    serverValue={task.plan.requirement ?? ""}
-                    onSave={(value) =>
-                      patchPlanMutation.mutate({
-                        taskId: task.id,
-                        plan: { requirement: value },
-                      })
-                    }
-                    isSaving={patchPlanMutation.isPending}
-                  />
-                </Tab>
-              )}
-              {task.plan && (
-                <Tab eventKey={2} title={<TabTitleText>Plan</TabTitleText>}>
-                  <DraftEditor
-                    key={task.plan.plan ?? ""}
-                    serverValue={task.plan.plan ?? ""}
-                    onSave={(value) =>
-                      patchPlanMutation.mutate({
-                        taskId: task.id,
-                        plan: { plan: value },
-                      })
-                    }
-                    isSaving={patchPlanMutation.isPending}
-                  />
-                </Tab>
-              )}
-              <Tab
-                eventKey={3}
-                title={
-                  <TabTitleText>
-                    <TerminalIcon /> Terminal
-                  </TabTitleText>
-                }
-              >
-                {task.workspace?.workspaceId && task.workspace?.id && (
-                  <WebTerminal workspaceEntityId={task.workspace.id} />
-                )}
-              </Tab>
-            </Tabs>
-          </GridItem>
-        )}
       </Grid>
 
       {/* Modals */}

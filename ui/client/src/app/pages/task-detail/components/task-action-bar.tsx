@@ -1,47 +1,47 @@
+import { Button, Card, Flex, FlexItem, Tooltip } from "@patternfly/react-core";
+import TerminalIcon from "@patternfly/react-icons/dist/esm/icons/terminal-icon";
 import type React from "react";
-import { Button, Tooltip } from "@patternfly/react-core";
-import CodeBranchIcon from "@patternfly/react-icons/dist/esm/icons/code-branch-icon";
+
+import { GitChangesButton } from "@app/components/GitChangesButton";
 
 export interface TaskActionBarProps {
+  workspaceId: number;
   onGitDiffClick: () => void;
   isGitDiffActive: boolean;
+  onTerminalClick: () => void;
+  isTerminalActive: boolean;
 }
 
 export const TaskActionBar: React.FC<TaskActionBarProps> = ({
+  workspaceId,
   onGitDiffClick,
   isGitDiffActive,
+  onTerminalClick,
+  isTerminalActive,
 }) => {
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 4,
-        paddingTop: 8,
-        width: 36,
-        borderLeft: "1px solid var(--pf-t--global--border--color--default)",
-        height: "100%",
-      }}
-    >
-      <Tooltip content="Git Changes" position="left">
-        <Button
-          variant="plain"
-          aria-label="Git Changes"
-          onClick={onGitDiffClick}
-          style={{
-            borderRadius: 6,
-            padding: 6,
-            background: isGitDiffActive
-              ? "var(--pf-t--global--background--color--primary--default)"
-              : undefined,
-            color: isGitDiffActive
-              ? "var(--pf-t--global--text--color--on-brand--default)"
-              : undefined,
-          }}
-          icon={<CodeBranchIcon />}
-        />
-      </Tooltip>
-    </div>
+    <Card>
+      <Flex direction={{ default: "column" }}>
+        <FlexItem>
+          <GitChangesButton
+            workspaceId={workspaceId}
+            onClick={onGitDiffClick}
+            isActive={isGitDiffActive}
+            tooltipPosition="left"
+          />
+        </FlexItem>
+        <FlexItem>
+          <Tooltip content="Terminal" position="left">
+            <Button
+              variant="plain"
+              aria-label="Terminal"
+              onClick={onTerminalClick}
+              icon={<TerminalIcon />}
+              isClicked={isTerminalActive}
+            />
+          </Tooltip>
+        </FlexItem>
+      </Flex>
+    </Card>
   );
 };

@@ -10,12 +10,15 @@ import {
   ToolbarItem,
 } from "@patternfly/react-core";
 
+import { PageDrawerContent } from "@app/components/PageDrawerContext";
+
 import type { TaskDto } from "@app/api/models";
 import { ConditionalDataListBody } from "@app/components/DataListControls";
 import { FilterToolbar } from "@app/components/FilterToolbar";
 import { SimplePagination } from "@app/components/SimplePagination";
 import { useCreateChangeRequestMutation } from "@app/queries/tasks";
 
+import { GitDiffDrawer } from "../task-detail/components/git-diff-drawer";
 import { ExecutionOutputModal } from "./components/execution-output-modal";
 import { RequirementModal, PlanModal } from "./components/plan-wizard-modal";
 import { TaskDataListItem } from "./components/task-data-list-item";
@@ -48,6 +51,7 @@ const TaskListContent: React.FC = () => {
   );
   const [planTask, setPlanTask] = React.useState<TaskDto | null>(null);
   const [outputTaskId, setOutputTaskId] = React.useState<number | null>(null);
+  const [gitDiffTask, setGitDiffTask] = React.useState<TaskDto | null>(null);
 
   const {
     setCreatePlanTask,
@@ -111,6 +115,7 @@ const TaskListContent: React.FC = () => {
               onCreatePlan={() => setCreatePlanTask(task)}
               onRunAll={() => setRunAllTask(task)}
               onChangeRequest={() => changeRequestMutation.mutate(task.id)}
+              onGitDiff={() => setGitDiffTask(task)}
             />
           ))}
         </DataList>
@@ -146,6 +151,17 @@ const TaskListContent: React.FC = () => {
       />
 
       {planActionDialogs}
+
+      <PageDrawerContent
+        isExpanded={gitDiffTask !== null}
+        onCloseClick={() => setGitDiffTask(null)}
+        header={<Title headingLevel="h2">Git Changes</Title>}
+        pageKey="git-diff"
+      >
+        {gitDiffTask?.workspace?.id && (
+          <GitDiffDrawer workspaceId={gitDiffTask.workspace.id} />
+        )}
+      </PageDrawerContent>
     </>
   );
 };

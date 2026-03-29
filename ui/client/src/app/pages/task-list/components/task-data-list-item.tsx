@@ -31,6 +31,7 @@ import EllipsisVIcon from "@patternfly/react-icons/dist/esm/icons/ellipsis-v-ico
 import TerminalIcon from "@patternfly/react-icons/dist/esm/icons/terminal-icon";
 
 import type { TaskDto } from "@app/api/models";
+import { GitChangesButton } from "@app/components/GitChangesButton";
 import { formatDateTime } from "@app/utils/utils";
 
 import { PlanProgressStepper } from "./plan-progress-stepper";
@@ -46,6 +47,7 @@ interface TaskDataListItemProps {
   onCreatePlan: () => void;
   onRunAll: () => void;
   onChangeRequest: () => void;
+  onGitDiff: () => void;
 }
 
 export const TaskDataListItem: React.FC<TaskDataListItemProps> = ({
@@ -58,6 +60,7 @@ export const TaskDataListItem: React.FC<TaskDataListItemProps> = ({
   onCreatePlan,
   onRunAll,
   onChangeRequest,
+  onGitDiff,
 }) => {
   const [isKebabOpen, setIsKebabOpen] = React.useState(false);
 
@@ -162,6 +165,12 @@ export const TaskDataListItem: React.FC<TaskDataListItemProps> = ({
           aria-label="Actions"
           aria-labelledby={`task-${task.id} task-action-${task.id}`}
         >
+          {task.workspace?.id && (
+            <GitChangesButton
+              workspaceId={task.workspace.id}
+              onClick={onGitDiff}
+            />
+          )}
           <Dropdown
             isOpen={isKebabOpen}
             onSelect={() => setIsKebabOpen(false)}
