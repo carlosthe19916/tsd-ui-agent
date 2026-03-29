@@ -18,9 +18,11 @@ import {
 
 const require = createRequire(import.meta.url);
 export const brandingAssetPath = () =>
-  `${require
-    .resolve("@tsd-ui/common/package.json")
-    .replace(/(.)\/package.json$/, "$1")}/dist/branding`;
+  path.join(
+    path.dirname(require.resolve("@tsd-ui/common/package.json")),
+    "dist",
+    "branding",
+  );
 
 const brandingPath: string = brandingAssetPath();
 const manifestPath = path.resolve(brandingPath, "manifest.json");
