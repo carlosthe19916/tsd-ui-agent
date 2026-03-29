@@ -2,6 +2,10 @@
 
 A Quarkus-based backend that manages software development tasks imported from external trackers (GitHub Issues, Jira) and orchestrates AI-assisted code changes via Claude CLI or OpenCode.
 
+## Hola Mundo
+
+Hola Mundo
+
 ## Prerequisites
 
 The application supports three workspace types, selectable per-workspace from the UI: **FILESYSTEM** (local development), **DOCKER** (devcontainer-based), and **KUBERNETES** (Eclipse Che/K8s). Prerequisites vary by type.
