@@ -60,7 +60,7 @@ jobs:
 
       - name: Set release version in UI package.json files
         working-directory: ui
-        run: npm version ${{ inputs.version }} --no-git-tag-version --workspaces --include-workspace-root
+        run: npm version ${{ inputs.version }} --no-git-tag-version --allow-same-version --workspaces --include-workspace-root
 
       - name: Commit release version and tag
         run: |
@@ -203,7 +203,7 @@ jobs:
         working-directory: ui
         run: |
           NPM_VERSION=$(echo "${{ inputs.next-version }}" | sed 's/-SNAPSHOT/-dev.0/')
-          npm version $NPM_VERSION --no-git-tag-version --workspaces --include-workspace-root
+          npm version $NPM_VERSION --no-git-tag-version --allow-same-version --workspaces --include-workspace-root
 
       - name: Commit next version
         run: |
