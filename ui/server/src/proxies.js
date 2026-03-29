@@ -16,6 +16,6 @@ export default {
     target: TSD_ENV.TSD_API_URL ?? "http://localhost:8080",
     logger,
     changeOrigin: true,
-    pathRewrite: { "^/api": "" },
+    pathRewrite: {},
   },
 };

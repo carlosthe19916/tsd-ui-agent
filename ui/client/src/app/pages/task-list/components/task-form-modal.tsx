@@ -3,6 +3,7 @@ import type React from "react";
 import {
   Button,
   ButtonVariant,
+  Form,
   Modal,
   ModalBody,
   ModalFooter,
@@ -35,27 +36,29 @@ const TaskFormModalContent: React.FC<{ onClose: () => void }> = ({
   return (
     <Modal variant="medium" isOpen onClose={onClose} aria-label="Create task">
       <ModalHeader title="Create task" />
-      <ModalBody>
-        <TaskForm control={form.control} />
-      </ModalBody>
-      <ModalFooter>
-        <Button
-          key="submit"
-          variant={ButtonVariant.primary}
-          isDisabled={isSubmitDisabled}
-          onClick={onSubmit}
-        >
-          Create
-        </Button>
-        <Button
-          key="cancel"
-          variant={ButtonVariant.link}
-          isDisabled={isCancelDisabled}
-          onClick={onClose}
-        >
-          Cancel
-        </Button>
-      </ModalFooter>
+      <Form onSubmit={onSubmit}>
+        <ModalBody>
+          <TaskForm control={form.control} />
+        </ModalBody>
+        <ModalFooter>
+          <Button
+            key="submit"
+            variant={ButtonVariant.primary}
+            isDisabled={isSubmitDisabled}
+            type="submit"
+          >
+            Create
+          </Button>
+          <Button
+            key="cancel"
+            variant={ButtonVariant.link}
+            isDisabled={isCancelDisabled}
+            onClick={onClose}
+          >
+            Cancel
+          </Button>
+        </ModalFooter>
+      </Form>
     </Modal>
   );
 };

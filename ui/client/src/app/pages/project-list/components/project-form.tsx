@@ -5,7 +5,6 @@ import type { Control } from "react-hook-form";
 import {
   Alert,
   Button,
-  Form,
   FormSelect,
   FormSelectOption,
   InputGroup,
@@ -128,7 +127,7 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ control }) => {
   };
 
   return (
-    <Form>
+    <>
       <HookFormPFTextInput
         control={control}
         name="name"
@@ -272,6 +271,6 @@ export const ProjectForm: React.FC<ProjectFormProps> = ({ control }) => {
           </>
         )}
       />
-    </Form>
+    </>
   );
 };

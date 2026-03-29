@@ -53,15 +53,15 @@ export default defineConfig({
         },
       ],
     }),
-    ...(process.env.NODE_ENV === "development"
-      ? [
+    ...(process.env.TEMPLATE_ENGINE === "on"
+      ? []
+      : [
           ViteEjsPlugin({
             _env: encodeEnv(TSD_ENV, SERVER_ENV_KEYS),
             branding: brandingStrings,
           }),
-        ]
-      : []),
-    ...(process.env.NODE_ENV === "production"
+        ]),
+    ...(process.env.TEMPLATE_ENGINE === "on"
       ? [
           {
             name: "copy-index",
@@ -98,7 +98,6 @@ export default defineConfig({
       "/api": {
         target: TSD_ENV.TSD_API_URL || "http://localhost:8080",
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ""),
         configure: (proxy) => {
           proxy.on("proxyRes", (proxyRes, _req, res) => {
             if (

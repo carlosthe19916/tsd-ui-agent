@@ -1,7 +1,7 @@
 import type React from "react";
 import type { Control } from "react-hook-form";
 
-import { Form, FormSelect, FormSelectOption } from "@patternfly/react-core";
+import { FormSelect, FormSelectOption } from "@patternfly/react-core";
 
 import {
   HookFormPFGroupController,
@@ -19,7 +19,7 @@ export const GitForm: React.FC<GitFormProps> = ({ control }) => {
   const { data: credentials } = useFetchCredentials();
 
   return (
-    <Form>
+    <>
       <HookFormPFTextInput
         control={control}
         name="url"
@@ -90,6 +90,6 @@ export const GitForm: React.FC<GitFormProps> = ({ control }) => {
           </FormSelect>
         )}
       />
-    </Form>
+    </>
   );
 };
