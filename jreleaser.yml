@@ -8,8 +8,10 @@ project:
     TSD UI Agent is a Quarkus-based application that manages software development
     tasks imported from external trackers (GitHub Issues, Jira) and orchestrates
     AI-assisted code changes via Claude CLI and OpenCode.
-  website: https://github.com/carlosthe19916/tsd-ui-agent
+  links:
+    homepage: https://github.com/carlosthe19916/tsd-ui-agent
   license: Apache-2.0
+  copyright: Carlos Feria
   authors:
     - Carlos Feria
   tags:
@@ -17,10 +19,11 @@ project:
     - ai
     - devcontainer
     - agent
-  java:
-    groupId: org.acme
-    artifactId: tsd-ui-agent
-    multiProject: false
+  languages:
+    java:
+      groupId: org.acme
+      artifactId: tsd-ui-agent
+      multiProject: false
   # Version is injected via --project-version in the workflow
 
 # ── Release ──────────────────────────────────────────────────────────

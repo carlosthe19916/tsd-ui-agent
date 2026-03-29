@@ -57,3 +57,4 @@ managed_context/
 
 # JReleaser
 out/jreleaser/
+artifacts/
