@@ -10,6 +10,7 @@ import {
   Alert,
   Button,
   Content,
+  Flex,
   Grid,
   GridItem,
   Panel,
@@ -94,7 +95,7 @@ export const PlanStep: React.FC<PlanStepProps> = ({
   ]);
 
   return (
-    <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+    <Flex direction={{ default: "column" }} flexWrap={{ default: "nowrap" }}>
       {!hasGit && (
         <Alert
           variant="info"
@@ -184,7 +185,7 @@ export const PlanStep: React.FC<PlanStepProps> = ({
         {viewMode !== "editor" && (
           <GridItem span={viewMode === "split" ? 6 : 12}>
             <Panel variant="bordered" isScrollable>
-              <PanelMain tabIndex={0} style={{ minHeight: "65.5vh" }}>
+              <PanelMain tabIndex={0}>
                 <PanelMainBody>
                   <Content>
                     <ReactMarkdown>{plan}</ReactMarkdown>
@@ -195,6 +196,6 @@ export const PlanStep: React.FC<PlanStepProps> = ({
           </GridItem>
         )}
       </Grid>
-    </div>
+    </Flex>
   );
 };

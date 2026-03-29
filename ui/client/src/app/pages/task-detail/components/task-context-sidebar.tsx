@@ -152,32 +152,36 @@ export const TaskContextSidebar: React.FC<TaskContextSidebarProps> = ({
                       }
                     />
                     {task.plan.changeRequestUrl && (
-                      <div style={{ marginTop: 8 }}>
-                        PR:{" "}
-                        <a
-                          href={task.plan.changeRequestUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          #
-                          {task.plan.changeRequestUrl.match(
-                            /\/(\d+)\/?$/,
-                          )?.[1] ?? "PR"}
-                        </a>
-                      </div>
+                      <Flex>
+                        <FlexItem>
+                          PR:{" "}
+                          <a
+                            href={task.plan.changeRequestUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            #
+                            {task.plan.changeRequestUrl.match(
+                              /\/(\d+)\/?$/,
+                            )?.[1] ?? "PR"}
+                          </a>
+                        </FlexItem>
+                      </Flex>
                     )}
                     {(task.plan.isPlanGenerationInProgress ||
                       task.plan.isExecutionPlanInProgress) && (
-                      <div style={{ marginTop: 8 }}>
-                        <Button
-                          variant="link"
-                          size="sm"
-                          icon={<TerminalIcon />}
-                          onClick={() => setOutputTaskId(task.id)}
-                        >
-                          View Output
-                        </Button>
-                      </div>
+                      <Flex>
+                        <FlexItem>
+                          <Button
+                            variant="link"
+                            size="sm"
+                            icon={<TerminalIcon />}
+                            onClick={() => setOutputTaskId(task.id)}
+                          >
+                            View Output
+                          </Button>
+                        </FlexItem>
+                      </Flex>
                     )}
                   </DescriptionListDescription>
                 </DescriptionListGroup>

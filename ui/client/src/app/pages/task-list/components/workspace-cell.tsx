@@ -213,7 +213,6 @@ export const WorkspaceCell: React.FC<WorkspaceCellProps> = ({ task }) => {
               onClick={() => setIsOpen(!isOpen)}
               isExpanded={isOpen}
               isFullWidth
-              style={{ maxWidth: 300 }}
             >
               {selectedGit ? selectedGit.url : "Select a repository"}
             </MenuToggle>

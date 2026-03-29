@@ -14,6 +14,7 @@ import { PageDrawerContent } from "@app/components/PageDrawerContext";
 
 import type { TaskDto } from "@app/api/models";
 import { ConditionalDataListBody } from "@app/components/DataListControls";
+import { StateNoData } from "@app/components/StateNoData";
 import { FilterToolbar } from "@app/components/FilterToolbar";
 import { SimplePagination } from "@app/components/SimplePagination";
 import { useCreateChangeRequestMutation } from "@app/queries/tasks";
@@ -96,6 +97,12 @@ const TaskListContent: React.FC = () => {
         isLoading={isFetching}
         isError={!!fetchError}
         isNoData={totalItemCount === 0}
+        noDataEmptyState={
+          <StateNoData
+            title="No tasks yet"
+            description="Tasks are imported from projects. Create and sync a project to see its issues here."
+          />
+        }
       >
         <DataList aria-label="Tasks list">
           {currentPageItems?.map((task: TaskDto) => (

@@ -15,6 +15,8 @@ import {
   Dropdown,
   DropdownItem,
   DropdownList,
+  EmptyState,
+  EmptyStateVariant,
   Flex,
   FlexItem,
   Icon,
@@ -47,6 +49,7 @@ import { streamGitOutput } from "@app/api/git-api";
 import type { GitDto, WorkspaceDto } from "@app/api/models";
 import { ConfirmDialog } from "@app/components/ConfirmDialog";
 import { ConditionalDataListBody } from "@app/components/DataListControls";
+import { StateNoData } from "@app/components/StateNoData";
 import { FilterToolbar, FilterType } from "@app/components/FilterToolbar";
 import { SimplePagination } from "@app/components/SimplePagination";
 import { useLocalTableControls } from "@app/hooks/table-controls";
@@ -143,9 +146,11 @@ const GitExpandedContent: React.FC<{ gitId: number }> = ({ gitId }) => {
 
   if (!workspaces || workspaces.length === 0) {
     return (
-      <div style={{ padding: "var(--pf-t--global--spacer--md)" }}>
-        <small>No workspaces created yet.</small>
-      </div>
+      <EmptyState
+        titleText="No workspaces created yet"
+        headingLevel="h4"
+        variant={EmptyStateVariant.sm}
+      />
     );
   }
 
@@ -443,6 +448,12 @@ export const GitList: React.FC = () => {
         <ConditionalDataListBody
           isLoading={isFetching}
           isNoData={(gits ?? []).length === 0}
+          noDataEmptyState={
+            <StateNoData
+              title="No git repositories yet"
+              description="Add a git repository to enable workspace creation and AI-assisted code changes."
+            />
+          }
         >
           <DataList aria-label="Git repositories list">
             {currentPageItems?.map((git) => (

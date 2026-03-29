@@ -2,6 +2,8 @@ import type React from "react";
 
 import {
   Button,
+  Flex,
+  FlexItem,
   Popover,
   ProgressStep,
   ProgressStepper,
@@ -165,26 +167,30 @@ export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
               )
             }
             footerContent={
-              <div style={{ display: "flex", gap: 16 }}>
-                <Button variant="link" isInline onClick={onEditPlan}>
-                  {plan.plan && plan.plan.trim().length > 0
-                    ? "Edit plan"
-                    : "Add plan"}
-                </Button>
-                <Button
-                  variant="link"
-                  isInline
-                  onClick={() => generatePlanMutation.mutate(taskId)}
-                  isDisabled={
-                    !workspace?.git ||
-                    !plan.requirement?.trim() ||
-                    plan.isPlanGenerationInProgress
-                  }
-                  isLoading={generatePlanMutation.isPending}
-                >
-                  Generate with AI
-                </Button>
-              </div>
+              <Flex gap={{ default: "gapMd" }}>
+                <FlexItem>
+                  <Button variant="link" isInline onClick={onEditPlan}>
+                    {plan.plan && plan.plan.trim().length > 0
+                      ? "Edit plan"
+                      : "Add plan"}
+                  </Button>
+                </FlexItem>
+                <FlexItem>
+                  <Button
+                    variant="link"
+                    isInline
+                    onClick={() => generatePlanMutation.mutate(taskId)}
+                    isDisabled={
+                      !workspace?.git ||
+                      !plan.requirement?.trim() ||
+                      plan.isPlanGenerationInProgress
+                    }
+                    isLoading={generatePlanMutation.isPending}
+                  >
+                    Generate with AI
+                  </Button>
+                </FlexItem>
+              </Flex>
             }
             triggerRef={stepRef}
           />

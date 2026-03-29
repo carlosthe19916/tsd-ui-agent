@@ -8,6 +8,7 @@ import * as yup from "yup";
 import { Language } from "@patternfly/react-code-editor";
 import {
   Content,
+  Flex,
   Grid,
   GridItem,
   Panel,
@@ -62,7 +63,7 @@ export const RequirementStep: React.FC<RequirementStepProps> = ({
   const requirement = form.watch("requirement");
 
   return (
-    <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
+    <Flex direction={{ default: "column" }} flexWrap={{ default: "nowrap" }}>
       <Toolbar>
         <ToolbarContent>
           <ToolbarItem>
@@ -113,7 +114,7 @@ export const RequirementStep: React.FC<RequirementStepProps> = ({
         {viewMode !== "editor" && (
           <GridItem span={viewMode === "split" ? 6 : 12}>
             <Panel variant="bordered" isScrollable>
-              <PanelMain tabIndex={0} style={{ minHeight: "65.5vh" }}>
+              <PanelMain tabIndex={0}>
                 <PanelMainBody>
                   <Content>
                     <ReactMarkdown>{requirement}</ReactMarkdown>
@@ -124,6 +125,6 @@ export const RequirementStep: React.FC<RequirementStepProps> = ({
           </GridItem>
         )}
       </Grid>
-    </div>
+    </Flex>
   );
 };

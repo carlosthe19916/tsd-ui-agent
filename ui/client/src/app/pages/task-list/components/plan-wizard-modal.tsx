@@ -70,11 +70,11 @@ const RequirementModalContent: React.FC<{
       isOpen
       onEscapePress={onClose}
       width="90%"
-      style={{ height: "93vh" }}
+      variant="large"
       aria-label="Edit requirement"
     >
       <ModalHeader title="Requirement" onClose={onClose} />
-      <ModalBody style={{ height: "100%", overflow: "hidden" }}>
+      <ModalBody>
         <RequirementStep initialState={state} onStateChanged={setState} />
       </ModalBody>
       <ModalFooter>
@@ -146,11 +146,11 @@ const PlanModalContent: React.FC<{
       isOpen
       onEscapePress={onClose}
       width="90%"
-      style={{ height: "93vh" }}
+      variant="large"
       aria-label="Edit plan"
     >
       <ModalHeader title="Plan" onClose={onClose} />
-      <ModalBody style={{ height: "100%", overflow: "hidden" }}>
+      <ModalBody>
         <PlanStep
           taskId={task.id}
           hasGit={!!task.workspace?.git}
