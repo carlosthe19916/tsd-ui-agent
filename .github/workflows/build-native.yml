@@ -14,6 +14,10 @@ on:
         required: true
         type: string
         description: "Label for artifact: linux-amd64, macos-amd64, macos-aarch64, windows-amd64"
+      dry-run:
+        required: false
+        type: boolean
+        default: false
       graalvm-version:
         required: false
         type: string
@@ -25,7 +29,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: "v${{ inputs.version }}"
+          ref: ${{ inputs.dry-run && '' || format('v{0}', inputs.version) }}
 
       - uses: graalvm/setup-graalvm@v1
         with:

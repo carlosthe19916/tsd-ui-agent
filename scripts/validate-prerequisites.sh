@@ -104,31 +104,6 @@ check_postgresql() {
     fi
 }
 
-# Check Ollama
-check_ollama() {
-    if command -v ollama &> /dev/null; then
-        print_success "Ollama is installed"
-
-        # Check if Ollama server is running
-        if curl -s http://localhost:11434/api/version &> /dev/null; then
-            print_success "Ollama server is running"
-
-            # Check if granite3.3:8b model is available
-            if ollama list 2>&1 | grep -q "granite3.3:8b"; then
-                print_success "Model granite3.3:8b is available"
-            else
-                print_warning "Model granite3.3:8b is not pulled. Run: ollama pull granite3.3:8b"
-            fi
-        else
-            print_warning "Ollama is installed but server is not running. Run: ollama serve"
-        fi
-        return 0
-    else
-        print_warning "Ollama is not installed (required for local LLM development)"
-        return 0
-    fi
-}
-
 # Check Docker or Podman
 check_container_runtime() {
     local has_docker=false
@@ -211,7 +186,6 @@ main() {
     check_java_version
     check_maven_wrapper
     check_postgresql
-    check_ollama
     check_coding_agents
 
     print_header "Docker Mode (Devcontainer-based Execution)"
@@ -238,7 +212,7 @@ main() {
         echo "  Workspace types are selected per-workspace from the UI:"
         echo ""
         echo -e "${BLUE}Local filesystem:${NC}"
-        echo "  Requires: JDK 25, Ollama, Claude/OpenCode CLI"
+        echo "  Requires: JDK 25, Claude/OpenCode CLI"
         echo ""
         echo -e "${BLUE}Container (Devcontainer):${NC}"
         echo "  Requires: Docker/Podman, Devcontainer CLI"
@@ -253,7 +227,7 @@ main() {
         echo "Review the sections above to see which mode's requirements you need to fulfill."
         echo ""
         echo "For quick local development, consider FILESYSTEM mode which only requires:"
-        echo "  - Git, JDK 25, Maven wrapper, Ollama, Claude/OpenCode CLI"
+        echo "  - Git, JDK 25, Maven wrapper, Claude/OpenCode CLI"
         echo "  - PostgreSQL is automatically provided by Quarkus Dev Services"
         exit 1
     fi

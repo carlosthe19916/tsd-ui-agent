@@ -12,7 +12,6 @@ import org.acme.dto.WorkspaceDto;
 import org.acme.models.jpa.entity.SourceType;
 import org.acme.models.jpa.entity.TaskStatus;
 import org.acme.services.git.GitManager;
-import org.acme.services.ai.RequirementSummarizerService;
 import org.acme.services.sync.ExternalIssue;
 import org.acme.services.sync.SyncManager;
 
@@ -49,9 +48,6 @@ class TaskResourceTest {
     GitManager gitManager;
 
     @InjectMock
-    RequirementSummarizerService aiService;
-
-    @InjectMock
     WorkspaceManagerResolver workspaceManagerResolver;
 
     @InjectMock
@@ -60,8 +56,6 @@ class TaskResourceTest {
     @BeforeEach
     void setup() {
         when(syncManager.fetchIssues(any())).thenReturn(List.of());
-        when(aiService.summarize(anyString(), anyString(), anyString(), anyString()))
-                .thenReturn("## Summary\nDefault test requirement");
         when(gitManager.cloneRepository(anyString(), anyString()))
                 .thenReturn("/tmp/tsd-agent-ui-test/repo/default");
         when(gitManager.cloneRepository(anyString(), org.mockito.ArgumentMatchers.isNull()))
@@ -773,13 +767,13 @@ class TaskResourceTest {
                 .statusCode(202)
                 .body("isRequirementInProgress", is(true));
 
-        // Wait for AI discovery to complete
+        // Wait for enrichment to complete — requirement set from title + description
         await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
                 given()
                         .when().get("/tasks/{taskId}/plan", taskId)
                         .then()
                         .body("isRequirementInProgress", is(false))
-                        .body("requirement", is("## Summary\nDefault test requirement")));
+                        .body("requirement", is("Task with description\n\nDetailed task description")));
     }
 
     @Test

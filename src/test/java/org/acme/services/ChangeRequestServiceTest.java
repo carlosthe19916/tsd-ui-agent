@@ -11,7 +11,6 @@ import org.acme.dto.TaskDto;
 import org.acme.dto.WorkspaceDto;
 import org.acme.models.jpa.entity.SourceType;
 import org.acme.models.jpa.entity.TaskStatus;
-import org.acme.services.ai.RequirementSummarizerService;
 import org.acme.services.git.GitManager;
 import org.acme.services.sync.ExternalIssue;
 import org.acme.services.sync.SyncManager;
@@ -40,9 +39,6 @@ class ChangeRequestServiceTest {
     SyncManager syncManager;
 
     @InjectMock
-    RequirementSummarizerService aiService;
-
-    @InjectMock
     GitManager gitManager;
 
     @InjectMock
@@ -54,10 +50,6 @@ class ChangeRequestServiceTest {
     @BeforeEach
     void setup() {
         when(syncManager.fetchIssues(any())).thenReturn(List.of());
-        when(syncManager.fetchComments(any())).thenReturn(List.of());
-        when(syncManager.fetchLabels(any())).thenReturn(List.of());
-        when(aiService.summarize(anyString(), anyString(), anyString(), anyString()))
-                .thenReturn("## Summary\nDefault test requirement");
         when(gitManager.cloneRepository(anyString(), anyString()))
                 .thenReturn("/tmp/tsd-agent-ui-test/repo/default");
         when(gitManager.cloneRepository(anyString(), org.mockito.ArgumentMatchers.isNull()))

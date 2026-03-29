@@ -75,11 +75,7 @@ const RequirementModalContent: React.FC<{
     >
       <ModalHeader title="Requirement" onClose={onClose} />
       <ModalBody style={{ height: "100%", overflow: "hidden" }}>
-        <RequirementStep
-          taskId={task.id}
-          initialState={state}
-          onStateChanged={setState}
-        />
+        <RequirementStep initialState={state} onStateChanged={setState} />
       </ModalBody>
       <ModalFooter>
         <Button

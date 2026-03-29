@@ -12,7 +12,6 @@ The application supports three workspace types, selectable per-workspace from th
 - **Maven** - Build tool (wrapper included via `./mvnw`)
 
 ### Filesystem Mode (Local Development)
-- **Ollama** - Local LLM runtime (see AI/LLM Requirements below)
 - **Coding Agent** - Claude CLI or OpenCode (see Coding Agent section below)
 
 Note: PostgreSQL is automatically provided by Quarkus Dev Services in dev mode - no manual installation required.
@@ -23,14 +22,6 @@ Note: PostgreSQL is automatically provided by Quarkus Dev Services in dev mode -
 
 ### Kubernetes Mode
 - **Kubernetes Cluster** - With Eclipse Che or Devfile support
-
-#### AI/LLM Requirements
-- **Ollama** - Local LLM runtime (development mode)
-  ```shell
-  curl -fsSL https://ollama.com/install.sh | sh
-  ollama pull granite3.3:8b
-  ollama serve  # Run in separate terminal
-  ```
 
 #### Coding Agent
 Choose one:
@@ -64,7 +55,7 @@ Before starting, you can validate that all required prerequisites are installed:
 
 This script will check:
 - Common requirements (Git)
-- Filesystem mode requirements (JDK 25, PostgreSQL, Ollama, coding agents)
+- Filesystem mode requirements (JDK 25, PostgreSQL, coding agents)
 - Docker mode requirements (Docker/Podman, Docker Compose)
 
 ## Development Mode

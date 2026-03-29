@@ -112,11 +112,6 @@ export const runAllPlanPhases = (taskId: number) =>
     .post<PlanDto>(`${BASE_URL}/${taskId}/plan/run-all`)
     .then((response) => response.data);
 
-export const enrichRequirement = (taskId: number) =>
-  axios
-    .post<PlanDto>(`${BASE_URL}/${taskId}/plan/enrich-requirement`)
-    .then((response) => response.data);
-
 export const patchTask = (taskId: number, task: Partial<TaskDto>) =>
   axios
     .patch<TaskDto>(`${BASE_URL}/${taskId}`, task)
@@ -132,13 +127,3 @@ export const streamPlanOutput = (taskId: number, signal?: AbortSignal) =>
 
 export const getTask = (taskId: number): Promise<TaskDto> =>
   axios.get<TaskDto>(`${BASE_URL}/${taskId}`).then((res) => res.data);
-
-export const streamChatOutput = (taskId: number, signal?: AbortSignal) =>
-  readSSEStream(`/api/tasks/${taskId}/chat/output`, { signal });
-
-export const sendChatMessage = (taskId: number, content: string) =>
-  readSSEStream(`/api/tasks/${taskId}/chat`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ content }),
-  });
