@@ -8,10 +8,13 @@ import org.acme.services.ExecutionOutputBroadcaster;
 import org.acme.services.workspace.Workspace;
 import org.acme.services.workspace.WorkspaceException;
 import org.acme.services.workspace.devcontainer.PortAllocator;
+import org.acme.services.workspace.filesystem.FilesystemWorkspace;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 @ApplicationScoped
 @CodingAgentQualifier(CodingAgentType.OPENCODE)
@@ -34,10 +37,9 @@ public class OpenCodeService implements CodingAgentService {
     @Override
     public String generatePlan(Workspace workspace, String requirement, Long taskId) {
         String prompt = PLAN_GENERATION_PROMPT.formatted(requirement);
-        String worktreeAlias = Path.of(workspace.workingDirectory()).getFileName().toString();
-        int port = portAllocator.allocate(worktreeAlias);
+        String[] command = buildCommand(workspace, prompt);
 
-        LOG.infof("Starting OpenCode CLI for plan generation in %s (port %d)", workspace.workingDirectory(), port);
+        LOG.infof("Starting OpenCode CLI for plan generation in %s", workspace.workingDirectory());
 
         broadcaster.start(Channel.TASK, taskId);
         try {
@@ -49,10 +51,7 @@ public class OpenCodeService implements CodingAgentService {
                         broadcaster.publish(Channel.TASK, taskId, line);
                         result.append(line).append("\n");
                     },
-                    opencodeCommand, "run",
-                    "--model", model,
-                    "--attach", "http://localhost:" + port,
-                    prompt
+                    command
             );
 
             String resultText = result.toString().trim();
@@ -70,10 +69,9 @@ public class OpenCodeService implements CodingAgentService {
 
     @Override
     public void executePlan(Workspace workspace, String planText, Long taskId) {
-        String worktreeAlias = Path.of(workspace.workingDirectory()).getFileName().toString();
-        int port = portAllocator.allocate(worktreeAlias);
+        String[] command = buildCommand(workspace, planText);
 
-        LOG.infof("Task %d: Starting OpenCode CLI for plan execution in %s (port %d)", taskId, workspace.workingDirectory(), port);
+        LOG.infof("Task %d: Starting OpenCode CLI for plan execution in %s", taskId, workspace.workingDirectory());
         LOG.infof("Task %d: Plan text length: %d chars", taskId, planText.length());
 
         broadcaster.start(Channel.TASK, taskId);
@@ -83,15 +81,31 @@ public class OpenCodeService implements CodingAgentService {
                         LOG.infof("Task %d: opencode> %s", taskId, line);
                         broadcaster.publish(Channel.TASK, taskId, line);
                     },
-                    opencodeCommand, "run",
-                    "--model", model,
-                    "--attach", "http://localhost:" + port,
-                    planText
+                    command
             );
         } catch (WorkspaceException e) {
             throw new RuntimeException("OpenCode CLI plan execution failed: " + e.getMessage(), e);
         } finally {
             broadcaster.complete(Channel.TASK, taskId);
         }
+    }
+
+    private String[] buildCommand(Workspace workspace, String prompt) {
+        List<String> args = new ArrayList<>();
+        args.add(opencodeCommand);
+        args.add("run");
+        args.add("--model");
+        args.add(model);
+
+        if (!(workspace instanceof FilesystemWorkspace)) {
+            String worktreeAlias = Path.of(workspace.workingDirectory()).getFileName().toString();
+            int port = portAllocator.allocate(worktreeAlias);
+            LOG.infof("Attaching to OpenCode server on port %d", port);
+            args.add("--attach");
+            args.add("http://localhost:" + port);
+        }
+
+        args.add(prompt);
+        return args.toArray(String[]::new);
     }
 }
