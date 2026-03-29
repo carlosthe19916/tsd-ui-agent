@@ -36,11 +36,12 @@ public class FilesystemWorkspace implements Workspace {
 
     @Override
     public String exec(String... command) throws WorkspaceException {
+        Process process = null;
         try {
             ProcessBuilder pb = new ProcessBuilder(command)
                     .directory(new java.io.File(directory))
                     .redirectErrorStream(true);
-            Process process = pb.start();
+            process = pb.start();
 
             String output;
             try (BufferedReader reader = new BufferedReader(
@@ -63,20 +64,23 @@ public class FilesystemWorkspace implements Workspace {
         } catch (WorkspaceException e) {
             throw e;
         } catch (InterruptedException e) {
+            if (process != null) process.destroyForcibly();
             Thread.currentThread().interrupt();
             throw new WorkspaceException("Command interrupted: " + String.join(" ", command), e);
         } catch (Exception e) {
+            if (Thread.currentThread().isInterrupted() && process != null) process.destroyForcibly();
             throw new WorkspaceException("Failed to execute command: " + String.join(" ", command), e);
         }
     }
 
     @Override
     public void execStreaming(Consumer<String> lineConsumer, String... command) throws WorkspaceException {
+        Process process = null;
         try {
             ProcessBuilder pb = new ProcessBuilder(command)
                     .directory(new java.io.File(directory))
                     .redirectErrorStream(true);
-            Process process = pb.start();
+            process = pb.start();
 
             try (BufferedReader reader = new BufferedReader(
                     new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
@@ -99,20 +103,23 @@ public class FilesystemWorkspace implements Workspace {
         } catch (WorkspaceException e) {
             throw e;
         } catch (InterruptedException e) {
+            if (process != null) process.destroyForcibly();
             Thread.currentThread().interrupt();
             throw new WorkspaceException("Command interrupted: " + String.join(" ", command), e);
         } catch (Exception e) {
+            if (Thread.currentThread().isInterrupted() && process != null) process.destroyForcibly();
             throw new WorkspaceException("Failed to execute command: " + String.join(" ", command), e);
         }
     }
 
     @Override
     public String execWithStdin(byte[] stdin, String... command) throws WorkspaceException {
+        Process process = null;
         try {
             ProcessBuilder pb = new ProcessBuilder(command)
                     .directory(new java.io.File(directory))
                     .redirectErrorStream(true);
-            Process process = pb.start();
+            process = pb.start();
 
             try (OutputStream os = process.getOutputStream()) {
                 os.write(stdin);
@@ -139,9 +146,11 @@ public class FilesystemWorkspace implements Workspace {
         } catch (WorkspaceException e) {
             throw e;
         } catch (InterruptedException e) {
+            if (process != null) process.destroyForcibly();
             Thread.currentThread().interrupt();
             throw new WorkspaceException("Command interrupted: " + String.join(" ", command), e);
         } catch (Exception e) {
+            if (Thread.currentThread().isInterrupted() && process != null) process.destroyForcibly();
             throw new WorkspaceException("Failed to execute command: " + String.join(" ", command), e);
         }
     }
@@ -165,11 +174,12 @@ public class FilesystemWorkspace implements Workspace {
     @Override
     public void execWithStdinStreaming(byte[] stdin, Consumer<String> lineConsumer, String... command)
             throws WorkspaceException {
+        Process process = null;
         try {
             ProcessBuilder pb = new ProcessBuilder(command)
                     .directory(new java.io.File(directory))
                     .redirectErrorStream(true);
-            Process process = pb.start();
+            process = pb.start();
 
             try (OutputStream os = process.getOutputStream()) {
                 os.write(stdin);
@@ -196,9 +206,11 @@ public class FilesystemWorkspace implements Workspace {
         } catch (WorkspaceException e) {
             throw e;
         } catch (InterruptedException e) {
+            if (process != null) process.destroyForcibly();
             Thread.currentThread().interrupt();
             throw new WorkspaceException("Command interrupted: " + String.join(" ", command), e);
         } catch (Exception e) {
+            if (Thread.currentThread().isInterrupted() && process != null) process.destroyForcibly();
             throw new WorkspaceException("Failed to execute command: " + String.join(" ", command), e);
         }
     }

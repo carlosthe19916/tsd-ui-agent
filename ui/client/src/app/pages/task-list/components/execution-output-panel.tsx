@@ -1,10 +1,11 @@
 import React, { use } from "react";
 
-import { Banner, Spinner } from "@patternfly/react-core";
+import { Banner, Button, Spinner } from "@patternfly/react-core";
 import { LogViewer } from "@patternfly/react-log-viewer";
 
 import { streamPlanOutput } from "@app/api/task-api";
 import { ThemeContext } from "@app/components/ThemeContext";
+import { useCancelPlanOperationMutation } from "@app/queries/tasks";
 import { formatLogLine } from "@app/utils/format-log-line";
 
 interface ExecutionOutputPanelProps {
@@ -17,6 +18,7 @@ export const ExecutionOutputPanel: React.FC<ExecutionOutputPanelProps> = ({
   isActive,
 }) => {
   const { isDark } = use(ThemeContext);
+  const cancelMutation = useCancelPlanOperationMutation();
   const [logLines, setLogLines] = React.useState<string[]>([]);
   const [isStreaming, setIsStreaming] = React.useState(false);
   const linesRef = React.useRef<string[]>([]);
@@ -79,7 +81,15 @@ export const ExecutionOutputPanel: React.FC<ExecutionOutputPanelProps> = ({
             {isStreaming ? (
               <>
                 <Spinner size="sm" /> Streaming output... ({logLines.length}{" "}
-                lines)
+                lines){" "}
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={() => cancelMutation.mutate(taskId)}
+                  isLoading={cancelMutation.isPending}
+                >
+                  Cancel
+                </Button>
               </>
             ) : (
               <>Completed ({logLines.length} lines)</>

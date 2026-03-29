@@ -379,6 +379,31 @@ public class TaskResource {
     }
 
     @POST
+    @Path("/{taskId}/plan/cancel")
+    public Response cancelPlanOperation(@PathParam("taskId") Long taskId) {
+        TaskEntity task = (TaskEntity) TaskEntity.findByIdOptional(taskId)
+                .orElseThrow(NotFoundException::new);
+        if (task.plan == null) {
+            throw new NotFoundException("Task has no plan");
+        }
+
+        boolean anyInProgress = task.plan.isRequirementInProgress
+                || task.plan.isPlanGenerationInProgress
+                || task.plan.isExecutionPlanInProgress
+                || task.plan.isChangeRequestInProgress;
+
+        if (!anyInProgress) {
+            return Response.status(Response.Status.CONFLICT)
+                    .entity("No operation is currently in progress")
+                    .build();
+        }
+
+        planService.cancelTask(taskId);
+
+        return Response.ok().build();
+    }
+
+    @POST
     @Path("/{taskId}/plan/generate-plan")
     public Response generatePlan(@PathParam("taskId") Long taskId) {
         TaskEntity task = (TaskEntity) TaskEntity.findByIdOptional(taskId)

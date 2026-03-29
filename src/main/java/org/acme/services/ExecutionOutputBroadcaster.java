@@ -47,6 +47,18 @@ public class ExecutionOutputBroadcaster {
         }
     }
 
+    public void cancel(Channel channel, Long id) {
+        String key = key(channel, id);
+        OutputSession session = sessions.get(key);
+        if (session == null) return;
+        session.buffer.add("[Cancelled by user]");
+        session.completed = true;
+        for (MultiEmitter<? super String> emitter : session.emitters) {
+            emitter.emit("[Cancelled by user]");
+            emitter.complete();
+        }
+    }
+
     public Multi<String> subscribe(Channel channel, Long id) {
         String key = key(channel, id);
         return Multi.createFrom().emitter(emitter -> {

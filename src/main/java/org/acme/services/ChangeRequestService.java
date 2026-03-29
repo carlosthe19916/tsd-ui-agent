@@ -41,16 +41,21 @@ public class ChangeRequestService {
     @Inject
     JiraSyncClient jiraSyncClient;
 
+    @Inject
+    CancellationRegistry cancellationRegistry;
+
     public void triggerChangeRequest(Long taskId) {
-        Thread.startVirtualThread(() -> {
+        Thread thread = Thread.startVirtualThread(() -> {
             ManagedContext requestContext = Arc.container().requestContext();
             requestContext.activate();
             try {
                 doChangeRequest(taskId);
             } finally {
+                cancellationRegistry.unregister(taskId);
                 requestContext.terminate();
             }
         });
+        cancellationRegistry.register(taskId, thread);
     }
 
     public void doChangeRequest(Long taskId) {

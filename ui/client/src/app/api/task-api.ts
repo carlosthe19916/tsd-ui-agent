@@ -112,6 +112,11 @@ export const runAllPlanPhases = (taskId: number) =>
     .post<PlanDto>(`${BASE_URL}/${taskId}/plan/run-all`)
     .then((response) => response.data);
 
+export const cancelPlanOperation = (taskId: number) =>
+  axios
+    .post<void>(`${BASE_URL}/${taskId}/plan/cancel`)
+    .then((response) => response.data);
+
 export const patchTask = (taskId: number, task: Partial<TaskDto>) =>
   axios
     .patch<TaskDto>(`${BASE_URL}/${taskId}`, task)

@@ -30,20 +30,87 @@ public class PlanService {
     @Inject
     ChangeRequestService changeRequestService;
 
+    @Inject
+    CancellationRegistry cancellationRegistry;
+
+    @Inject
+    ExecutionOutputBroadcaster broadcaster;
+
     public void triggerFullPipeline(Long taskId) {
-        Thread.startVirtualThread(() -> runWithRequestContext(() -> doFullPipeline(taskId)));
+        Thread thread = Thread.startVirtualThread(() -> runWithRequestContext(() -> {
+            try {
+                doFullPipeline(taskId);
+            } finally {
+                cancellationRegistry.unregister(taskId);
+            }
+        }));
+        cancellationRegistry.register(taskId, thread);
     }
 
     public void triggerRequirementEnrichment(Long taskId) {
-        Thread.startVirtualThread(() -> runWithRequestContext(() -> doRequirementEnrichment(taskId)));
+        Thread thread = Thread.startVirtualThread(() -> runWithRequestContext(() -> {
+            try {
+                doRequirementEnrichment(taskId);
+            } finally {
+                cancellationRegistry.unregister(taskId);
+            }
+        }));
+        cancellationRegistry.register(taskId, thread);
     }
 
     public void triggerPlanGeneration(Long taskId) {
-        Thread.startVirtualThread(() -> runWithRequestContext(() -> doPlanGeneration(taskId)));
+        Thread thread = Thread.startVirtualThread(() -> runWithRequestContext(() -> {
+            try {
+                doPlanGeneration(taskId);
+            } finally {
+                cancellationRegistry.unregister(taskId);
+            }
+        }));
+        cancellationRegistry.register(taskId, thread);
     }
 
     public void triggerPlanExecution(Long taskId) {
-        Thread.startVirtualThread(() -> runWithRequestContext(() -> doPlanExecution(taskId)));
+        Thread thread = Thread.startVirtualThread(() -> runWithRequestContext(() -> {
+            try {
+                doPlanExecution(taskId);
+            } finally {
+                cancellationRegistry.unregister(taskId);
+            }
+        }));
+        cancellationRegistry.register(taskId, thread);
+    }
+
+    public void cancelTask(Long taskId) {
+        cancellationRegistry.cancel(taskId);
+        broadcaster.cancel(ExecutionOutputBroadcaster.Channel.TASK, taskId);
+
+        try {
+            QuarkusTransaction.requiringNew().run(() -> {
+                TaskEntity task = TaskEntity.findById(taskId);
+                if (task != null && task.plan != null) {
+                    if (task.plan.isRequirementInProgress) {
+                        task.plan.isRequirementInProgress = false;
+                        task.plan.requirementError = "Cancelled by user";
+                    }
+                    if (task.plan.isPlanGenerationInProgress) {
+                        task.plan.isPlanGenerationInProgress = false;
+                        task.plan.planGenerationError = "Cancelled by user";
+                    }
+                    if (task.plan.isExecutionPlanInProgress) {
+                        task.plan.isExecutionPlanInProgress = false;
+                        task.plan.executionPlanError = "Cancelled by user";
+                    }
+                    if (task.plan.isChangeRequestInProgress) {
+                        task.plan.isChangeRequestInProgress = false;
+                        task.plan.changeRequestError = "Cancelled by user";
+                    }
+                    task.plan.updatedAt = Instant.now();
+                    task.plan.persist();
+                }
+            });
+        } catch (Exception e) {
+            LOG.errorf(e, "Failed to clear in-progress flags after cancel for task %d", taskId);
+        }
     }
 
     private void runWithRequestContext(Runnable action) {

@@ -9,6 +9,7 @@ import type {
 } from "@app/api/models";
 import { createWorkspace, deleteWorkspace } from "@app/api/git-api";
 import {
+  cancelPlanOperation,
   createChangeRequest,
   createTask,
   createTaskPlan,
@@ -126,6 +127,16 @@ export const useRunAllPlanPhasesMutation = (onSuccess?: () => void) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [TASK_QUERY_KEY] });
       onSuccess?.();
+    },
+  });
+};
+
+export const useCancelPlanOperationMutation = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (taskId: number) => cancelPlanOperation(taskId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [TASK_QUERY_KEY] });
     },
   });
 };

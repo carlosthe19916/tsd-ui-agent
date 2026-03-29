@@ -30,7 +30,11 @@ import RobotIcon from "@patternfly/react-icons/dist/esm/icons/robot-icon";
 
 import { ThemedCodeEditor } from "@app/components/ThemedCodeEditor";
 import { useFormChangeHandler } from "@app/hooks/useFormChangeHandler";
-import { useFetchTaskPlan, useGeneratePlanMutation } from "@app/queries/tasks";
+import {
+  useCancelPlanOperationMutation,
+  useFetchTaskPlan,
+  useGeneratePlanMutation,
+} from "@app/queries/tasks";
 
 interface PlanValues {
   plan: string;
@@ -73,6 +77,7 @@ export const PlanStep: React.FC<PlanStepProps> = ({
 
   const { data: planData } = useFetchTaskPlan(taskId);
   const generateMutation = useGeneratePlanMutation();
+  const cancelMutation = useCancelPlanOperationMutation();
 
   const isGenerating = planData?.isPlanGenerationInProgress;
 
@@ -132,15 +137,25 @@ export const PlanStep: React.FC<PlanStepProps> = ({
             </ToggleGroup>
           </ToolbarItem>
           <ToolbarItem align={{ default: "alignEnd" }}>
-            <Button
-              variant="secondary"
-              icon={<RobotIcon />}
-              onClick={() => generateMutation.mutate(taskId)}
-              isDisabled={!hasGit || isGenerating}
-              isLoading={generateMutation.isPending}
-            >
-              Generate with AI
-            </Button>
+            {isGenerating ? (
+              <Button
+                variant="danger"
+                onClick={() => cancelMutation.mutate(taskId)}
+                isLoading={cancelMutation.isPending}
+              >
+                Cancel Generation
+              </Button>
+            ) : (
+              <Button
+                variant="secondary"
+                icon={<RobotIcon />}
+                onClick={() => generateMutation.mutate(taskId)}
+                isDisabled={!hasGit}
+                isLoading={generateMutation.isPending}
+              >
+                Generate with AI
+              </Button>
+            )}
           </ToolbarItem>
         </ToolbarContent>
       </Toolbar>

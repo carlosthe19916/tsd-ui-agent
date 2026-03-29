@@ -12,6 +12,7 @@ import {
 
 import type { PlanDto, WorkspaceDto } from "@app/api/models";
 import {
+  useCancelPlanOperationMutation,
   useExecutePlanMutation,
   useGeneratePlanMutation,
 } from "@app/queries/tasks";
@@ -114,6 +115,7 @@ export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
 }) => {
   const generatePlanMutation = useGeneratePlanMutation();
   const executePlanMutation = useExecutePlanMutation();
+  const cancelMutation = useCancelPlanOperationMutation();
   const reqVariant = getRequirementStepVariant(plan);
   const planVariant = getPlanStepVariant(plan);
 
@@ -132,9 +134,20 @@ export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
             headerContent={<div>Requirement</div>}
             bodyContent={<div>{getRequirementPopupContent(plan)}</div>}
             footerContent={
-              <Button variant="link" isInline onClick={onEditRequirement}>
-                {plan.requirement ? "Edit requirement" : "Add requirement"}
-              </Button>
+              plan.isRequirementInProgress ? (
+                <Button
+                  variant="danger"
+                  isInline
+                  onClick={() => cancelMutation.mutate(taskId)}
+                  isLoading={cancelMutation.isPending}
+                >
+                  Cancel
+                </Button>
+              ) : (
+                <Button variant="link" isInline onClick={onEditRequirement}>
+                  {plan.requirement ? "Edit requirement" : "Add requirement"}
+                </Button>
+              )
             }
             triggerRef={stepRef}
           />
@@ -167,30 +180,37 @@ export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
               )
             }
             footerContent={
-              <Flex gap={{ default: "gapMd" }}>
-                <FlexItem>
-                  <Button variant="link" isInline onClick={onEditPlan}>
-                    {plan.plan && plan.plan.trim().length > 0
-                      ? "Edit plan"
-                      : "Add plan"}
-                  </Button>
-                </FlexItem>
-                <FlexItem>
-                  <Button
-                    variant="link"
-                    isInline
-                    onClick={() => generatePlanMutation.mutate(taskId)}
-                    isDisabled={
-                      !workspace?.git ||
-                      !plan.requirement?.trim() ||
-                      plan.isPlanGenerationInProgress
-                    }
-                    isLoading={generatePlanMutation.isPending}
-                  >
-                    Generate with AI
-                  </Button>
-                </FlexItem>
-              </Flex>
+              plan.isPlanGenerationInProgress ? (
+                <Button
+                  variant="danger"
+                  isInline
+                  onClick={() => cancelMutation.mutate(taskId)}
+                  isLoading={cancelMutation.isPending}
+                >
+                  Cancel
+                </Button>
+              ) : (
+                <Flex gap={{ default: "gapMd" }}>
+                  <FlexItem>
+                    <Button variant="link" isInline onClick={onEditPlan}>
+                      {plan.plan && plan.plan.trim().length > 0
+                        ? "Edit plan"
+                        : "Add plan"}
+                    </Button>
+                  </FlexItem>
+                  <FlexItem>
+                    <Button
+                      variant="link"
+                      isInline
+                      onClick={() => generatePlanMutation.mutate(taskId)}
+                      isDisabled={!workspace?.git || !plan.requirement?.trim()}
+                      isLoading={generatePlanMutation.isPending}
+                    >
+                      Generate with AI
+                    </Button>
+                  </FlexItem>
+                </Flex>
+              )
             }
             triggerRef={stepRef}
           />
@@ -223,19 +243,26 @@ export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
               )
             }
             footerContent={
-              <Button
-                variant="link"
-                isInline
-                onClick={() => executePlanMutation.mutate(taskId)}
-                isDisabled={
-                  !workspace?.git ||
-                  !plan.plan?.trim() ||
-                  plan.isExecutionPlanInProgress
-                }
-                isLoading={executePlanMutation.isPending}
-              >
-                Execute with AI
-              </Button>
+              plan.isExecutionPlanInProgress ? (
+                <Button
+                  variant="danger"
+                  isInline
+                  onClick={() => cancelMutation.mutate(taskId)}
+                  isLoading={cancelMutation.isPending}
+                >
+                  Cancel
+                </Button>
+              ) : (
+                <Button
+                  variant="link"
+                  isInline
+                  onClick={() => executePlanMutation.mutate(taskId)}
+                  isDisabled={!workspace?.git || !plan.plan?.trim()}
+                  isLoading={executePlanMutation.isPending}
+                >
+                  Execute with AI
+                </Button>
+              )
             }
             triggerRef={stepRef}
           />
@@ -281,7 +308,16 @@ export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
               )
             }
             footerContent={
-              plan.changeRequestUrl ? (
+              plan.isChangeRequestInProgress ? (
+                <Button
+                  variant="danger"
+                  isInline
+                  onClick={() => cancelMutation.mutate(taskId)}
+                  isLoading={cancelMutation.isPending}
+                >
+                  Cancel
+                </Button>
+              ) : plan.changeRequestUrl ? (
                 <Button
                   variant="link"
                   isInline
@@ -298,7 +334,6 @@ export const PlanProgressStepper: React.FC<PlanProgressStepperProps> = ({
                   onClick={() => onChangeRequest?.()}
                   isDisabled={
                     !plan.executionPlanCompletedAt ||
-                    plan.isChangeRequestInProgress ||
                     !workspace?.git?.credential
                   }
                 >

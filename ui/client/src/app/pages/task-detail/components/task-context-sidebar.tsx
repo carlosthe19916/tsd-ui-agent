@@ -25,7 +25,10 @@ import {
 } from "@app/pages/task-list/components/plan-wizard-modal";
 import { useTaskPlanActions } from "@app/pages/task-list/components/use-task-plan-actions";
 import { WorkspaceCell } from "@app/pages/task-list/components/workspace-cell";
-import { useCreateChangeRequestMutation } from "@app/queries/tasks";
+import {
+  useCancelPlanOperationMutation,
+  useCreateChangeRequestMutation,
+} from "@app/queries/tasks";
 import { formatDateTime } from "@app/utils/utils";
 
 interface TaskContextSidebarProps {
@@ -47,6 +50,7 @@ export const TaskContextSidebar: React.FC<TaskContextSidebarProps> = ({
     dialogs: planActionDialogs,
   } = useTaskPlanActions();
   const changeRequestMutation = useCreateChangeRequestMutation();
+  const cancelMutation = useCancelPlanOperationMutation();
 
   return (
     <>
@@ -169,16 +173,31 @@ export const TaskContextSidebar: React.FC<TaskContextSidebarProps> = ({
                       </Flex>
                     )}
                     {(task.plan.isPlanGenerationInProgress ||
-                      task.plan.isExecutionPlanInProgress) && (
-                      <Flex>
+                      task.plan.isExecutionPlanInProgress ||
+                      task.plan.isRequirementInProgress ||
+                      task.plan.isChangeRequestInProgress) && (
+                      <Flex gap={{ default: "gapSm" }}>
+                        {(task.plan.isPlanGenerationInProgress ||
+                          task.plan.isExecutionPlanInProgress) && (
+                          <FlexItem>
+                            <Button
+                              variant="link"
+                              size="sm"
+                              icon={<TerminalIcon />}
+                              onClick={() => setOutputTaskId(task.id)}
+                            >
+                              View Output
+                            </Button>
+                          </FlexItem>
+                        )}
                         <FlexItem>
                           <Button
-                            variant="link"
+                            variant="danger"
                             size="sm"
-                            icon={<TerminalIcon />}
-                            onClick={() => setOutputTaskId(task.id)}
+                            onClick={() => cancelMutation.mutate(task.id)}
+                            isLoading={cancelMutation.isPending}
                           >
-                            View Output
+                            Cancel
                           </Button>
                         </FlexItem>
                       </Flex>
