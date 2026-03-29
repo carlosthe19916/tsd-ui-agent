@@ -87,6 +87,8 @@ release:
 # Requires COSIGN_PASSWORD secret in GitHub Actions
 signing:
   active: ALWAYS
+  pgp:
+    active: NEVER
   cosign:
     active: ALWAYS
     version: v2.4.1
