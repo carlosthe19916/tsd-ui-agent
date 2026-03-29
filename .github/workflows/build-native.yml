@@ -28,8 +28,6 @@ jobs:
     runs-on: ${{ inputs.os }}
     steps:
       - uses: actions/checkout@v6
-        with:
-          ref: ${{ inputs.dry-run && '' || format('v{0}', inputs.version) }}
 
       - uses: graalvm/setup-graalvm@v1
         with:
