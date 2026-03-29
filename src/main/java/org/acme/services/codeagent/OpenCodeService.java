@@ -32,6 +32,11 @@ public class OpenCodeService implements CodingAgentService {
     String model;
 
     @Override
+    public String agentLabel() {
+        return "OpenCode (" + model + ")";
+    }
+
+    @Override
     public String generatePlan(Workspace workspace, String requirement, Long taskId) {
         String prompt = PLAN_GENERATION_PROMPT.formatted(requirement);
         String worktreeAlias = Path.of(workspace.workingDirectory()).getFileName().toString();

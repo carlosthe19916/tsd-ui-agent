@@ -13,6 +13,7 @@ import org.acme.services.sync.jira.JiraSyncClient;
 import org.acme.services.changerequest.ChangeRequestParams;
 import org.acme.services.changerequest.ChangeRequestProvider;
 import org.acme.services.changerequest.ChangeRequestResult;
+import org.acme.services.codeagent.CodingAgentService;
 import org.acme.services.git.GitManager;
 import org.acme.models.jpa.entity.ExecutionMode;
 import org.acme.services.workspace.Workspace;
@@ -23,6 +24,7 @@ import org.acme.services.workspace.WorkspaceManagerResolver;
 import org.jboss.logging.Logger;
 
 import java.time.Instant;
+import java.util.Map;
 
 @ApplicationScoped
 public class ChangeRequestService {
@@ -37,6 +39,9 @@ public class ChangeRequestService {
 
     @Inject
     Instance<ChangeRequestProvider> providers;
+
+    @Inject
+    CodingAgentService codingAgentService;
 
     @Inject
     JiraSyncClient jiraSyncClient;
@@ -96,7 +101,8 @@ public class ChangeRequestService {
 
             try {
                 workspaceGit.addAll(workspace);
-                workspaceGit.commit(workspace, context.taskTitle());
+                workspaceGit.commit(workspace, context.taskTitle(),
+                        Map.of("Assisted-by", codingAgentService.agentLabel()));
             } catch (WorkspaceException e) {
                 if (e.getMessage() != null && e.getMessage().contains("nothing to commit")) {
                     LOG.infof("Task %d: No changes to commit, proceeding with push: %s", taskId, e.getMessage());

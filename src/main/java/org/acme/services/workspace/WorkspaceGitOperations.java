@@ -3,6 +3,8 @@ package org.acme.services.workspace;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
+import java.util.Map;
+
 @ApplicationScoped
 public class WorkspaceGitOperations {
 
@@ -18,6 +20,19 @@ public class WorkspaceGitOperations {
 
     public void commit(Workspace workspace, String message) {
         workspace.exec("git", "-c", "user.name=" + gitUserName, "-c", "user.email=" + gitUserEmail, "-c", "commit.gpgsign=false", "commit", "-m", message);
+    }
+
+    public void commit(Workspace workspace, String message, Map<String, String> trailers) {
+        String fullMessage = message;
+        if (trailers != null && !trailers.isEmpty()) {
+            StringBuilder sb = new StringBuilder(message);
+            sb.append("\n\n");
+            for (Map.Entry<String, String> entry : trailers.entrySet()) {
+                sb.append(entry.getKey()).append(": ").append(entry.getValue()).append("\n");
+            }
+            fullMessage = sb.toString().stripTrailing();
+        }
+        workspace.exec("git", "-c", "user.name=" + gitUserName, "-c", "user.email=" + gitUserEmail, "-c", "commit.gpgsign=false", "commit", "-m", fullMessage);
     }
 
     public void push(Workspace workspace, String remoteName, String branchName) {
