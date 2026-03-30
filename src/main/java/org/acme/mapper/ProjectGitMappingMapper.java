@@ -2,6 +2,7 @@ package org.acme.mapper;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.ws.rs.NotFoundException;
 import org.acme.dto.ProjectGitMappingDto;
 import org.acme.models.jpa.entity.GitEntity;
 import org.acme.models.jpa.entity.ProjectEntity;
@@ -30,6 +31,9 @@ public class ProjectGitMappingMapper {
         ProjectGitMappingEntity entity = new ProjectGitMappingEntity();
         entity.project = project;
         entity.git = GitEntity.findById(dto.gitId);
+        if (entity.git == null) {
+            throw new NotFoundException("Git repository not found: " + dto.gitId);
+        }
         entity.space = dto.space;
         entity.labels = dto.labels != null && !dto.labels.isEmpty() ? String.join(",", dto.labels) : null;
         return entity;

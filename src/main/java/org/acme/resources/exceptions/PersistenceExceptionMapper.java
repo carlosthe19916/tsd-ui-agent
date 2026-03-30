@@ -1,4 +1,4 @@
-package org.acme.resources.exeptions;
+package org.acme.resources.exceptions;
 
 import jakarta.persistence.PersistenceException;
 import jakarta.ws.rs.core.MediaType;

@@ -5,6 +5,7 @@ import io.quarkus.test.junit.QuarkusTest;
 import io.restassured.http.ContentType;
 import org.acme.dto.GitDto;
 import org.acme.dto.WorkspaceDto;
+import org.acme.services.git.GitManager;
 import org.acme.services.workspace.WorkspaceManagerResolver;
 import org.acme.services.workspace.filesystem.FilesystemWorkspace;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,16 +20,29 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
 
 @QuarkusTest
 class WorkspaceResourceTest {
 
     @InjectMock
+    GitManager gitManager;
+
+    @InjectMock
     WorkspaceManagerResolver workspaceManagerResolver;
 
     @BeforeEach
     void setup() {
+        when(gitManager.cloneRepository(anyString(), anyString()))
+                .thenReturn("/tmp/tsd-agent-ui-test/repo/default");
+        when(gitManager.cloneRepository(anyString(), org.mockito.ArgumentMatchers.isNull()))
+                .thenReturn("/tmp/tsd-agent-ui-test/repo/default");
+        when(gitManager.cloneRepository(anyString(), anyString(), anyString(), any()))
+                .thenReturn("/tmp/tsd-agent-ui-test/repo/default");
+        doNothing().when(gitManager).deleteClonedDirectory(anyString());
+
         org.acme.services.workspace.WorkspaceManager mockManager = org.mockito.Mockito.mock(org.acme.services.workspace.WorkspaceManager.class);
         when(mockManager.provision(any()))
                 .thenAnswer(invocation -> new FilesystemWorkspace("/tmp/tsd-agent-ui-test/repo/trees/ws-test"));

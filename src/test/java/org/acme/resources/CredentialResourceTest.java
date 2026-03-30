@@ -172,7 +172,7 @@ class CredentialResourceTest {
                 .when().post("/credentials")
                 .then()
                 .statusCode(400)
-                .body(containsString("already exists"));
+                .body("error", containsString("already exists"));
     }
 
     @Test
@@ -207,7 +207,7 @@ class CredentialResourceTest {
                 .when().put("/credentials/{id}", id2)
                 .then()
                 .statusCode(400)
-                .body(containsString("already exists"));
+                .body("error", containsString("already exists"));
     }
 
     @Test

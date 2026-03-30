@@ -21,6 +21,7 @@ import org.acme.mapper.CredentialMapper;
 import org.acme.models.jpa.entity.CredentialEntity;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Transactional
@@ -52,7 +53,7 @@ public class CredentialResource {
     public Response create(@Valid CredentialDto dto) {
         if (dto.token == null) {
             return Response.status(Response.Status.BAD_REQUEST)
-                    .entity("Token is required")
+                    .entity(Map.of("error", "Token is required"))
                     .build();
         }
 
@@ -60,7 +61,7 @@ public class CredentialResource {
         long count = CredentialEntity.count("name", dto.name);
         if (count > 0) {
             return Response.status(Response.Status.BAD_REQUEST)
-                    .entity("Credential with name '" + dto.name + "' already exists")
+                    .entity(Map.of("error", "Credential with name '" + dto.name + "' already exists"))
                     .build();
         }
 
@@ -81,7 +82,7 @@ public class CredentialResource {
         long count = CredentialEntity.count("name = ?1 and id <> ?2", dto.name, id);
         if (count > 0) {
             return Response.status(Response.Status.BAD_REQUEST)
-                    .entity("Credential with name '" + dto.name + "' already exists")
+                    .entity(Map.of("error", "Credential with name '" + dto.name + "' already exists"))
                     .build();
         }
 

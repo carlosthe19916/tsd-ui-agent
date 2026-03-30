@@ -24,6 +24,9 @@ public class ProjectMapper {
     }
 
     private CredentialDto toCredentialDto(CredentialEntity entity) {
+        if (entity == null) {
+            return null;
+        }
         CredentialDto dto = new CredentialDto();
         dto.id = entity.id;
         dto.name = entity.name;
