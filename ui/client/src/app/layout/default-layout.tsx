@@ -4,6 +4,7 @@ import { Page, SkipToContent } from "@patternfly/react-core";
 
 import { PageContentWithDrawerProvider } from "@app/components/PageDrawerContext";
 import { HeaderApp } from "./header";
+import { HealthBanner } from "./health-banner";
 import { SidebarApp } from "./sidebar";
 
 interface DefaultLayoutProps {
@@ -25,6 +26,7 @@ export const DefaultLayout: React.FC<DefaultLayoutProps> = ({ children }) => {
       skipToContent={PageSkipToContent}
       mainContainerId={pageId}
     >
+      <HealthBanner />
       <PageContentWithDrawerProvider>{children}</PageContentWithDrawerProvider>
     </Page>
   );

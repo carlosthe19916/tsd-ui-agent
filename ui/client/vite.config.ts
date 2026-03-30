@@ -120,6 +120,10 @@ export default defineConfig({
         changeOrigin: true,
         ws: true,
       },
+      "/q": {
+        target: TSD_ENV.TSD_API_URL || "http://localhost:8080",
+        changeOrigin: true,
+      },
     },
   },
   test: {
