@@ -1,6 +1,16 @@
 {
   "version": 1,
   "skills": {
+    "java-quarkus-development": {
+      "source": "mindrally/skills",
+      "sourceType": "github",
+      "computedHash": "af91e2e5327f0cb2aa163bffb70020ff410765a919dc6c9d60e6d027d5c1eca0"
+    },
+    "quarkus": {
+      "source": "mindrally/skills",
+      "sourceType": "github",
+      "computedHash": "961f41dc9be3918f1ed5113c5cf94ed05e0f2b3daab6a8c7db97b06c1db6878f"
+    },
     "vercel-composition-patterns": {
       "source": "vercel-labs/agent-skills",
       "sourceType": "github",
