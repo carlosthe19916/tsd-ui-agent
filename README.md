@@ -2,6 +2,8 @@
 
 Hola Mundo
 
+> Why do programmers prefer dark mode? Because light attracts bugs.
+
 A Quarkus-based backend that manages software development tasks imported from external trackers (GitHub Issues, Jira) and orchestrates AI-assisted code changes via Claude CLI or OpenCode.
 
 ## Prerequisites
