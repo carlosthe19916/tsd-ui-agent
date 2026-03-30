@@ -29,6 +29,7 @@ app.set("x-powered-by", false);
 
 // Setup proxy handling
 app.use(createProxyMiddleware(proxies.api));
+app.use(createProxyMiddleware(proxies.q));
 
 app.engine("ejs", ejs.renderFile);
 app.use(express.json());

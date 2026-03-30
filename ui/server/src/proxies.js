@@ -18,4 +18,11 @@ export default {
     changeOrigin: true,
     pathRewrite: {},
   },
+  q: {
+    pathFilter: "/q",
+    target: TSD_ENV.TSD_API_URL ?? "http://localhost:8080",
+    logger,
+    changeOrigin: true,
+    pathRewrite: {},
+  },
 };
