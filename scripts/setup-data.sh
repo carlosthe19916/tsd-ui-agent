@@ -84,10 +84,13 @@ REDHAT_GITLAB_CREDENTIAL_ID=$(create_credential gitlab-redhat "$REDHAT_GITLAB_PA
 # Git repositories
 TSD_UI_AGENT_GIT_ID=$(create_git https://github.com/carlosthe19916/tsd-ui-agent.git "$GITHUB_CREDENTIAL_ID" GITHUB)
 
-TRUSTIFY_GIT_ID=$(create_git https://github.com/trustificationdemo/trustify.git "$GITHUB_CREDENTIAL_ID" GITHUB \
+TRUSTIFY_GIT_ID=$(create_git https://github.com/guacsec/trustify.git "$GITHUB_CREDENTIAL_ID" GITHUB \
   https://github.com/carlosthe19916/trustify.git)
-TRUSTIFY_UI_GIT_ID=$(create_git https://github.com/trustificationdemo/trustify-ui.git "$GITHUB_CREDENTIAL_ID" GITHUB \
+TRUSTIFY_UI_GIT_ID=$(create_git https://github.com/guacsec/trustify-ui.git "$GITHUB_CREDENTIAL_ID" GITHUB \
   https://github.com/carlosthe19916/trustify-ui.git)
+
+RHTAS_CONSOLE_UI_GIT_ID=$(create_git https://github.com/securesign/rhtas-console-ui.git "$GITHUB_CREDENTIAL_ID" GITHUB \
+  https://github.com/carlosthe19916/rhtas-console-ui.git)
 
 PACKAGES_REDHAT_GIT_ID=$(create_git https://gitlab.cee.redhat.com/hosted-pulp/ui-packages.redhat.com.git "$REDHAT_GITLAB_CREDENTIAL_ID" GITLAB \
   https://gitlab.cee.redhat.com/cferiavi/ui-packages.redhat.com.git)
@@ -97,10 +100,10 @@ TSD_UI_AGENT_PROJECT_ID=$(create_project tsd-ui-agent GITHUB \
   https://api.github.com/repos/carlosthe19916/tsd-ui-agent "$GITHUB_CREDENTIAL_ID" \
   "is:issue state:open ")
 TRUSTIFY_PROJECT_ID=$(create_project trustify GITHUB \
-  https://api.github.com/repos/trustificationdemo/trustify "$GITHUB_CREDENTIAL_ID" \
+  https://api.github.com/repos/guacsec/trustify "$GITHUB_CREDENTIAL_ID" \
   "is:issue state:open ")
 TRUSTIFY_UI_PROJECT_ID=$(create_project trustify-ui GITHUB \
-  https://api.github.com/repos/trustificationdemo/trustify-ui "$GITHUB_CREDENTIAL_ID" \
+  https://api.github.com/repos/guacsec/trustify-ui "$GITHUB_CREDENTIAL_ID" \
   "is:issue state:open ")
 
 CARLOS_JIRA_PROJECT_ID=$(create_project atlasian-carlosthe19916 JIRA \
@@ -113,6 +116,7 @@ REDHAT_JIRA_PROJECT_ID=$(create_project atlasian-redhat JIRA \
 # Git mappings
 create_git_mapping "$REDHAT_JIRA_PROJECT_ID" "$TRUSTIFY_UI_GIT_ID" "TC" '["TSD-UI"]'
 create_git_mapping "$REDHAT_JIRA_PROJECT_ID" "$PACKAGES_REDHAT_GIT_ID" "PULP" '["TSD-UI"]'
+create_git_mapping "$REDHAT_JIRA_PROJECT_ID" "$RHTAS_CONSOLE_UI_GIT_ID" "SECURESIGN" '["TSD-UI"]'
 
 # Sync projects
 sync_project tsd-ui-agent "$TSD_UI_AGENT_PROJECT_ID"
