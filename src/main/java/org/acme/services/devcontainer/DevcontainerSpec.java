@@ -1,11 +1,13 @@
 package org.acme.services.devcontainer;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import io.quarkus.runtime.annotations.RegisterForReflection;
 
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+@RegisterForReflection
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class DevcontainerSpec {
 
@@ -23,11 +25,13 @@ public class DevcontainerSpec {
     public String waitFor;
     public List<Integer> appPort;
 
+    @RegisterForReflection
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class Customizations {
         public VsCode vscode;
     }
 
+    @RegisterForReflection
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class VsCode {
         public List<String> extensions;

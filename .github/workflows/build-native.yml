@@ -44,6 +44,7 @@ jobs:
       - name: Build native binary with UI
         run: |
           ./mvnw package -Dnative -Pui -DskipTests \
+            -Dquarkus.profile=h2 \
             -Dquarkus.package.output-name=tsd-ui-agent
         shell: bash
 

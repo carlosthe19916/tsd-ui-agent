@@ -2,6 +2,7 @@ package org.acme.services.devcontainer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.logging.Log;
+import io.quarkus.runtime.annotations.RegisterForReflection;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 
@@ -13,11 +14,13 @@ import java.util.Map;
 @ApplicationScoped
 public class FeatureCatalog {
 
+    @RegisterForReflection
     public record Catalog(
             Map<String, LanguageEntry> languages,
             Map<String, ToolEntry> tools) {
     }
 
+    @RegisterForReflection
     public record LanguageEntry(
             List<String> extensions,
             List<String> manifests,
@@ -25,11 +28,13 @@ public class FeatureCatalog {
             List<String> vscodeExtensions) {
     }
 
+    @RegisterForReflection
     public record ToolEntry(
             List<String> indicators,
             FeatureRef feature) {
     }
 
+    @RegisterForReflection
     public record FeatureRef(String id) {
     }
 
