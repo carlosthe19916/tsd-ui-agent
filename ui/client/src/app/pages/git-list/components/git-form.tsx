@@ -8,15 +8,18 @@ import {
   HookFormPFTextInput,
 } from "@app/components/HookFormPFFields";
 import { useFetchCredentials } from "@app/queries/credentials";
+import { useFetchGits } from "@app/queries/gits";
 
 import type { GitFormValues } from "./useGitForm";
 
 interface GitFormProps {
   control: Control<GitFormValues>;
+  editGitId?: number;
 }
 
-export const GitForm: React.FC<GitFormProps> = ({ control }) => {
+export const GitForm: React.FC<GitFormProps> = ({ control, editGitId }) => {
   const { data: credentials } = useFetchCredentials();
+  const { data: gits } = useFetchGits();
 
   return (
     <>
@@ -87,6 +90,34 @@ export const GitForm: React.FC<GitFormProps> = ({ control }) => {
                 label={cred.name}
               />
             ))}
+          </FormSelect>
+        )}
+      />
+      <HookFormPFGroupController
+        control={control}
+        name="configGitId"
+        label="Config repository"
+        fieldId="configGitId"
+        helperText="Optional repository containing agent configuration (.claude or .opencode directory)"
+        renderInput={({ field: { onChange, onBlur, value, name, ref } }) => (
+          <FormSelect
+            ref={ref}
+            name={name}
+            id="configGitId"
+            onChange={onChange}
+            onBlur={onBlur}
+            value={value}
+          >
+            <FormSelectOption value="" label="None" isPlaceholder />
+            {gits
+              ?.filter((g) => g.id !== editGitId)
+              .map((g) => (
+                <FormSelectOption
+                  key={g.id}
+                  value={String(g.id)}
+                  label={`${g.url}${g.branch ? ` (${g.branch})` : ""}`}
+                />
+              ))}
           </FormSelect>
         )}
       />

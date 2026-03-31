@@ -65,8 +65,8 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
 
     @Override
     public Workspace provision(WorkspaceRequest request, Consumer<String> outputConsumer) throws WorkspaceException {
-        Workspace fsWorkspace = filesystemManager.provision(request);
-        String worktreePath = fsWorkspace.id();
+        String worktreePath = filesystemManager.createWorktree(request);
+        filesystemManager.installAgentConfig(request, worktreePath);
         String sanitizedUrl = deriveSanitizedUrl(worktreePath);
         String worktreeAlias = Path.of(worktreePath).getFileName().toString();
 
@@ -186,15 +186,17 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
                     .replace("/workspaces/trees/default", "/workspaces/trees/" + worktreeAlias)
                     .replace("code-agent-config-default", "code-agent-config-" + worktreeAlias);
 
+            DevcontainerSpec config = objectMapper.readValue(patched, DevcontainerSpec.class);
+
             // For OPENCODE: allocate port and add workspace-specific postStartCommand and appPort
             if (codingAgentType == CodingAgentType.OPENCODE) {
-                DevcontainerSpec config = objectMapper.readValue(patched, DevcontainerSpec.class);
                 int openCodePort = portAllocator.allocate(worktreeAlias);
                 config.postStartCommand = "/home/vscode/.opencode/bin/opencode serve --port " + openCodePort + " --hostname 0.0.0.0 > /tmp/opencode-server.log 2>&1 & while ! curl -s http://localhost:" + openCodePort + " > /dev/null 2>&1; do sleep 1; done";
                 config.waitFor = "postStartCommand";
                 config.appPort = List.of(openCodePort);
-                patched = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(config);
             }
+
+            patched = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(config);
 
             // Write per-workspace config
             Path wsConfigDir = devcontainerConfigDir(sanitizedUrl, worktreeAlias);

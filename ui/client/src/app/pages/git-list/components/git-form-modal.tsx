@@ -96,7 +96,7 @@ const GitFormModalForm: React.FC<GitFormModalFormProps> = ({
       />
       <Form onSubmit={onSubmit}>
         <ModalBody>
-          <GitForm control={form.control} />
+          <GitForm control={form.control} editGitId={git?.id} />
         </ModalBody>
         <ModalFooter>
           <Button
