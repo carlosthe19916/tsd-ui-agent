@@ -93,3 +93,7 @@ Edit `src/main/resources/application.properties` to customize the app
 ## Hola Mundo
 
 Hola Mundo
+
+## Joke
+
+Why do programmers prefer dark mode? Because light attracts bugs.
