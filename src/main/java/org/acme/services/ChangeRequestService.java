@@ -13,6 +13,7 @@ import org.acme.services.sync.jira.JiraSyncClient;
 import org.acme.services.changerequest.ChangeRequestParams;
 import org.acme.services.changerequest.ChangeRequestProvider;
 import org.acme.services.changerequest.ChangeRequestResult;
+import org.acme.services.changerequest.PullRequestTemplateService;
 import org.acme.services.git.GitManager;
 import org.acme.models.jpa.entity.ExecutionMode;
 import org.acme.services.workspace.Workspace;
@@ -37,6 +38,9 @@ public class ChangeRequestService {
 
     @Inject
     Instance<ChangeRequestProvider> providers;
+
+    @Inject
+    PullRequestTemplateService templateService;
 
     @Inject
     JiraSyncClient jiraSyncClient;
@@ -145,10 +149,30 @@ public class ChangeRequestService {
             }
 
             String ownerRepo = GitManager.extractOwnerRepo(context.gitUrl());
-            String description = context.requirement() != null ? context.requirement() : "";
-            if (context.taskUrl() != null && !context.taskUrl().isBlank()) {
-                description = "Fixes: " + context.taskUrl() + "\n\n" + description;
+
+            // Build a temporary params (without description) for template fetching
+            ChangeRequestParams templateParams = new ChangeRequestParams(
+                    context.gitUrl(), context.forkUrl(), context.gitToken(),
+                    ownerRepo, branchName, baseBranch,
+                    context.taskTitle(), ""
+            );
+
+            String template = null;
+            try {
+                template = provider.fetchPullRequestTemplate(templateParams);
+            } catch (Exception e) {
+                LOG.debugf("Could not fetch PR template for task %d: %s", taskId, e.getMessage());
             }
+
+            String description;
+            if (template != null && !template.isBlank()) {
+                description = templateService.render(template, context.taskTitle(),
+                        context.taskUrl(), context.requirement());
+            } else {
+                description = PullRequestTemplateService.buildFallback(
+                        context.taskUrl(), context.requirement());
+            }
+
             ChangeRequestParams params = new ChangeRequestParams(
                     context.gitUrl(), context.forkUrl(), context.gitToken(),
                     ownerRepo, branchName, baseBranch,

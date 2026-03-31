@@ -1,3 +1,5 @@
 package org.acme.services.changerequest.gitlab;
 
-public record ProjectResponse(Long id) {}
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+public record ProjectResponse(Long id, @JsonProperty("default_branch") String defaultBranch) {}

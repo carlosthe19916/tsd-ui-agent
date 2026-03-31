@@ -7,4 +7,8 @@ public interface ChangeRequestProvider {
     String buildAuthenticatedPushUrl(String gitUrl, String token);
     ChangeRequestResult createChangeRequest(ChangeRequestParams params) throws Exception;
     ChangeRequestResult findExistingChangeRequest(ChangeRequestParams params) throws Exception;
+
+    default String fetchPullRequestTemplate(ChangeRequestParams params) {
+        return null;
+    }
 }

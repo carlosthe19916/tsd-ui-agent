@@ -10,6 +10,8 @@ import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 import org.eclipse.microprofile.rest.client.annotation.ClientHeaderParam;
 
+import com.fasterxml.jackson.databind.JsonNode;
+
 import java.util.List;
 
 @Path("/repos/{owner}/{repo}")
@@ -31,4 +33,11 @@ public interface GitHubApi {
                                                 @PathParam("repo") String repo,
                                                 @QueryParam("head") String head,
                                                 @QueryParam("state") String state);
+
+    @GET
+    @Path("/contents/{path}")
+    @ClientHeaderParam(name = "Accept", value = "application/vnd.github+json")
+    JsonNode getContents(@PathParam("owner") String owner,
+                         @PathParam("repo") String repo,
+                         @PathParam("path") String path);
 }

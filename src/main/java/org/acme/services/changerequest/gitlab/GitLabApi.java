@@ -10,6 +10,8 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.core.MediaType;
 
+import com.fasterxml.jackson.databind.JsonNode;
+
 import java.util.List;
 
 @Path("/api/v4")
@@ -33,4 +35,10 @@ public interface GitLabApi {
                                                   @QueryParam("source_branch") String sourceBranch,
                                                   @QueryParam("target_branch") String targetBranch,
                                                   @QueryParam("state") String state);
+
+    @GET
+    @Path("/projects/{id}/repository/files/{filePath}")
+    JsonNode getFile(@PathParam("id") String encodedPath,
+                     @PathParam("filePath") String encodedFilePath,
+                     @QueryParam("ref") String ref);
 }

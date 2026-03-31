@@ -1,5 +1,6 @@
 package org.acme.services.changerequest;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.ws.rs.core.Response;
 import org.acme.models.jpa.entity.GitVendorType;
@@ -12,6 +13,7 @@ import org.jboss.resteasy.reactive.ClientWebApplicationException;
 import io.quarkus.rest.client.reactive.QuarkusRestClientBuilder;
 
 import java.net.URI;
+import java.util.Base64;
 import java.util.List;
 
 @ApplicationScoped
@@ -78,6 +80,44 @@ public class GitHubChangeRequestProvider implements ChangeRequestProvider {
             head = forkOwner + ":" + params.branchName();
         }
         return head;
+    }
+
+    @Override
+    public String fetchPullRequestTemplate(ChangeRequestParams params) {
+        GitHubApi api = buildClient(params);
+        String ownerRepo = params.ownerRepo();
+        String owner = ownerRepo.substring(0, ownerRepo.indexOf('/'));
+        String repo = ownerRepo.substring(ownerRepo.indexOf('/') + 1);
+
+        String[] templatePaths = {
+                ".github/PULL_REQUEST_TEMPLATE.md",
+                ".github/pull_request_template.md",
+                "PULL_REQUEST_TEMPLATE.md",
+                "pull_request_template.md",
+                "docs/pull_request_template.md"
+        };
+
+        for (String path : templatePaths) {
+            try {
+                JsonNode node = api.getContents(owner, repo, path);
+                String content = node.path("content").asText("");
+                if (!content.isBlank()) {
+                    String decoded = new String(Base64.getMimeDecoder().decode(content));
+                    if (!decoded.isBlank()) {
+                        LOG.debugf("Found PR template at %s for %s", path, ownerRepo);
+                        return decoded;
+                    }
+                }
+            } catch (ClientWebApplicationException e) {
+                if (e.getResponse() != null && e.getResponse().getStatus() == 404) {
+                    continue;
+                }
+                LOG.debugf("Error fetching PR template at %s: %s", path, e.getMessage());
+            } catch (Exception e) {
+                LOG.debugf("Error fetching PR template at %s: %s", path, e.getMessage());
+            }
+        }
+        return null;
     }
 
     private GitHubApi buildClient(ChangeRequestParams params) {
