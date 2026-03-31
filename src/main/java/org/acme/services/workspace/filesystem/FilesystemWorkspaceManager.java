@@ -27,6 +27,15 @@ public class FilesystemWorkspaceManager implements WorkspaceManager {
 
     @Override
     public Workspace provision(WorkspaceRequest request) throws WorkspaceException {
+        String worktreePath = createWorktree(request);
+        installAgentConfig(request, worktreePath);
+        return new FilesystemWorkspace(worktreePath);
+    }
+
+    /**
+     * Creates a git worktree from the cloned repository.
+     */
+    public String createWorktree(WorkspaceRequest request) throws WorkspaceException {
         String sanitized = GitManager.sanitizeUrl(request.gitUrl());
         String cloneDir = Path.of(baseDir, "repositories", sanitized, "default").toString();
 
@@ -36,13 +45,16 @@ public class FilesystemWorkspaceManager implements WorkspaceManager {
         }
 
         String alias = UUID.randomUUID().toString().substring(0, 8);
-        String worktreePath = gitManager.addWorktree(cloneDir, alias);
+        return gitManager.addWorktree(cloneDir, alias);
+    }
 
+    /**
+     * Installs agent config files from the config repo into the worktree.
+     */
+    public void installAgentConfig(WorkspaceRequest request, String worktreePath) {
         if (request.configRepoPath() != null) {
             codeAgentConfigInstaller.installConfigFiles(Path.of(worktreePath), request.configRepoPath());
         }
-
-        return new FilesystemWorkspace(worktreePath);
     }
 
     @Override

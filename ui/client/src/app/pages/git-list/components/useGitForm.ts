@@ -14,6 +14,7 @@ export interface GitFormValues {
   forkUrl: string;
   vendorType: GitVendorType | "";
   credentialId: string;
+  configGitId: string;
 }
 
 export function inferVendorType(url: string): GitVendorType | "" {
@@ -66,6 +67,7 @@ const buildSchema = (existingGits: GitDto[], editId: number | undefined) =>
       .default("")
       .oneOf(["", "GITHUB", "GITLAB"], "Must be GITHUB or GITLAB"),
     credentialId: yup.string().defined().default(""),
+    configGitId: yup.string().defined().default(""),
     forkUrl: yup
       .string()
       .defined()
@@ -88,6 +90,7 @@ const mapGitToFormValues = (git: GitDto | null): GitFormValues => {
       forkUrl: "",
       vendorType: "",
       credentialId: "",
+      configGitId: "",
     };
   }
   return {
@@ -96,6 +99,7 @@ const mapGitToFormValues = (git: GitDto | null): GitFormValues => {
     forkUrl: git.forkUrl ?? "",
     vendorType: git.vendorType ?? "",
     credentialId: git.credential?.id?.toString() ?? "",
+    configGitId: git.configGit?.id?.toString() ?? "",
   };
 };
 
@@ -152,6 +156,10 @@ export const useGitForm = (
       ? { id: Number(values.credentialId), name: "" }
       : undefined;
 
+    const configGit = values.configGitId
+      ? ({ id: Number(values.configGitId), url: "" } as GitDto)
+      : undefined;
+
     const vendorType = values.vendorType || undefined;
 
     if (isEditing) {
@@ -162,6 +170,7 @@ export const useGitForm = (
         forkUrl: values.forkUrl || undefined,
         vendorType,
         credential,
+        configGit,
       };
       return updateGit(dto).catch(handleConflictError);
     } else {
@@ -171,6 +180,7 @@ export const useGitForm = (
         forkUrl: values.forkUrl || undefined,
         vendorType,
         credential,
+        configGit,
       };
       return createGit(dto).catch(handleConflictError);
     }

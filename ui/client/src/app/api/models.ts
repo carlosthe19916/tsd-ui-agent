@@ -16,6 +16,7 @@ export interface GitDto {
   forkUrl?: string;
   vendorType?: GitVendorType;
   credential?: CredentialDto;
+  configGit?: GitDto;
   isProvisioningInProgress?: boolean;
   provisioningError?: string;
 }
