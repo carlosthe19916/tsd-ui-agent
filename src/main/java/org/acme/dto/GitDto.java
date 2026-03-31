@@ -24,4 +24,6 @@ public class GitDto {
     public Boolean isProvisioningInProgress;
 
     public String provisioningError;
+
+    public GitDto configGit;
 }

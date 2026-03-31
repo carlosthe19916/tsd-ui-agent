@@ -43,6 +43,10 @@ public class GitEntity extends PanacheEntityBase {
     @JoinColumn(name = "credential_id")
     public CredentialEntity credential;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "config_git_id")
+    public GitEntity configGit;
+
     @Column(name = "is_provisioning_in_progress")
     public boolean isProvisioningInProgress;
 

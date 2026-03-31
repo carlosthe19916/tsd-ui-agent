@@ -2,6 +2,7 @@ package org.acme.services.workspace.filesystem;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import org.acme.services.CodeAgentConfigInstaller;
 import org.acme.services.git.GitManager;
 import org.acme.services.workspace.*;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
@@ -18,6 +19,9 @@ public class FilesystemWorkspaceManager implements WorkspaceManager {
     @Inject
     GitManager gitManager;
 
+    @Inject
+    CodeAgentConfigInstaller codeAgentConfigInstaller;
+
     @ConfigProperty(name = "tsd-agent.git.base-dir")
     String baseDir;
 
@@ -33,6 +37,11 @@ public class FilesystemWorkspaceManager implements WorkspaceManager {
 
         String alias = UUID.randomUUID().toString().substring(0, 8);
         String worktreePath = gitManager.addWorktree(cloneDir, alias);
+
+        if (request.configRepoPath() != null) {
+            codeAgentConfigInstaller.installConfigFiles(Path.of(worktreePath), request.configRepoPath());
+        }
+
         return new FilesystemWorkspace(worktreePath);
     }
 

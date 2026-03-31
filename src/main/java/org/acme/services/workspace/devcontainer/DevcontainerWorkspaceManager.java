@@ -71,7 +71,7 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
         String worktreeAlias = Path.of(worktreePath).getFileName().toString();
 
         boolean hasProjectConfig = hasProjectDevcontainerConfig(Path.of(worktreePath));
-        Path configPath = patchBaseConfig(sanitizedUrl, worktreeAlias);
+        Path configPath = patchBaseConfig(sanitizedUrl, worktreeAlias, request);
 
         String output = runDevcontainerUp(worktreePath, configPath.toString(), hasProjectConfig, outputConsumer);
         DevcontainerUpResult result = parseDevcontainerUpOutput(output, worktreeAlias);
@@ -171,7 +171,7 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
         return Path.of(worktreePath).getParent().getParent().getFileName().toString();
     }
 
-    private Path patchBaseConfig(String sanitizedUrl, String worktreeAlias) throws WorkspaceException {
+    private Path patchBaseConfig(String sanitizedUrl, String worktreeAlias, WorkspaceRequest request) throws WorkspaceException {
         try {
             Path baseConfigPath = Path.of(baseDir, "devcontainers", sanitizedUrl, "devcontainer.json");
             if (!Files.exists(baseConfigPath)) {
@@ -186,15 +186,34 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
                     .replace("/workspaces/trees/default", "/workspaces/trees/" + worktreeAlias)
                     .replace("code-agent-config-default", "code-agent-config-" + worktreeAlias);
 
+            DevcontainerSpec config = objectMapper.readValue(patched, DevcontainerSpec.class);
+
+            // Replace volume mount with bind-mount if config repo is available
+            if (request.configRepoPath() != null) {
+                Path configDir = request.configRepoPath().resolve(codingAgentType.configDir);
+                if (Files.isDirectory(configDir)) {
+                    String agentConfigTarget = "/home/" + remoteUserConfig + "/" + codingAgentType.configDir;
+                    String mount = "source=" + configDir.toAbsolutePath() + ",target=" + agentConfigTarget + ",type=bind";
+                    if (config.mounts != null) {
+                        config.mounts = config.mounts.stream()
+                                .filter(m -> !m.contains("code-agent-config-"))
+                                .collect(java.util.stream.Collectors.toCollection(java.util.ArrayList::new));
+                    } else {
+                        config.mounts = new java.util.ArrayList<>();
+                    }
+                    config.mounts.add(mount);
+                }
+            }
+
             // For OPENCODE: allocate port and add workspace-specific postStartCommand and appPort
             if (codingAgentType == CodingAgentType.OPENCODE) {
-                DevcontainerSpec config = objectMapper.readValue(patched, DevcontainerSpec.class);
                 int openCodePort = portAllocator.allocate(worktreeAlias);
                 config.postStartCommand = "/home/vscode/.opencode/bin/opencode serve --port " + openCodePort + " --hostname 0.0.0.0 > /tmp/opencode-server.log 2>&1 & while ! curl -s http://localhost:" + openCodePort + " > /dev/null 2>&1; do sleep 1; done";
                 config.waitFor = "postStartCommand";
                 config.appPort = List.of(openCodePort);
-                patched = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(config);
             }
+
+            patched = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(config);
 
             // Write per-workspace config
             Path wsConfigDir = devcontainerConfigDir(sanitizedUrl, worktreeAlias);

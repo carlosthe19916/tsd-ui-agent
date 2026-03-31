@@ -16,10 +16,15 @@ import org.acme.mapper.WorkspaceMapper;
 import org.acme.models.jpa.entity.TaskEntity;
 import org.acme.models.jpa.entity.WorkspaceEntity;
 import org.acme.models.jpa.entity.ExecutionMode;
+import org.acme.services.git.GitManager;
 import org.acme.services.workspace.Workspace;
 import org.acme.services.workspace.WorkspaceManagerResolver;
 import org.acme.services.workspace.WorkspaceRequest;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
+
+import java.nio.file.Path;
+import java.util.Map;
 
 @ApplicationScoped
 public class WorkspaceService {
@@ -37,6 +42,9 @@ public class WorkspaceService {
 
     @Inject
     ExecutionOutputBroadcaster broadcaster;
+
+    @ConfigProperty(name = "tsd-agent.git.base-dir")
+    String baseDir;
 
     @Transactional
     public WorkspaceEntity create(WorkspaceDto dto) {
@@ -73,7 +81,7 @@ public class WorkspaceService {
         ManagedContext requestContext = Arc.container().requestContext();
         requestContext.activate();
         try {
-            record ProvisionContext(String gitUrl, String gitBranch, String gitToken, String forkUrl, ExecutionMode executionMode) {}
+            record ProvisionContext(String gitUrl, String gitBranch, String gitToken, String forkUrl, ExecutionMode executionMode, String configGitUrl) {}
 
             ProvisionContext context = QuarkusTransaction.requiringNew().call(() -> {
                 WorkspaceEntity entity = WorkspaceEntity.findById(workspaceEntityId);
@@ -86,7 +94,8 @@ public class WorkspaceService {
                         entity.git.branch,
                         entity.git.credential != null ? entity.git.credential.token : null,
                         entity.git.forkUrl,
-                        entity.executionMode
+                        entity.executionMode,
+                        entity.git.configGit != null ? entity.git.configGit.url : null
                 );
             });
 
@@ -94,7 +103,12 @@ public class WorkspaceService {
                 return;
             }
 
-            WorkspaceRequest request = new WorkspaceRequest(context.gitUrl(), context.gitBranch(), context.gitToken(), context.forkUrl());
+            Path configRepoPath = null;
+            if (context.configGitUrl() != null) {
+                String configSanitized = GitManager.sanitizeUrl(context.configGitUrl());
+                configRepoPath = Path.of(baseDir, "repositories", configSanitized, "default");
+            }
+            WorkspaceRequest request = new WorkspaceRequest(context.gitUrl(), context.gitBranch(), context.gitToken(), context.forkUrl(), configRepoPath, Map.of());
             Workspace ws = workspaceManagerResolver.resolve(context.executionMode()).provision(request, line -> broadcaster.publish(Channel.WORKSPACE, workspaceEntityId, line));
 
             QuarkusTransaction.requiringNew().run(() -> {

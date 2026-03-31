@@ -62,6 +62,7 @@ public class GitService {
     public GitEntity create(GitDto dto) {
         GitEntity entity = gitMapper.toEntity(dto);
         entity.credential = resolveCredential(dto);
+        entity.configGit = resolveConfigGit(dto);
         normalizeBranch(entity);
         checkDuplicate(entity.url, entity.branch, null);
 
@@ -93,7 +94,7 @@ public class GitService {
         ManagedContext requestContext = Arc.container().requestContext();
         requestContext.activate();
         try {
-            record GitContext(String url, String branch, String token, String forkUrl) {}
+            record GitContext(String url, String branch, String token, String forkUrl, String configGitUrl) {}
 
             GitContext context = QuarkusTransaction.requiringNew().call(() -> {
                 GitEntity entity = GitEntity.findById(gitEntityId);
@@ -105,7 +106,8 @@ public class GitService {
                         entity.url,
                         entity.branch,
                         entity.credential != null ? entity.credential.token : null,
-                        entity.forkUrl
+                        entity.forkUrl,
+                        entity.configGit != null ? entity.configGit.url : null
                 );
             });
 
@@ -166,6 +168,7 @@ public class GitService {
     public GitEntity update(GitDto dto, GitEntity entity) {
         gitMapper.updateEntity(dto, entity);
         entity.credential = resolveCredential(dto);
+        entity.configGit = resolveConfigGit(dto);
         normalizeBranch(entity);
         checkDuplicate(entity.url, entity.branch, entity.id);
 
@@ -189,6 +192,14 @@ public class GitService {
         }
 
         entity.delete();
+    }
+
+    private GitEntity resolveConfigGit(GitDto dto) {
+        if (dto.configGit == null || dto.configGit.id == null) {
+            return null;
+        }
+        return (GitEntity) GitEntity.findByIdOptional(dto.configGit.id)
+                .orElseThrow(() -> new NotFoundException("Config git repository not found"));
     }
 
     private CredentialEntity resolveCredential(GitDto dto) {

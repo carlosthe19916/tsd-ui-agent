@@ -19,6 +19,7 @@ public class GitMapper {
         dto.credential = toCredentialDto(entity.credential);
         dto.isProvisioningInProgress = entity.isProvisioningInProgress;
         dto.provisioningError = entity.provisioningError;
+        dto.configGit = toConfigGitDto(entity.configGit);
         return dto;
     }
 
@@ -36,6 +37,17 @@ public class GitMapper {
         entity.branch = dto.branch;
         entity.forkUrl = dto.forkUrl;
         entity.vendorType = dto.vendorType;
+    }
+
+    private GitDto toConfigGitDto(GitEntity entity) {
+        if (entity == null) {
+            return null;
+        }
+        GitDto dto = new GitDto();
+        dto.id = entity.id;
+        dto.url = entity.url;
+        dto.branch = entity.branch;
+        return dto;
     }
 
     private CredentialDto toCredentialDto(CredentialEntity entity) {

@@ -114,7 +114,8 @@ public class DevcontainerConfigGenerator {
                     .filter(s -> !s.isEmpty())
                     .toList());
 
-            mountList.add("source=code-agent-config-" + BASE_ALIAS + ",target=/home/" + remoteUser + "/" + codingAgentType.configDir + ",type=volume");
+            String agentConfigTarget = "/home/" + remoteUser + "/" + codingAgentType.configDir;
+            mountList.add("source=code-agent-config-" + BASE_ALIAS + ",target=" + agentConfigTarget + ",type=volume");
 
             DevcontainerSpec config = new DevcontainerSpec();
             config.image = effectiveImage;
