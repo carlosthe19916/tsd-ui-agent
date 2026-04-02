@@ -86,6 +86,22 @@
             <version>3.6.1</version>
         </dependency>
         <dependency>
+            <groupId>io.quarkiverse.githubapp</groupId>
+            <artifactId>quarkus-github-app</artifactId>
+            <version>2.14.0</version>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkiverse.githubapp</groupId>
+            <artifactId>quarkus-github-app-command-airline</artifactId>
+            <version>2.14.0</version>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkiverse.githubapp</groupId>
+            <artifactId>quarkus-github-app-testing</artifactId>
+            <version>2.14.0</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-rest-client-jackson</artifactId>
         </dependency>

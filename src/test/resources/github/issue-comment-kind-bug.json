@@ -1,0 +1,47 @@
+{
+  "action": "created",
+  "issue": {
+    "number": 1,
+    "id": 100,
+    "node_id": "I_1",
+    "title": "Test issue",
+    "body": "Test body",
+    "state": "open",
+    "labels": [],
+    "user": {
+      "login": "testuser",
+      "id": 1
+    },
+    "url": "https://api.github.com/repos/test-org/test-repo/issues/1",
+    "html_url": "https://github.com/test-org/test-repo/issues/1",
+    "labels_url": "https://api.github.com/repos/test-org/test-repo/issues/1/labels{/name}"
+  },
+  "comment": {
+    "id": 500,
+    "node_id": "IC_1",
+    "body": "/kind bug",
+    "user": {
+      "login": "collaborator",
+      "id": 3
+    },
+    "url": "https://api.github.com/repos/test-org/test-repo/issues/comments/500"
+  },
+  "repository": {
+    "id": 200,
+    "node_id": "R_1",
+    "name": "test-repo",
+    "full_name": "test-org/test-repo",
+    "owner": {
+      "login": "test-org",
+      "id": 2
+    },
+    "url": "https://api.github.com/repos/test-org/test-repo"
+  },
+  "sender": {
+    "login": "collaborator",
+    "id": 3
+  },
+  "installation": {
+    "id": 1
+  }
+}

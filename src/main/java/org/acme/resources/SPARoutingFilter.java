@@ -13,6 +13,7 @@ public class SPARoutingFilter {
                 || path.startsWith("/api")
                 || path.startsWith("/ws/")
                 || path.startsWith("/q/")
+                || path.startsWith("/replay")
                 || hasFileExtension(path)) {
             rc.next();
             return;

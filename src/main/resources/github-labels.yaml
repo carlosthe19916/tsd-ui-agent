@@ -1,0 +1,59 @@
+labels:
+  # Triage
+  - name: needs-triage
+    color: ededed
+    description: Indicates an issue or PR lacks a `triage/foo` label and requires one.
+  - name: triage/accepted
+    color: 8fc951
+    description: Indicates an issue or PR is ready to be actively worked on.
+  - name: triage/duplicate
+    color: d455d0
+    description: Indicates an issue is a duplicate of other open issue.
+  - name: triage/needs-information
+    color: d455d0
+    description: Indicates an issue needs more information in order to work on it.
+  - name: triage/not-reproducible
+    color: d455d0
+    description: Indicates an issue can not be reproduced as described.
+  - name: triage/support
+    color: d455d0
+    description: Indicates an issue that is a support question.
+  # Kind
+  - name: needs-kind
+    color: ededed
+    description: Indicates an issue or PR lacks a `kind/foo` label and requires one.
+  - name: kind/bug
+    color: e11d21
+    description: Categorizes issue or PR as related to a bug.
+  - name: kind/documentation
+    color: c7def8
+    description: Categorizes issue or PR as related to documentation.
+  - name: kind/feature
+    color: c7def8
+    description: Categorizes issue or PR as related to a new feature.
+  # Priority
+  - name: needs-priority
+    color: ededed
+    description: Indicates an issue or PR lacks a `priority/foo` label and requires one.
+  - name: priority/awaiting-more-evidence
+    color: fef2c0
+    description: Lowest priority. Possibly useful, but not yet enough support to actually get it done.
+  - name: priority/backlog
+    color: fbca04
+    description: Higher priority than priority/awaiting-more-evidence. Community contributions welcome.
+  - name: priority/important-longterm
+    color: eb6420
+    description: Important over the long term, but may not be staffed and/or may need multiple releases to complete.
+  - name: priority/important-soon
+    color: eb6420
+    description: Must be staffed and worked on either currently, or very soon, ideally in time for the next release.
+  - name: priority/release-blocker
+    color: e11d21
+    description: Must be staffed and worked in time for the next release.
+  - name: priority/critical-urgent
+    color: e11d21
+    description: Highest priority. Must be actively worked on as someone's top priority right now.
+  # Etcetera
+  - name: lgtm
+    color: "15dd18"
+    description: Indicates that a PR is ready to be merged.
