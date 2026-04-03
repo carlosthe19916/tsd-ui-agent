@@ -94,10 +94,15 @@ public class IssueImplementationService {
         Thread.startVirtualThread(() -> {
             ManagedContext requestContext = Arc.container().requestContext();
             requestContext.activate();
+            Long taskId = null;
             try {
-                doImplement(payload, issue, repo, issueNumber, repoName);
+                taskId = doImplement(payload, issue, repo, issueNumber, repoName);
             } catch (Exception e) {
                 LOG.errorf(e, "Implementation failed for issue #%d in %s", issueNumber, repoName);
+                // Clear stuck provisioning state
+                if (taskId != null) {
+                    setProvisioningError(taskId, e.getMessage());
+                }
                 try {
                     issue.comment("Implementation failed: " + e.getMessage());
                 } catch (IOException commentError) {
@@ -109,7 +114,7 @@ public class IssueImplementationService {
         });
     }
 
-    private void doImplement(GHEventPayload.IssueComment payload, GHIssue issue,
+    private Long doImplement(GHEventPayload.IssueComment payload, GHIssue issue,
                              GHRepository repo, int issueNumber, String repoName) throws Exception {
         // Get installation token for git operations
         long installationId = payload.getInstallation().getId();
@@ -148,10 +153,10 @@ public class IssueImplementationService {
             return task.id;
         });
 
-        // Clone repo (or pull if already cloned)
+        // Clone repo (or pull if already cloned) — /implement always uses default branch
         String repoUrl = repo.getHtmlUrl().toString();
         String sanitized = GitManager.sanitizeUrl(repoUrl);
-        String cloneDir = Path.of(baseDir, "repositories", sanitized, "default").toString();
+        String cloneDir = GitManager.cloneDir(baseDir, repoUrl, null);
 
         if (!Files.isDirectory(Path.of(cloneDir))) {
             LOG.infof("Issue #%d: Cloning repository %s", issueNumber, repoUrl);
@@ -164,7 +169,7 @@ public class IssueImplementationService {
         // Generate devcontainer base config
         EnrichmentService.EnrichmentResult enrichment = enrichmentService.enrich(
                 Path.of(cloneDir), line -> LOG.debugf("Issue #%d enrich: %s", issueNumber, line));
-        devcontainerConfigGenerator.generateBaseConfig(sanitized, Path.of(cloneDir), enrichment);
+        devcontainerConfigGenerator.generateBaseConfig(sanitized, "default", Path.of(cloneDir), enrichment);
 
         // Provision workspace (creates worktree + runs devcontainer up)
         WorkspaceRequest request = new WorkspaceRequest(repoUrl, null, gitToken, null, null, Map.of());
@@ -209,6 +214,27 @@ public class IssueImplementationService {
         if (prUrl != null) {
             issue.comment("PR created: " + prUrl);
             LOG.infof("Implementation completed for issue #%d: %s", issueNumber, prUrl);
+        }
+
+        return taskId;
+    }
+
+    private void setProvisioningError(Long taskId, String errorMessage) {
+        try {
+            QuarkusTransaction.requiringNew().run(() -> {
+                TaskEntity task = TaskEntity.findById(taskId);
+                if (task != null && task.workspace != null) {
+                    task.workspace.isProvisioningInProgress = false;
+                    task.workspace.provisioningError = errorMessage;
+                    task.workspace.persist();
+                }
+                if (task != null) {
+                    task.status = TaskStatus.OPEN;
+                    task.persist();
+                }
+            });
+        } catch (Exception e) {
+            LOG.errorf(e, "Failed to set provisioning error for task %d", taskId);
         }
     }
 

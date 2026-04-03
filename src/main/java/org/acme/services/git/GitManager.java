@@ -58,8 +58,14 @@ public class GitManager {
         return result;
     }
 
+    public static String cloneDir(String baseDir, String gitUrl, String branch) {
+        String sanitized = sanitizeUrl(gitUrl);
+        String branchDir = (branch != null && !branch.isBlank()) ? branch : "default";
+        return Path.of(baseDir, "repositories", sanitized, branchDir).toString();
+    }
+
     public String cloneRepository(String url, String branch) {
-        String localPath = Path.of(baseDir, "repositories", UUID.randomUUID().toString(), "default").toString();
+        String localPath = cloneDir(baseDir, url, branch);
         return cloneRepository(url, branch, localPath, null);
     }
 

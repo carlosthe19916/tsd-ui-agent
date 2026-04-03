@@ -34,15 +34,19 @@ public class FilesystemWorkspaceManager implements WorkspaceManager {
 
     /**
      * Creates a git worktree from the cloned repository.
+     * Pulls latest before creating the worktree to ensure a fresh start.
      */
     public String createWorktree(WorkspaceRequest request) throws WorkspaceException {
-        String sanitized = GitManager.sanitizeUrl(request.gitUrl());
-        String cloneDir = Path.of(baseDir, "repositories", sanitized, "default").toString();
+        String cloneDir = GitManager.cloneDir(baseDir, request.gitUrl(), request.gitBranch());
 
         if (!Files.isDirectory(Path.of(cloneDir))) {
             throw new WorkspaceException("Clone directory not found: " + cloneDir
                     + ". Was the git repository provisioned?");
         }
+
+        // Pull latest before creating worktree for a fresh start
+        String branch = (request.gitBranch() != null && !request.gitBranch().isBlank()) ? request.gitBranch() : null;
+        gitManager.pullRepository(cloneDir, branch, request.gitToken());
 
         String alias = UUID.randomUUID().toString().substring(0, 8);
         return gitManager.addWorktree(cloneDir, alias);

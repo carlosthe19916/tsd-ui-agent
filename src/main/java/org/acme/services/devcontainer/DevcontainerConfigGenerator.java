@@ -60,10 +60,10 @@ public class DevcontainerConfigGenerator {
      * Uses placeholder alias "default" for workspace-specific fields.
      * Called during git provisioning (POST /gits).
      */
-    public Path generateBaseConfig(String sanitizedUrl, Path repoPath,
+    public Path generateBaseConfig(String sanitizedUrl, String branchDir, Path repoPath,
             EnrichmentService.EnrichmentResult enrichment) {
         try {
-            Path configDir = Path.of(baseDir, "devcontainers", sanitizedUrl);
+            Path configDir = Path.of(baseDir, "devcontainers", sanitizedUrl, branchDir);
             Files.createDirectories(configDir);
 
             boolean hasProjectConfig = hasProjectDevcontainerConfig(repoPath);
