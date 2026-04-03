@@ -291,7 +291,7 @@ public class IssueImplementationService {
         return sb.toString();
     }
 
-    private String validateReadyToWork(Set<String> labels) {
+    String validateReadyToWork(Set<String> labels) {
         var missing = new StringBuilder();
         if (!labels.contains("triage/accepted")) {
             missing.append("`triage/accepted` ");

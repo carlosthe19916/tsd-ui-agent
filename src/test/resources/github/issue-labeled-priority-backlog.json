@@ -1,0 +1,59 @@
+{
+  "action": "labeled",
+  "label": {
+    "id": 306,
+    "name": "priority/backlog",
+    "color": "fbca04"
+  },
+  "issue": {
+    "number": 1,
+    "id": 100,
+    "node_id": "I_1",
+    "title": "Test issue",
+    "body": "Test body",
+    "state": "open",
+    "labels": [
+      {
+        "id": 306,
+        "name": "priority/backlog",
+        "color": "fbca04"
+      },
+      {
+        "id": 302,
+        "name": "needs-triage",
+        "color": "ededed"
+      },
+      {
+        "id": 303,
+        "name": "needs-kind",
+        "color": "ededed"
+      },
+      {
+        "id": 304,
+        "name": "needs-priority",
+        "color": "ededed"
+      }
+    ],
+    "user": {
+      "login": "testuser",
+      "id": 1
+    },
+    "url": "https://api.github.com/repos/test-org/test-repo/issues/1",
+    "html_url": "https://github.com/test-org/test-repo/issues/1",
+    "labels_url": "https://api.github.com/repos/test-org/test-repo/issues/1/labels{/name}"
+  },
+  "repository": {
+    "id": 200,
+    "node_id": "R_1",
+    "name": "test-repo",
+    "full_name": "test-org/test-repo",
+    "owner": {
+      "login": "test-org",
+      "id": 2
+    },
+    "url": "https://api.github.com/repos/test-org/test-repo"
+  },
+  "installation": {
+    "id": 1
+  }
+}

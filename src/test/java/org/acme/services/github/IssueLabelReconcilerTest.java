@@ -58,4 +58,18 @@ class IssueLabelReconcilerTest {
                             .removeLabel("needs-triage");
                 });
     }
+
+    @Test
+    void issueLabeledWithPriorityRemovesNeedsPriority() throws IOException {
+        given().github(mocks -> {
+                    Mockito.doReturn(GitHubAppMockito.mockPagedIterable())
+                            .when(mocks.issue(100)).listComments();
+                })
+                .when().payloadFromClasspath("/github/issue-labeled-priority-backlog.json")
+                .event(GHEvent.ISSUES)
+                .then().github(mocks -> {
+                    Mockito.verify(mocks.issue(100))
+                            .removeLabel("needs-priority");
+                });
+    }
 }
