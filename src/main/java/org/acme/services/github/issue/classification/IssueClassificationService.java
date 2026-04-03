@@ -1,11 +1,12 @@
-package org.acme.services.github.triage;
+package org.acme.services.github.issue.classification;
 
 import io.quarkiverse.githubapp.event.Issue;
 import io.quarkus.arc.Arc;
 import io.quarkus.arc.ManagedContext;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.acme.services.github.LabelConfig;
+import org.acme.services.github.issue.LabelConfig;
+import org.acme.services.github.issue.triage.TriageCommentFormatter;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 import org.kohsuke.github.GHEventPayload;

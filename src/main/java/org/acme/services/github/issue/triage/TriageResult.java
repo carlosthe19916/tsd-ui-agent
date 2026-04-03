@@ -1,4 +1,4 @@
-package org.acme.services.github.triage;
+package org.acme.services.github.issue.triage;
 
 import dev.langchain4j.model.output.structured.Description;
 

@@ -1,4 +1,4 @@
-package org.acme.services.github;
+package org.acme.services.github.issue;
 
 import com.github.rvesse.airline.annotations.Arguments;
 import com.github.rvesse.airline.annotations.Cli;

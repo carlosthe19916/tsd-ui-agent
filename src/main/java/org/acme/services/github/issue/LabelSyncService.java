@@ -1,4 +1,4 @@
-package org.acme.services.github;
+package org.acme.services.github.issue;
 
 import io.quarkiverse.githubapp.GitHubClientProvider;
 import io.quarkus.runtime.StartupEvent;

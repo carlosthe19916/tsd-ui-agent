@@ -1,4 +1,4 @@
-package org.acme.services.github;
+package org.acme.services.github.issue;
 
 public class LabelDefinition {
     public String name;

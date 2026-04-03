@@ -1,4 +1,4 @@
-package org.acme.services.github;
+package org.acme.services.github.issue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;

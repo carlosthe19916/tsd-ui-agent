@@ -1,4 +1,4 @@
-package org.acme.services.github.triage;
+package org.acme.services.github.issue.triage;
 
 public class TriageCommentFormatter {
 
