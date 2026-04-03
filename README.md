@@ -14,7 +14,8 @@ The application supports three workspace types, selectable per-workspace from th
 ### Filesystem Mode (Local Development)
 - **Coding Agent** - Claude CLI or OpenCode (see Coding Agent section below)
 
-Note: PostgreSQL is automatically provided by Quarkus Dev Services in dev mode - no manual installation required.
+Note: PostgreSQL (14–17) is automatically provided by Quarkus Dev Services in dev mode - no manual installation required.
+If running PostgreSQL manually, versions 14 through 17 are supported.
 
 ### Docker Mode (Default)
 - **Docker or Podman** - Container runtime
@@ -55,7 +56,7 @@ Before starting, you can validate that all required prerequisites are installed:
 
 This script will check:
 - Common requirements (Git)
-- Filesystem mode requirements (JDK 25, PostgreSQL, coding agents)
+- Filesystem mode requirements (JDK 25, PostgreSQL 14–17, coding agents)
 - Docker mode requirements (Docker/Podman, Docker Compose)
 
 ## Development Mode

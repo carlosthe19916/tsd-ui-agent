@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ./mvnw test -Dtest=ClassName#methodName  # Run a single test
 ```
 
-**Prerequisites:** JDK 25, PostgreSQL, Claude CLI or OpenCode.
+**Prerequisites:** JDK 25, PostgreSQL 14–17, Claude CLI or OpenCode.
 
 ### Frontend
 

@@ -89,7 +89,12 @@ check_java_version() {
 check_postgresql() {
     if command -v psql &> /dev/null; then
         local pg_version=$(psql --version 2>&1)
+        local pg_major=$(echo "$pg_version" | grep -oP '\d+' | head -1)
         print_success "PostgreSQL client installed: $pg_version"
+
+        if [ -n "$pg_major" ] && ([ "$pg_major" -lt 14 ] || [ "$pg_major" -gt 17 ]); then
+            print_warning "PostgreSQL version $pg_major detected. Supported versions: 14–17"
+        fi
 
         # Try to connect to check if server is running
         if psql -U postgres -d postgres -c '\q' 2>/dev/null; then

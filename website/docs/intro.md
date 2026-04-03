@@ -28,7 +28,7 @@ TSD UI Agent is a **Quarkus**-based backend that manages software development ta
 ### Prerequisites
 
 - JDK 25
-- PostgreSQL
+- PostgreSQL 14–17
 - Claude CLI or OpenCode
 
 ### Running the backend
