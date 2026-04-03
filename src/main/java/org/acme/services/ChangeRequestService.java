@@ -69,21 +69,34 @@ public class ChangeRequestService {
 
             ChangeRequestContext context = QuarkusTransaction.requiringNew().call(() -> {
                 TaskEntity task = TaskEntity.findById(taskId);
-                if (task == null || task.plan == null || task.workspace == null || task.workspace.git == null) {
-                    LOG.warnf("Task %d, plan, workspace, or git not found during change request", taskId);
+                if (task == null || task.plan == null || task.workspace == null) {
+                    LOG.warnf("Task %d, plan, or workspace not found during change request", taskId);
                     return null;
                 }
 
-                return new ChangeRequestContext(
-                        task.workspace.workspaceId, task.workspace.git.url,
-                        task.workspace.git.forkUrl, task.title, task.plan.requirement,
-                        task.plan.id, task.workspace.git.credential != null ? task.workspace.git.credential.token : null,
-                        task.workspace.git.branch, task.workspace.git.vendorType,
-                        task.url, task.type, task.externalId,
-                        task.type == SourceType.JIRA ? task.project.apiUrl : null,
-                        task.type == SourceType.JIRA ? task.project.credential.token : null,
-                        task.workspace.executionMode
-                );
+                if (task.workspace.git != null) {
+                    return new ChangeRequestContext(
+                            task.workspace.workspaceId, task.workspace.git.url,
+                            task.workspace.git.forkUrl, task.title, task.plan.requirement,
+                            task.plan.id, task.workspace.git.credential != null ? task.workspace.git.credential.token : null,
+                            task.workspace.git.branch, task.workspace.git.vendorType,
+                            task.url, task.type, task.externalId,
+                            task.type == SourceType.JIRA ? task.project.apiUrl : null,
+                            task.type == SourceType.JIRA ? task.project.credential.token : null,
+                            task.workspace.executionMode
+                    );
+                } else {
+                    // /implement workspace: no GitEntity, extract URL from task
+                    return new ChangeRequestContext(
+                            task.workspace.workspaceId, null,
+                            null, task.title, task.plan.requirement,
+                            task.plan.id, null, null,
+                            GitVendorType.GITHUB,
+                            task.url, task.type, task.externalId,
+                            null, null,
+                            task.workspace.executionMode
+                    );
+                }
             });
 
             if (context == null) {
@@ -165,8 +178,14 @@ public class ChangeRequestService {
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("No change request provider for " + vendorType));
 
+        // Resolve git URL (from context or from workspace remote)
+        String gitUrl = ctx.gitUrl();
+        if (gitUrl == null || gitUrl.isBlank()) {
+            gitUrl = workspace.exec("git", "remote", "get-url", "origin").trim();
+        }
+
         // Push
-        String pushTargetUrl = ctx.forkUrl() != null ? ctx.forkUrl() : ctx.gitUrl();
+        String pushTargetUrl = ctx.forkUrl() != null ? ctx.forkUrl() : gitUrl;
         if (ctx.gitToken() != null) {
             String authenticatedUrl = provider.buildAuthenticatedPushUrl(pushTargetUrl, ctx.gitToken());
             workspaceGit.pushToUrl(workspace, authenticatedUrl, "HEAD:" + branchName);
@@ -176,13 +195,13 @@ public class ChangeRequestService {
             workspaceGit.push(workspace, "fork", branchName);
         }
 
-        String ownerRepo = GitManager.extractOwnerRepo(ctx.gitUrl());
+        String ownerRepo = GitManager.extractOwnerRepo(gitUrl);
         String description = ctx.requirement() != null ? ctx.requirement() : "";
         if (ctx.taskUrl() != null && !ctx.taskUrl().isBlank()) {
             description = "Closes " + ctx.taskUrl() + "\n\n" + description;
         }
         ChangeRequestParams params = new ChangeRequestParams(
-                ctx.gitUrl(), ctx.forkUrl(), ctx.gitToken(),
+                gitUrl, ctx.forkUrl(), ctx.gitToken(),
                 ownerRepo, branchName, baseBranch,
                 ctx.taskTitle(), description
         );

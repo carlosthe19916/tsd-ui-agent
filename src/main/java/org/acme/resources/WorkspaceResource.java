@@ -303,20 +303,26 @@ public class WorkspaceResource {
         workspaceGit.commit(workspace, request.message);
 
         String branchName = workspaceGit.getCurrentBranch(workspace);
-        String pushTargetUrl = entity.git.forkUrl != null ? entity.git.forkUrl : entity.git.url;
-        String token = entity.git.credential != null ? entity.git.credential.token : null;
 
-        if (token != null) {
-            ChangeRequestProvider provider = changeRequestProviders.stream()
-                    .filter(p -> p.supports(entity.git.vendorType))
-                    .findFirst()
-                    .orElseThrow(() -> new BadRequestException("No provider for " + entity.git.vendorType));
-            String authenticatedUrl = provider.buildAuthenticatedPushUrl(pushTargetUrl, token);
-            workspaceGit.pushToUrl(workspace, authenticatedUrl, "HEAD:" + branchName);
-        } else if (entity.git.forkUrl == null) {
-            workspaceGit.push(workspace, "origin", branchName);
+        if (entity.git != null) {
+            String pushTargetUrl = entity.git.forkUrl != null ? entity.git.forkUrl : entity.git.url;
+            String token = entity.git.credential != null ? entity.git.credential.token : null;
+
+            if (token != null) {
+                ChangeRequestProvider provider = changeRequestProviders.stream()
+                        .filter(p -> p.supports(entity.git.vendorType))
+                        .findFirst()
+                        .orElseThrow(() -> new BadRequestException("No provider for " + entity.git.vendorType));
+                String authenticatedUrl = provider.buildAuthenticatedPushUrl(pushTargetUrl, token);
+                workspaceGit.pushToUrl(workspace, authenticatedUrl, "HEAD:" + branchName);
+            } else if (entity.git.forkUrl == null) {
+                workspaceGit.push(workspace, "origin", branchName);
+            } else {
+                workspaceGit.push(workspace, "fork", branchName);
+            }
         } else {
-            workspaceGit.push(workspace, "fork", branchName);
+            // /implement workspace: no GitEntity, push to origin
+            workspaceGit.push(workspace, "origin", branchName);
         }
         return Response.noContent().build();
     }

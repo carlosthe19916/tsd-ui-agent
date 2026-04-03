@@ -13,6 +13,8 @@ import org.acme.models.jpa.entity.SourceType;
 import org.acme.models.jpa.entity.TaskEntity;
 import org.acme.models.jpa.entity.TaskStatus;
 import org.acme.models.jpa.entity.WorkspaceEntity;
+import org.acme.services.ExecutionOutputBroadcaster;
+import static org.acme.services.ExecutionOutputBroadcaster.Channel;
 import org.acme.services.PipelineContext;
 import org.acme.services.PlanService;
 import org.acme.services.devcontainer.DevcontainerConfigGenerator;
@@ -52,6 +54,9 @@ public class IssueImplementationService {
 
     @Inject
     InstallationTokenProvider tokenProvider;
+
+    @Inject
+    ExecutionOutputBroadcaster broadcaster;
 
     @Inject
     GitManager gitManager;
@@ -124,7 +129,9 @@ public class IssueImplementationService {
         String requirement = buildRequirement(issue);
 
         // Create entities for tracking
-        Long taskId = QuarkusTransaction.requiringNew().call(() -> {
+        record EntityIds(Long taskId, Long workspaceEntityId) {}
+
+        EntityIds ids = QuarkusTransaction.requiringNew().call(() -> {
             PlanEntity plan = new PlanEntity();
             plan.requirement = requirement;
             plan.isRequirementInProgress = false;
@@ -150,8 +157,11 @@ public class IssueImplementationService {
             task.workspace = workspace;
             task.persist();
 
-            return task.id;
+            return new EntityIds(task.id, workspace.id);
         });
+
+        Long taskId = ids.taskId();
+        broadcaster.start(Channel.WORKSPACE, ids.workspaceEntityId());
 
         // Clone repo (or pull if already cloned) — /implement always uses default branch
         String repoUrl = repo.getHtmlUrl().toString();
@@ -173,8 +183,13 @@ public class IssueImplementationService {
 
         // Provision workspace (creates worktree + runs devcontainer up)
         WorkspaceRequest request = new WorkspaceRequest(repoUrl, null, gitToken, null, null, Map.of());
-        Workspace workspace = workspaceManagerResolver.resolve(ExecutionMode.DOCKER)
-                .provision(request, line -> LOG.debugf("Issue #%d provision: %s", issueNumber, line));
+        Workspace workspace;
+        try {
+            workspace = workspaceManagerResolver.resolve(ExecutionMode.DOCKER)
+                    .provision(request, line -> broadcaster.publish(Channel.WORKSPACE, ids.workspaceEntityId(), line));
+        } finally {
+            broadcaster.complete(Channel.WORKSPACE, ids.workspaceEntityId());
+        }
 
         // Store workspace ID
         QuarkusTransaction.requiringNew().run(() -> {
@@ -253,17 +268,22 @@ public class IssueImplementationService {
         sb.append("## Description\n");
         sb.append(issue.getBody() != null ? issue.getBody() : "No description provided.").append("\n\n");
 
-        // Comments (excluding bot/AI comments)
+        // Comments (only meaningful human discussion)
         sb.append("## Discussion\n");
         boolean hasComments = false;
         for (GHIssueComment c : issue.listComments()) {
             if (c.getBody() == null) continue;
-            boolean isAiComment = AI_MARKERS.stream().anyMatch(m -> c.getBody().contains(m));
-            if (!isAiComment) {
-                sb.append("---\n**Comment by ").append(c.getUser().getLogin()).append(":**\n");
-                sb.append(c.getBody()).append("\n\n");
-                hasComments = true;
-            }
+            // Skip AI marker comments
+            if (AI_MARKERS.stream().anyMatch(m -> c.getBody().contains(m))) continue;
+            // Skip bot comments
+            if (c.getUser().getLogin().endsWith("[bot]")) continue;
+            // Skip slash commands (single-line comments starting with /)
+            String trimmed = c.getBody().trim();
+            if (trimmed.startsWith("/") && !trimmed.contains("\n")) continue;
+
+            sb.append("---\n**Comment by ").append(c.getUser().getLogin()).append(":**\n");
+            sb.append(c.getBody()).append("\n\n");
+            hasComments = true;
         }
         if (!hasComments) {
             sb.append("No discussion.\n");
