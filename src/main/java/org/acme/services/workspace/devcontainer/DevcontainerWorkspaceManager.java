@@ -7,6 +7,7 @@ import jakarta.json.Json;
 import jakarta.json.JsonObject;
 import org.acme.services.codeagent.CodingAgentType;
 import org.acme.services.devcontainer.DevcontainerSpec;
+import org.acme.services.git.GitManager;
 
 import org.acme.services.workspace.*;
 import org.acme.services.workspace.filesystem.FilesystemWorkspaceManager;
@@ -68,7 +69,7 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
         String worktreePath = filesystemManager.createWorktree(request);
         filesystemManager.installAgentConfig(request, worktreePath);
         String sanitizedUrl = deriveSanitizedUrl(worktreePath);
-        String branchDir = (request.gitBranch() != null && !request.gitBranch().isBlank()) ? request.gitBranch() : "default";
+        String branchDir = GitManager.branchDir(request.gitBranch());
         String worktreeAlias = Path.of(worktreePath).getFileName().toString();
 
         boolean hasProjectConfig = hasProjectDevcontainerConfig(Path.of(worktreePath));

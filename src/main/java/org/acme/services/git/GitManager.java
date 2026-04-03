@@ -26,6 +26,12 @@ public class GitManager {
     private static final Pattern PROTOCOL_PREFIX = Pattern.compile("^(https?|git|ssh)://");
     private static final Pattern SSH_SHORTHAND = Pattern.compile("^([^@]+@)?([^:]+):(.+)$");
 
+    public static final String DEFAULT_BRANCH_DIR = "default";
+
+    public static String branchDir(String branch) {
+        return (branch != null && !branch.isBlank()) ? branch : DEFAULT_BRANCH_DIR;
+    }
+
     @ConfigProperty(name = "tsd-agent.git.base-dir")
     String baseDir;
 
@@ -59,9 +65,7 @@ public class GitManager {
     }
 
     public static String cloneDir(String baseDir, String gitUrl, String branch) {
-        String sanitized = sanitizeUrl(gitUrl);
-        String branchDir = (branch != null && !branch.isBlank()) ? branch : "default";
-        return Path.of(baseDir, "repositories", sanitized, branchDir).toString();
+        return Path.of(baseDir, "repositories", sanitizeUrl(gitUrl), branchDir(branch)).toString();
     }
 
     public String cloneRepository(String url, String branch) {

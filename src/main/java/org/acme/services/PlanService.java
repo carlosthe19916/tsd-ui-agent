@@ -327,6 +327,10 @@ public class PlanService {
                             task.plan.isExecutionPlanInProgress = false;
                             task.plan.executionPlanError = errorMessage;
                         }
+                        case "changeRequest" -> {
+                            task.plan.isChangeRequestInProgress = false;
+                            task.plan.changeRequestError = errorMessage;
+                        }
                     }
                     task.plan.updatedAt = Instant.now();
                     task.plan.persist();

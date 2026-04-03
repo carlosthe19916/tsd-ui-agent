@@ -116,8 +116,8 @@ public class GitService {
             }
 
             String sanitized = GitManager.sanitizeUrl(context.url());
+            String branchDir = GitManager.branchDir(context.branch());
             String cloneDir = GitManager.cloneDir(baseDir, context.url(), context.branch());
-            String branchDir = (context.branch() != null && !context.branch().isBlank()) ? context.branch() : "default";
 
             if (!Files.isDirectory(Path.of(cloneDir))) {
                 broadcaster.publish(Channel.GIT, gitEntityId, "[git] Cloning repository " + context.url() + " (" + branchDir + ")...");

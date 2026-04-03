@@ -145,8 +145,9 @@ public class ChangeRequestService {
         } catch (WorkspaceException e) {
             if (e.getMessage() != null && e.getMessage().contains("nothing to commit")) {
                 LOG.infof("Task %d: No changes to commit, proceeding with push: %s", ctx.taskId(), e.getMessage());
+            } else {
+                throw e;
             }
-            throw e;
         }
 
         String baseBranch;

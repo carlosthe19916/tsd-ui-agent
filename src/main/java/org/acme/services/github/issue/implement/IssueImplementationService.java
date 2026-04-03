@@ -47,6 +47,9 @@ public class IssueImplementationService {
 
     private static final Logger LOG = Logger.getLogger(IssueImplementationService.class);
 
+    private static final String BOT_SUFFIX = "[bot]";
+    private static final String SLASH_COMMAND_PREFIX = "/";
+
     private static final Set<String> AI_MARKERS = Set.of(
             TriageCommentFormatter.AI_TRIAGE_MARKER,
             ClassificationCommentFormatter.AI_CLASSIFICATION_MARKER,
@@ -163,9 +166,7 @@ public class IssueImplementationService {
         Long taskId = ids.taskId();
         broadcaster.start(Channel.WORKSPACE, ids.workspaceEntityId());
 
-        // Clone repo (or pull if already cloned) — /implement always uses default branch
         String repoUrl = repo.getHtmlUrl().toString();
-        String sanitized = GitManager.sanitizeUrl(repoUrl);
         String cloneDir = GitManager.cloneDir(baseDir, repoUrl, null);
 
         if (!Files.isDirectory(Path.of(cloneDir))) {
@@ -176,10 +177,10 @@ public class IssueImplementationService {
             gitManager.pullRepository(cloneDir, null, gitToken);
         }
 
-        // Generate devcontainer base config
+        String sanitized = GitManager.sanitizeUrl(repoUrl);
         EnrichmentService.EnrichmentResult enrichment = enrichmentService.enrich(
                 Path.of(cloneDir), line -> LOG.debugf("Issue #%d enrich: %s", issueNumber, line));
-        devcontainerConfigGenerator.generateBaseConfig(sanitized, "default", Path.of(cloneDir), enrichment);
+        devcontainerConfigGenerator.generateBaseConfig(sanitized, GitManager.DEFAULT_BRANCH_DIR, Path.of(cloneDir), enrichment);
 
         // Provision workspace (creates worktree + runs devcontainer up)
         WorkspaceRequest request = new WorkspaceRequest(repoUrl, null, gitToken, null, null, Map.of());
@@ -275,11 +276,9 @@ public class IssueImplementationService {
             if (c.getBody() == null) continue;
             // Skip AI marker comments
             if (AI_MARKERS.stream().anyMatch(m -> c.getBody().contains(m))) continue;
-            // Skip bot comments
-            if (c.getUser().getLogin().endsWith("[bot]")) continue;
-            // Skip slash commands (single-line comments starting with /)
+            if (c.getUser().getLogin().endsWith(BOT_SUFFIX)) continue;
             String trimmed = c.getBody().trim();
-            if (trimmed.startsWith("/") && !trimmed.contains("\n")) continue;
+            if (trimmed.startsWith(SLASH_COMMAND_PREFIX) && !trimmed.contains("\n")) continue;
 
             sb.append("---\n**Comment by ").append(c.getUser().getLogin()).append(":**\n");
             sb.append(c.getBody()).append("\n\n");
