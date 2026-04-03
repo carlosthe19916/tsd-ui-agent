@@ -53,6 +53,8 @@ public class ChangeRequestService {
         });
     }
 
+    // --- Entity-based flow (UI) ---
+
     public void doChangeRequest(Long taskId) {
         try {
             record ChangeRequestContext(
@@ -88,128 +90,157 @@ public class ChangeRequestService {
                 return;
             }
 
-            Workspace workspace = workspaceManagerResolver.resolve(context.executionMode()).getWorkspace(context.workspaceId())
-                    .orElseThrow(() -> new WorkspaceException("Workspace not found: " + context.workspaceId()));
-            if (workspace.healthStatus().status() != WorkspaceHealthStatus.Status.RUNNING) {
-                throw new WorkspaceException("Workspace is not running");
-            }
-
-            try {
-                workspaceGit.addAll(workspace);
-                workspaceGit.commit(workspace, context.taskTitle());
-            } catch (WorkspaceException e) {
-                if (e.getMessage() != null && e.getMessage().contains("nothing to commit")) {
-                    LOG.infof("Task %d: No changes to commit, proceeding with push: %s", taskId, e.getMessage());
-                }
-                throw e;
-            }
-
-            String baseBranch;
-            if (context.gitBranch() != null && !context.gitBranch().isBlank()) {
-                baseBranch = context.gitBranch();
-            } else {
-                String remoteInfo = workspace.exec("git", "remote", "show", "origin");
-                baseBranch = remoteInfo.lines()
-                        .filter(l -> l.contains("HEAD branch:"))
-                        .map(l -> l.split(":\\s*")[1].trim())
-                        .findFirst()
-                        .orElse("main");
-            }
-            String branchName = workspaceGit.getCurrentBranch(workspace);
-
-            String commitLog = workspace.exec("git", "log", "origin/" + baseBranch + "..HEAD", "--oneline");
-            if (commitLog.isBlank()) {
-                throw new WorkspaceException("No commits ahead of " + baseBranch + " — nothing to create a change request for");
-            }
-            LOG.infof("Task %d: Commits to push:\n%s", taskId, commitLog);
-
-            GitVendorType vendorType = context.vendorType();
-            if (vendorType == null) {
-                throw new IllegalStateException("Git vendor type is not set for git URL: " + context.gitUrl());
-            }
-
-            ChangeRequestProvider provider = providers.stream()
-                    .filter(p -> p.supports(vendorType))
-                    .findFirst()
-                    .orElseThrow(() -> new IllegalStateException("No change request provider for " + vendorType));
-
-            // Push
-            String pushTargetUrl = context.forkUrl() != null ? context.forkUrl() : context.gitUrl();
-            if (context.gitToken() != null) {
-                String authenticatedUrl = provider.buildAuthenticatedPushUrl(pushTargetUrl, context.gitToken());
-                workspaceGit.pushToUrl(workspace, authenticatedUrl, "HEAD:" + branchName);
-            } else if (context.forkUrl() == null) {
-                workspaceGit.push(workspace, "origin", branchName);
-            } else {
-                workspaceGit.push(workspace, "fork", branchName);
-            }
-
-            String ownerRepo = GitManager.extractOwnerRepo(context.gitUrl());
-            String description = context.requirement() != null ? context.requirement() : "";
-            if (context.taskUrl() != null && !context.taskUrl().isBlank()) {
-                description = "Fixes: " + context.taskUrl() + "\n\n" + description;
-            }
-            ChangeRequestParams params = new ChangeRequestParams(
-                    context.gitUrl(), context.forkUrl(), context.gitToken(),
-                    ownerRepo, branchName, baseBranch,
-                    context.taskTitle(), description
+            PipelineContext pipelineCtx = new PipelineContext(
+                    context.workspaceId(), context.executionMode(),
+                    context.requirement(), context.gitUrl(), context.gitBranch(),
+                    context.gitToken(), context.forkUrl(), context.vendorType(),
+                    context.taskTitle(), context.taskUrl(), taskId
             );
 
-            ChangeRequestResult result;
+            doChangeRequestInternal(pipelineCtx, context.sourceType(), context.taskExternalId(),
+                    context.jiraApiUrl(), context.jiraToken());
+        } catch (Exception e) {
+            LOG.errorf(e, "Change request failed for task %d", taskId);
+            setChangeRequestError(taskId, e.getMessage());
+        }
+    }
+
+    // --- Context-based flow (/implement) ---
+
+    public void doChangeRequest(PipelineContext ctx) {
+        try {
+            doChangeRequestInternal(ctx, SourceType.GITHUB, null, null, null);
+        } catch (Exception e) {
+            LOG.errorf(e, "Change request failed for task %d", ctx.taskId());
+            setChangeRequestError(ctx.taskId(), e.getMessage());
+        }
+    }
+
+    // --- Shared implementation ---
+
+    private void doChangeRequestInternal(PipelineContext ctx, SourceType sourceType,
+                                         String taskExternalId, String jiraApiUrl, String jiraToken) throws Exception {
+        Workspace workspace = workspaceManagerResolver.resolve(ctx.executionMode()).getWorkspace(ctx.workspaceId())
+                .orElseThrow(() -> new WorkspaceException("Workspace not found: " + ctx.workspaceId()));
+        if (workspace.healthStatus().status() != WorkspaceHealthStatus.Status.RUNNING) {
+            throw new WorkspaceException("Workspace is not running");
+        }
+
+        try {
+            workspaceGit.addAll(workspace);
+            workspaceGit.commit(workspace, ctx.taskTitle());
+        } catch (WorkspaceException e) {
+            if (e.getMessage() != null && e.getMessage().contains("nothing to commit")) {
+                LOG.infof("Task %d: No changes to commit, proceeding with push: %s", ctx.taskId(), e.getMessage());
+            }
+            throw e;
+        }
+
+        String baseBranch;
+        if (ctx.gitBranch() != null && !ctx.gitBranch().isBlank()) {
+            baseBranch = ctx.gitBranch();
+        } else {
+            String remoteInfo = workspace.exec("git", "remote", "show", "origin");
+            baseBranch = remoteInfo.lines()
+                    .filter(l -> l.contains("HEAD branch:"))
+                    .map(l -> l.split(":\\s*")[1].trim())
+                    .findFirst()
+                    .orElse("main");
+        }
+        String branchName = workspaceGit.getCurrentBranch(workspace);
+
+        String commitLog = workspace.exec("git", "log", "origin/" + baseBranch + "..HEAD", "--oneline");
+        if (commitLog.isBlank()) {
+            throw new WorkspaceException("No commits ahead of " + baseBranch + " — nothing to create a change request for");
+        }
+        LOG.infof("Task %d: Commits to push:\n%s", ctx.taskId(), commitLog);
+
+        GitVendorType vendorType = ctx.vendorType();
+        if (vendorType == null) {
+            throw new IllegalStateException("Git vendor type is not set for git URL: " + ctx.gitUrl());
+        }
+
+        ChangeRequestProvider provider = providers.stream()
+                .filter(p -> p.supports(vendorType))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("No change request provider for " + vendorType));
+
+        // Push
+        String pushTargetUrl = ctx.forkUrl() != null ? ctx.forkUrl() : ctx.gitUrl();
+        if (ctx.gitToken() != null) {
+            String authenticatedUrl = provider.buildAuthenticatedPushUrl(pushTargetUrl, ctx.gitToken());
+            workspaceGit.pushToUrl(workspace, authenticatedUrl, "HEAD:" + branchName);
+        } else if (ctx.forkUrl() == null) {
+            workspaceGit.push(workspace, "origin", branchName);
+        } else {
+            workspaceGit.push(workspace, "fork", branchName);
+        }
+
+        String ownerRepo = GitManager.extractOwnerRepo(ctx.gitUrl());
+        String description = ctx.requirement() != null ? ctx.requirement() : "";
+        if (ctx.taskUrl() != null && !ctx.taskUrl().isBlank()) {
+            description = "Closes " + ctx.taskUrl() + "\n\n" + description;
+        }
+        ChangeRequestParams params = new ChangeRequestParams(
+                ctx.gitUrl(), ctx.forkUrl(), ctx.gitToken(),
+                ownerRepo, branchName, baseBranch,
+                ctx.taskTitle(), description
+        );
+
+        ChangeRequestResult result;
+        try {
+            result = provider.createChangeRequest(params);
+        } catch (Exception e) {
+            if (e.getMessage() != null && e.getMessage().contains("already exists")) {
+                LOG.infof("Task %d: CR already exists, fetching existing URL", ctx.taskId());
+                result = provider.findExistingChangeRequest(params);
+            } else {
+                throw e;
+            }
+        }
+
+        String htmlUrl = result.htmlUrl();
+        LOG.infof("Task %d: Change request created at %s", ctx.taskId(), htmlUrl);
+
+        if (sourceType == SourceType.JIRA
+                && jiraApiUrl != null
+                && taskExternalId != null
+                && jiraToken != null) {
             try {
-                result = provider.createChangeRequest(params);
+                jiraSyncClient.addRemoteLink(jiraApiUrl, taskExternalId,
+                        htmlUrl, "Pull Request: " + ctx.taskTitle(), jiraToken);
+                LOG.infof("Task %d: Linked PR to Jira issue %s", ctx.taskId(), taskExternalId);
             } catch (Exception e) {
-                if (e.getMessage() != null && e.getMessage().contains("already exists")) {
-                    LOG.infof("Task %d: CR already exists, fetching existing URL", taskId);
-                    result = provider.findExistingChangeRequest(params);
-                } else {
-                    throw e;
-                }
+                LOG.warnf(e, "Task %d: Failed to link PR to Jira issue %s (non-fatal)",
+                        ctx.taskId(), taskExternalId);
             }
+        }
 
-            String htmlUrl = result.htmlUrl();
-            LOG.infof("Task %d: Change request created at %s", taskId, htmlUrl);
-
-            if (context.sourceType() == SourceType.JIRA
-                    && context.jiraApiUrl() != null
-                    && context.taskExternalId() != null
-                    && context.jiraToken() != null) {
-                try {
-                    jiraSyncClient.addRemoteLink(context.jiraApiUrl(), context.taskExternalId(),
-                            htmlUrl, "Pull Request: " + context.taskTitle(), context.jiraToken());
-                    LOG.infof("Task %d: Linked PR to Jira issue %s", taskId, context.taskExternalId());
-                } catch (Exception e) {
-                    LOG.warnf(e, "Task %d: Failed to link PR to Jira issue %s (non-fatal)",
-                            taskId, context.taskExternalId());
-                }
+        QuarkusTransaction.requiringNew().run(() -> {
+            TaskEntity task = TaskEntity.findById(ctx.taskId());
+            if (task != null && task.plan != null) {
+                task.plan.isChangeRequestInProgress = false;
+                task.plan.changeRequestError = null;
+                task.plan.changeRequestUrl = htmlUrl;
+                task.plan.updatedAt = Instant.now();
+                task.plan.persist();
             }
+        });
+    }
 
-            String finalHtmlUrl = htmlUrl;
+    private void setChangeRequestError(Long taskId, String errorMessage) {
+        try {
             QuarkusTransaction.requiringNew().run(() -> {
                 TaskEntity task = TaskEntity.findById(taskId);
                 if (task != null && task.plan != null) {
                     task.plan.isChangeRequestInProgress = false;
-                    task.plan.changeRequestError = null;
-                    task.plan.changeRequestUrl = finalHtmlUrl;
+                    task.plan.changeRequestError = errorMessage;
                     task.plan.updatedAt = Instant.now();
                     task.plan.persist();
                 }
             });
-        } catch (Exception e) {
-            LOG.errorf(e, "Change request failed for task %d", taskId);
-            try {
-                QuarkusTransaction.requiringNew().run(() -> {
-                    TaskEntity task = TaskEntity.findById(taskId);
-                    if (task != null && task.plan != null) {
-                        task.plan.isChangeRequestInProgress = false;
-                        task.plan.changeRequestError = e.getMessage();
-                        task.plan.updatedAt = Instant.now();
-                        task.plan.persist();
-                    }
-                });
-            } catch (Exception inner) {
-                LOG.errorf(inner, "Failed to set error status for task %d change request", taskId);
-            }
+        } catch (Exception inner) {
+            LOG.errorf(inner, "Failed to set error status for task %d change request", taskId);
         }
     }
 }
