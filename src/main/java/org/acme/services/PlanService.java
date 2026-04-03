@@ -30,8 +30,14 @@ public class PlanService {
     @Inject
     ChangeRequestService changeRequestService;
 
+    // --- Trigger methods (async via virtual thread) ---
+
     public void triggerFullPipeline(Long taskId) {
         Thread.startVirtualThread(() -> runWithRequestContext(() -> doFullPipeline(taskId)));
+    }
+
+    public void triggerFullPipeline(PipelineContext ctx) {
+        Thread.startVirtualThread(() -> runWithRequestContext(() -> doFullPipeline(ctx)));
     }
 
     public void triggerRequirementEnrichment(Long taskId) {
@@ -56,9 +62,106 @@ public class PlanService {
         }
     }
 
+    // --- Context-based pipeline (used by /implement) ---
+
+    public void doFullPipeline(PipelineContext ctx) {
+        // Requirement is already set in context, skip enrichment
+        // Set plan generation in progress
+        QuarkusTransaction.requiringNew().run(() -> {
+            TaskEntity task = TaskEntity.findById(ctx.taskId());
+            if (task != null && task.plan != null) {
+                task.plan.isPlanGenerationInProgress = true;
+                task.plan.updatedAt = Instant.now();
+                task.plan.persist();
+            }
+        });
+
+        doPlanGeneration(ctx);
+        if (!transitionToNextPhase(ctx.taskId(), "planGeneration")) return;
+
+        doPlanExecution(ctx);
+        if (!transitionToNextPhase(ctx.taskId(), "execution")) return;
+
+        changeRequestService.doChangeRequest(ctx);
+    }
+
+    public void doPlanGeneration(PipelineContext ctx) {
+        try {
+            Workspace workspace = workspaceManagerResolver.resolve(ctx.executionMode()).getWorkspace(ctx.workspaceId())
+                    .orElseThrow(() -> new WorkspaceException("Workspace not found: " + ctx.workspaceId()));
+            if (workspace.healthStatus().status() != WorkspaceHealthStatus.Status.RUNNING) {
+                throw new WorkspaceException("Workspace is not running");
+            }
+            String result = codingAgentService.generatePlan(workspace, ctx.requirement(), ctx.taskId());
+
+            QuarkusTransaction.requiringNew().run(() -> {
+                TaskEntity task = TaskEntity.findById(ctx.taskId());
+                if (task != null && task.plan != null) {
+                    task.plan.plan = result;
+                    task.plan.isPlanGenerationInProgress = false;
+                    task.plan.planGenerationError = null;
+                    task.plan.updatedAt = Instant.now();
+                    task.plan.persist();
+                }
+            });
+        } catch (Exception e) {
+            LOG.errorf(e, "Plan generation failed for task %d", ctx.taskId());
+            setPlanError(ctx.taskId(), "planGeneration", e.getMessage());
+        }
+    }
+
+    public void doPlanExecution(PipelineContext ctx) {
+        try {
+            // Re-read plan text from DB (it was stored by doPlanGeneration)
+            String planText = QuarkusTransaction.requiringNew().call(() -> {
+                TaskEntity task = TaskEntity.findById(ctx.taskId());
+                return (task != null && task.plan != null) ? task.plan.plan : null;
+            });
+            if (planText == null) {
+                LOG.warnf("Task %d: no plan text found for execution", ctx.taskId());
+                return;
+            }
+
+            Workspace workspace = workspaceManagerResolver.resolve(ctx.executionMode()).getWorkspace(ctx.workspaceId())
+                    .orElseThrow(() -> new WorkspaceException("Workspace not found: " + ctx.workspaceId()));
+            if (workspace.healthStatus().status() != WorkspaceHealthStatus.Status.RUNNING) {
+                throw new WorkspaceException("Workspace is not running");
+            }
+            codingAgentService.executePlan(workspace, planText, ctx.taskId());
+
+            QuarkusTransaction.requiringNew().run(() -> {
+                TaskEntity task = TaskEntity.findById(ctx.taskId());
+                if (task != null && task.plan != null) {
+                    task.plan.isExecutionPlanInProgress = false;
+                    task.plan.executionPlanError = null;
+                    task.plan.executionPlanCompletedAt = Instant.now();
+                    task.plan.updatedAt = Instant.now();
+                    task.plan.persist();
+                }
+            });
+        } catch (Exception e) {
+            LOG.errorf(e, "Plan execution failed for task %d", ctx.taskId());
+            setPlanError(ctx.taskId(), "execution", e.getMessage());
+        }
+    }
+
+    // --- Entity-based pipeline (used by UI) ---
+
+    private void doFullPipeline(Long taskId) {
+        doRequirementEnrichment(taskId);
+        if (!transitionToNextPhase(taskId, "requirement")) return;
+
+        doPlanGeneration(taskId);
+        if (!transitionToNextPhase(taskId, "planGeneration")) return;
+
+        doPlanExecution(taskId);
+        if (!transitionToNextPhase(taskId, "execution")) return;
+
+        changeRequestService.doChangeRequest(taskId);
+    }
+
     public void doPlanGeneration(Long taskId) {
         try {
-            // Phase 1: Collect data in a short transaction
             record PlanGenerationContext(String workspaceId, String requirement, ExecutionMode executionMode) {}
 
             PlanGenerationContext ctx = QuarkusTransaction.requiringNew().call(() -> {
@@ -78,7 +181,6 @@ public class PlanService {
                 return;
             }
 
-            // Phase 2: Call coding agent outside of any transaction
             Workspace workspace = workspaceManagerResolver.resolve(ctx.executionMode()).getWorkspace(ctx.workspaceId())
                     .orElseThrow(() -> new WorkspaceException("Workspace not found: " + ctx.workspaceId()));
             if (workspace.healthStatus().status() != WorkspaceHealthStatus.Status.RUNNING) {
@@ -86,7 +188,6 @@ public class PlanService {
             }
             String result = codingAgentService.generatePlan(workspace, ctx.requirement(), taskId);
 
-            // Phase 3: Store result in a short transaction
             QuarkusTransaction.requiringNew().run(() -> {
                 TaskEntity task = TaskEntity.findById(taskId);
                 if (task != null && task.plan != null) {
@@ -99,25 +200,12 @@ public class PlanService {
             });
         } catch (Exception e) {
             LOG.errorf(e, "Plan generation failed for task %d", taskId);
-            try {
-                QuarkusTransaction.requiringNew().run(() -> {
-                    TaskEntity task = TaskEntity.findById(taskId);
-                    if (task != null && task.plan != null) {
-                        task.plan.isPlanGenerationInProgress = false;
-                        task.plan.planGenerationError = e.getMessage();
-                        task.plan.updatedAt = Instant.now();
-                        task.plan.persist();
-                    }
-                });
-            } catch (Exception inner) {
-                LOG.errorf(inner, "Failed to set error status for task %d plan generation", taskId);
-            }
+            setPlanError(taskId, "planGeneration", e.getMessage());
         }
     }
 
     public void doPlanExecution(Long taskId) {
         try {
-            // Phase 1: Collect data in a short transaction
             record PlanExecutionContext(String workspaceId, String planText, ExecutionMode executionMode) {}
 
             PlanExecutionContext ctx = QuarkusTransaction.requiringNew().call(() -> {
@@ -137,7 +225,6 @@ public class PlanService {
                 return;
             }
 
-            // Phase 2: Delegate to coding agent outside of any transaction
             Workspace workspace = workspaceManagerResolver.resolve(ctx.executionMode()).getWorkspace(ctx.workspaceId())
                     .orElseThrow(() -> new WorkspaceException("Workspace not found: " + ctx.workspaceId()));
             if (workspace.healthStatus().status() != WorkspaceHealthStatus.Status.RUNNING) {
@@ -145,7 +232,6 @@ public class PlanService {
             }
             codingAgentService.executePlan(workspace, ctx.planText(), taskId);
 
-            // Phase 3: Store success in a short transaction
             QuarkusTransaction.requiringNew().run(() -> {
                 TaskEntity task = TaskEntity.findById(taskId);
                 if (task != null && task.plan != null) {
@@ -158,38 +244,35 @@ public class PlanService {
             });
         } catch (Exception e) {
             LOG.errorf(e, "Plan execution failed for task %d", taskId);
-            try {
-                QuarkusTransaction.requiringNew().run(() -> {
-                    TaskEntity task = TaskEntity.findById(taskId);
-                    if (task != null && task.plan != null) {
-                        task.plan.isExecutionPlanInProgress = false;
-                        task.plan.executionPlanError = e.getMessage();
-                        task.plan.updatedAt = Instant.now();
-                        task.plan.persist();
-                    }
-                });
-            } catch (Exception inner) {
-                LOG.errorf(inner, "Failed to set error status for task %d plan execution", taskId);
-            }
+            setPlanError(taskId, "execution", e.getMessage());
         }
     }
 
-    private void doFullPipeline(Long taskId) {
-        // Phase 1: Requirement enrichment (flag already set by endpoint)
-        doRequirementEnrichment(taskId);
-        if (!transitionToNextPhase(taskId, "requirement")) return;
+    public void doRequirementEnrichment(Long taskId) {
+        try {
+            QuarkusTransaction.requiringNew().run(() -> {
+                TaskEntity task = TaskEntity.findById(taskId);
+                if (task == null || task.plan == null) {
+                    LOG.warnf("Task %d or plan not found during requirement enrichment", taskId);
+                    return;
+                }
 
-        // Phase 2: Plan generation
-        doPlanGeneration(taskId);
-        if (!transitionToNextPhase(taskId, "planGeneration")) return;
-
-        // Phase 3: Plan execution
-        doPlanExecution(taskId);
-        if (!transitionToNextPhase(taskId, "execution")) return;
-
-        // Phase 4: Change request
-        changeRequestService.doChangeRequest(taskId);
+                boolean hasDescription = task.description != null && !task.description.isBlank();
+                task.plan.requirement = hasDescription
+                        ? task.title + "\n\n" + task.description
+                        : task.title;
+                task.plan.isRequirementInProgress = false;
+                task.plan.requirementError = null;
+                task.plan.updatedAt = Instant.now();
+                task.plan.persist();
+            });
+        } catch (Exception e) {
+            LOG.errorf(e, "Requirement enrichment failed for task %d", taskId);
+            setPlanError(taskId, "requirement", e.getMessage());
+        }
     }
+
+    // --- Shared helpers ---
 
     private boolean transitionToNextPhase(Long taskId, String completedPhase) {
         try {
@@ -226,39 +309,35 @@ public class PlanService {
         }
     }
 
-    public void doRequirementEnrichment(Long taskId) {
+    private void setPlanError(Long taskId, String phase, String errorMessage) {
         try {
             QuarkusTransaction.requiringNew().run(() -> {
                 TaskEntity task = TaskEntity.findById(taskId);
-                if (task == null || task.plan == null) {
-                    LOG.warnf("Task %d or plan not found during requirement enrichment", taskId);
-                    return;
-                }
-
-                boolean hasDescription = task.description != null && !task.description.isBlank();
-                task.plan.requirement = hasDescription
-                        ? task.title + "\n\n" + task.description
-                        : task.title;
-                task.plan.isRequirementInProgress = false;
-                task.plan.requirementError = null;
-                task.plan.updatedAt = Instant.now();
-                task.plan.persist();
-            });
-        } catch (Exception e) {
-            LOG.errorf(e, "Requirement enrichment failed for task %d", taskId);
-            try {
-                QuarkusTransaction.requiringNew().run(() -> {
-                    TaskEntity task = TaskEntity.findById(taskId);
-                    if (task != null && task.plan != null) {
-                        task.plan.isRequirementInProgress = false;
-                        task.plan.requirementError = e.getMessage();
-                        task.plan.updatedAt = Instant.now();
-                        task.plan.persist();
+                if (task != null && task.plan != null) {
+                    switch (phase) {
+                        case "requirement" -> {
+                            task.plan.isRequirementInProgress = false;
+                            task.plan.requirementError = errorMessage;
+                        }
+                        case "planGeneration" -> {
+                            task.plan.isPlanGenerationInProgress = false;
+                            task.plan.planGenerationError = errorMessage;
+                        }
+                        case "execution" -> {
+                            task.plan.isExecutionPlanInProgress = false;
+                            task.plan.executionPlanError = errorMessage;
+                        }
+                        case "changeRequest" -> {
+                            task.plan.isChangeRequestInProgress = false;
+                            task.plan.changeRequestError = errorMessage;
+                        }
                     }
-                });
-            } catch (Exception inner) {
-                LOG.errorf(inner, "Failed to set error status for task %d requirement enrichment", taskId);
-            }
+                    task.plan.updatedAt = Instant.now();
+                    task.plan.persist();
+                }
+            });
+        } catch (Exception inner) {
+            LOG.errorf(inner, "Failed to set error status for task %d phase %s", taskId, phase);
         }
     }
 }

@@ -490,11 +490,8 @@ public class TaskResource {
         if (task.workspace == null) {
             throw new BadRequestException("Task has no workspace configuration");
         }
-        if (task.workspace.git == null) {
-            throw new BadRequestException("Workspace has no git configuration");
-        }
-        if (task.workspace.git.credential == null) {
-            throw new BadRequestException("Git configuration has no credential for PR/MR creation");
+        if (task.workspace.workspaceId == null) {
+            throw new BadRequestException("Workspace not provisioned");
         }
         if (task.plan.executionPlanCompletedAt == null) {
             throw new BadRequestException("Plan execution has not completed");

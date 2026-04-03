@@ -7,6 +7,7 @@ import jakarta.json.Json;
 import jakarta.json.JsonObject;
 import org.acme.services.codeagent.CodingAgentType;
 import org.acme.services.devcontainer.DevcontainerSpec;
+import org.acme.services.git.GitManager;
 
 import org.acme.services.workspace.*;
 import org.acme.services.workspace.filesystem.FilesystemWorkspaceManager;
@@ -68,10 +69,11 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
         String worktreePath = filesystemManager.createWorktree(request);
         filesystemManager.installAgentConfig(request, worktreePath);
         String sanitizedUrl = deriveSanitizedUrl(worktreePath);
+        String branchDir = GitManager.branchDir(request.gitBranch());
         String worktreeAlias = Path.of(worktreePath).getFileName().toString();
 
         boolean hasProjectConfig = hasProjectDevcontainerConfig(Path.of(worktreePath));
-        Path configPath = patchBaseConfig(sanitizedUrl, worktreeAlias);
+        Path configPath = patchBaseConfig(sanitizedUrl, branchDir, worktreeAlias);
 
         String output = runDevcontainerUp(worktreePath, configPath.toString(), hasProjectConfig, outputConsumer);
         DevcontainerUpResult result = parseDevcontainerUpOutput(output, worktreeAlias);
@@ -158,12 +160,8 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
         return colonIdx >= 0 ? workspaceId.substring(colonIdx + 1) : workspaceId;
     }
 
-    private Path devcontainerConfigDir(String sanitizedUrl, String alias) {
-        return Path.of(baseDir, "devcontainers", sanitizedUrl, alias);
-    }
-
-    private Path devcontainerConfigPath(String sanitizedUrl, String alias) {
-        return devcontainerConfigDir(sanitizedUrl, alias).resolve("devcontainer.json");
+    private Path devcontainerConfigDir(String sanitizedUrl, String branchDir, String alias) {
+        return Path.of(baseDir, "devcontainers", sanitizedUrl, branchDir, alias);
     }
 
     private String deriveSanitizedUrl(String worktreePath) {
@@ -171,9 +169,9 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
         return Path.of(worktreePath).getParent().getParent().getFileName().toString();
     }
 
-    private Path patchBaseConfig(String sanitizedUrl, String worktreeAlias) throws WorkspaceException {
+    private Path patchBaseConfig(String sanitizedUrl, String branchDir, String worktreeAlias) throws WorkspaceException {
         try {
-            Path baseConfigPath = Path.of(baseDir, "devcontainers", sanitizedUrl, "devcontainer.json");
+            Path baseConfigPath = Path.of(baseDir, "devcontainers", sanitizedUrl, branchDir, "devcontainer.json");
             if (!Files.exists(baseConfigPath)) {
                 throw new WorkspaceException("Base devcontainer config not found at " + baseConfigPath
                         + ". Was the git repository provisioned?");
@@ -199,7 +197,7 @@ public class DevcontainerWorkspaceManager implements WorkspaceManager {
             patched = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(config);
 
             // Write per-workspace config
-            Path wsConfigDir = devcontainerConfigDir(sanitizedUrl, worktreeAlias);
+            Path wsConfigDir = devcontainerConfigDir(sanitizedUrl, branchDir, worktreeAlias);
             Files.createDirectories(wsConfigDir);
             Path wsConfigPath = wsConfigDir.resolve("devcontainer.json");
             Files.writeString(wsConfigPath, patched);

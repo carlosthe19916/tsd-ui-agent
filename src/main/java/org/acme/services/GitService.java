@@ -116,26 +116,27 @@ public class GitService {
             }
 
             String sanitized = GitManager.sanitizeUrl(context.url());
-            String cloneDir = Path.of(baseDir, "repositories", sanitized, "default").toString();
+            String branchDir = GitManager.branchDir(context.branch());
+            String cloneDir = GitManager.cloneDir(baseDir, context.url(), context.branch());
 
             if (!Files.isDirectory(Path.of(cloneDir))) {
-                broadcaster.publish(Channel.GIT, gitEntityId, "[git] Cloning repository " + context.url() + "...");
+                broadcaster.publish(Channel.GIT, gitEntityId, "[git] Cloning repository " + context.url() + " (" + branchDir + ")...");
                 gitManager.cloneRepository(context.url(), context.branch(), cloneDir, context.token());
                 if (context.forkUrl() != null && !context.forkUrl().isBlank()) {
                     broadcaster.publish(Channel.GIT, gitEntityId, "[git] Adding fork remote " + context.forkUrl());
                     gitManager.addForkRemote(cloneDir, context.forkUrl());
                 }
             } else {
-                broadcaster.publish(Channel.GIT, gitEntityId, "[git] Repository already cloned, pulling latest...");
+                broadcaster.publish(Channel.GIT, gitEntityId, "[git] Repository already cloned, pulling latest (" + branchDir + ")...");
                 String branch = context.branch() != null && !context.branch().isBlank() ? context.branch() : null;
                 gitManager.pullRepository(cloneDir, branch, context.token());
             }
 
-            // Enrichment + base devcontainer.json generation
+            // Enrichment + base devcontainer.json generation (from the branch-specific clone)
             EnrichmentService.EnrichmentResult enrichment =
                     enrichmentService.enrich(Path.of(cloneDir), line -> broadcaster.publish(Channel.GIT, gitEntityId, line));
 
-            devcontainerConfigGenerator.generateBaseConfig(sanitized, Path.of(cloneDir), enrichment);
+            devcontainerConfigGenerator.generateBaseConfig(sanitized, branchDir, Path.of(cloneDir), enrichment);
             broadcaster.publish(Channel.GIT, gitEntityId, "[git] Provisioning complete");
 
             QuarkusTransaction.requiringNew().run(() -> {
@@ -183,8 +184,7 @@ public class GitService {
         }
 
         // Clean up clone directory
-        String sanitized = GitManager.sanitizeUrl(entity.url);
-        String cloneDir = Path.of(baseDir, "repositories", sanitized, "default").toString();
+        String cloneDir = GitManager.cloneDir(baseDir, entity.url, entity.branch);
         try {
             gitManager.deleteClonedDirectory(cloneDir);
         } catch (Exception e) {

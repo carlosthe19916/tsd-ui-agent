@@ -105,8 +105,7 @@ public class WorkspaceService {
 
             Path configRepoPath = null;
             if (context.configGitUrl() != null) {
-                String configSanitized = GitManager.sanitizeUrl(context.configGitUrl());
-                configRepoPath = Path.of(baseDir, "repositories", configSanitized, "default");
+                configRepoPath = Path.of(GitManager.cloneDir(baseDir, context.configGitUrl(), null));
             }
             WorkspaceRequest request = new WorkspaceRequest(context.gitUrl(), context.gitBranch(), context.gitToken(), context.forkUrl(), configRepoPath, Map.of());
             Workspace ws = workspaceManagerResolver.resolve(context.executionMode()).provision(request, line -> broadcaster.publish(Channel.WORKSPACE, workspaceEntityId, line));
