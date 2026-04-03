@@ -134,7 +134,7 @@ export const WorkspaceStatusLabel: React.FC<{ ws: WorkspaceDto }> = ({
       case "STOPPED":
         return (
           <Tooltip content={health.reason ?? "Stopped"}>
-            <Label color="gold" icon={<PausedIcon />}>
+            <Label color="orange" icon={<PausedIcon />}>
               Stopped
             </Label>
           </Tooltip>
@@ -249,7 +249,7 @@ export const ProvisioningOutputPanel: React.FC<{
   const [logLines, setLogLines] = React.useState<string[]>([]);
   const [isStreaming, setIsStreaming] = React.useState(false);
   const linesRef = React.useRef<string[]>([]);
-  const rafRef = React.useRef<number>();
+  const rafRef = React.useRef<number | undefined>(undefined);
 
   React.useEffect(() => {
     const abortController = new AbortController();
@@ -296,7 +296,7 @@ export const ProvisioningOutputPanel: React.FC<{
         scrollToRow={logLines.length}
         theme={isDark ? "dark" : "light"}
         header={
-          <Banner variant={isStreaming ? "blue" : "green"}>
+          <Banner color={isStreaming ? "blue" : "green"}>
             {isStreaming ? (
               <>
                 <Spinner size="sm" /> Provisioning... ({logLines.length} lines)
