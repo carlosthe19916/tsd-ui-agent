@@ -3,6 +3,12 @@ import React from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
+import {
+  encodeTtydInput,
+  encodeTtydResize,
+  decodeTtydMessage,
+  isOutputMessage,
+} from "@app/utils/ttyd-protocol";
 
 const SOH = "\x01";
 
@@ -45,35 +51,34 @@ export const WebTerminal: React.FC<WebTerminalProps> = ({
       `${protocol}//${location.host}/ws/terminal/${workspaceEntityId}`,
     );
     wsRef.current = ws;
+    ws.binaryType = "arraybuffer";
 
     ws.onopen = () => {
-      ws.send(
-        SOH +
-          JSON.stringify({
-            type: "resize",
-            cols: terminal.cols,
-            rows: terminal.rows,
-          }),
-      );
+      ws.send(encodeTtydResize(terminal.cols, terminal.rows));
     };
 
     ws.onmessage = (event) => {
-      const data = event.data as string;
-      if (data.startsWith(SOH)) {
-        try {
-          const msg = JSON.parse(data.substring(1));
-          if (msg.type === "error") {
-            terminal.writeln(`\r\n\x1b[31mError: ${msg.message}\x1b[0m`);
-          } else if (msg.type === "exit") {
-            terminal.writeln(
-              `\r\n\x1b[33mProcess exited with code ${msg.code}\x1b[0m`,
-            );
+      if (typeof event.data === "string") {
+        const data = event.data;
+        if (data.startsWith(SOH)) {
+          try {
+            const msg = JSON.parse(data.substring(1));
+            if (msg.type === "error") {
+              terminal.writeln(`\r\n\x1b[31mError: ${msg.message}\x1b[0m`);
+            } else if (msg.type === "exit") {
+              terminal.writeln(
+                `\r\n\x1b[33mProcess exited with code ${msg.code}\x1b[0m`,
+              );
+            }
+          } catch {
+            // Ignore parse errors
           }
-        } catch {
-          // Ignore parse errors
         }
-      } else {
-        terminal.write(data);
+      } else if (event.data instanceof ArrayBuffer) {
+        const msg = decodeTtydMessage(event.data);
+        if (isOutputMessage(msg)) {
+          terminal.write(msg.payload);
+        }
       }
     };
 
@@ -87,13 +92,13 @@ export const WebTerminal: React.FC<WebTerminalProps> = ({
 
     terminal.onData((data) => {
       if (ws.readyState === WebSocket.OPEN) {
-        ws.send(data);
+        ws.send(encodeTtydInput(data));
       }
     });
 
     terminal.onResize(({ cols, rows }) => {
       if (ws.readyState === WebSocket.OPEN) {
-        ws.send(SOH + JSON.stringify({ type: "resize", cols, rows }));
+        ws.send(encodeTtydResize(cols, rows));
       }
     });
 

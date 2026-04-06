@@ -1,16 +1,14 @@
 package org.acme.resources;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
+import io.quarkus.websockets.next.OnBinaryMessage;
 import io.quarkus.websockets.next.OnClose;
 import io.quarkus.websockets.next.OnOpen;
-import io.quarkus.websockets.next.OnTextMessage;
 import io.quarkus.websockets.next.UserData.TypedKey;
 import io.quarkus.websockets.next.WebSocket;
 import io.quarkus.websockets.next.WebSocketConnection;
 
 import io.smallrye.common.annotation.Blocking;
+import io.vertx.core.buffer.Buffer;
 
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -20,8 +18,11 @@ import org.acme.services.terminal.TerminalService;
 import org.acme.services.terminal.TerminalSession;
 import org.jboss.logging.Logger;
 
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.WebSocket.Listener;
+import java.nio.ByteBuffer;
+import java.util.concurrent.CompletionStage;
 
 @WebSocket(path = "/ws/terminal/{workspaceEntityId}")
 public class TerminalWebSocket {
@@ -29,12 +30,10 @@ public class TerminalWebSocket {
     private static final Logger LOG = Logger.getLogger(TerminalWebSocket.class);
     private static final char SOH = '\u0001';
     private static final TypedKey<String> SESSION_KEY = TypedKey.forString("terminalSessionId");
+    private static final TypedKey<java.net.http.WebSocket> UPSTREAM_KEY = new TypedKey<>("upstreamWs");
 
     @Inject
     TerminalService terminalService;
-
-    @Inject
-    ObjectMapper objectMapper;
 
     @Blocking
     @Transactional
@@ -61,24 +60,62 @@ public class TerminalWebSocket {
             TerminalSession session = terminalService.createSession(entity, 80, 24);
             connection.userData().put(SESSION_KEY, session.id());
 
-            Thread.ofVirtual().name("terminal-reader-" + session.id()).start(() -> {
-                try {
-                    InputStream is = session.process().getInputStream();
-                    byte[] buffer = new byte[4096];
-                    int bytesRead;
-                    while ((bytesRead = is.read(buffer)) != -1) {
-                        String output = new String(buffer, 0, bytesRead, StandardCharsets.UTF_8);
-                        connection.sendTextAndAwait(output);
-                    }
-                    int exitCode = session.process().waitFor();
-                    connection.sendTextAndAwait(SOH + "{\"type\":\"exit\",\"code\":" + exitCode + "}");
-                    connection.close().subscribe().with(v -> {}, e -> {});
-                } catch (Exception e) {
-                    if (!Thread.currentThread().isInterrupted()) {
-                        LOG.debugf("Terminal reader ended for connection %s: %s", connection.id(), e.getMessage());
-                    }
-                }
-            });
+            // Connect upstream to ttyd WebSocket
+            URI ttydUri = URI.create("ws://localhost:" + session.port() + "/ws");
+            HttpClient httpClient = HttpClient.newHttpClient();
+
+            java.net.http.WebSocket upstream = httpClient.newWebSocketBuilder()
+                    .subprotocols("tty")
+                    .buildAsync(ttydUri, new Listener() {
+
+                        private final StringBuilder textBuffer = new StringBuilder();
+
+                        @Override
+                        public void onOpen(java.net.http.WebSocket webSocket) {
+                            // ttyd requires an auth token as the first message (empty JSON for no-auth)
+                            webSocket.sendText("{}", true);
+                            webSocket.request(1);
+                        }
+
+                        @Override
+                        public CompletionStage<?> onBinary(java.net.http.WebSocket webSocket, ByteBuffer data, boolean last) {
+                            byte[] bytes = new byte[data.remaining()];
+                            data.get(bytes);
+                            connection.sendBinaryAndAwait(Buffer.buffer(bytes));
+                            webSocket.request(1);
+                            return null;
+                        }
+
+                        @Override
+                        public CompletionStage<?> onText(java.net.http.WebSocket webSocket, CharSequence data, boolean last) {
+                            textBuffer.append(data);
+                            if (last) {
+                                String text = textBuffer.toString();
+                                textBuffer.setLength(0);
+                                connection.sendTextAndAwait(text);
+                            }
+                            webSocket.request(1);
+                            return null;
+                        }
+
+                        @Override
+                        public CompletionStage<?> onClose(java.net.http.WebSocket webSocket, int statusCode, String reason) {
+                            connection.sendTextAndAwait(SOH + "{\"type\":\"exit\",\"code\":0}");
+                            connection.close().subscribe().with(v -> {}, e -> {});
+                            return null;
+                        }
+
+                        @Override
+                        public void onError(java.net.http.WebSocket webSocket, Throwable error) {
+                            LOG.debugf("Upstream ttyd WebSocket error: %s", error.getMessage());
+                            connection.sendTextAndAwait(
+                                    SOH + "{\"type\":\"error\",\"message\":\"Terminal connection lost\"}");
+                            connection.close().subscribe().with(v -> {}, e -> {});
+                        }
+                    })
+                    .join();
+
+            connection.userData().put(UPSTREAM_KEY, upstream);
 
             return SOH + "{\"type\":\"ready\"}";
         } catch (Exception e) {
@@ -88,35 +125,23 @@ public class TerminalWebSocket {
         }
     }
 
-    @Blocking
-    @OnTextMessage
-    public void onMessage(WebSocketConnection connection, String message) {
-        String sessionId = (String) connection.userData().get(SESSION_KEY);
-        if (sessionId == null) {
-            return;
-        }
-
-        try {
-            if (!message.isEmpty() && message.charAt(0) == SOH) {
-                String json = message.substring(1);
-                JsonNode node = objectMapper.readTree(json);
-                String type = node.path("type").asText();
-                if ("resize".equals(type)) {
-                    int cols = node.path("cols").asInt();
-                    int rows = node.path("rows").asInt();
-                    terminalService.resize(sessionId, cols, rows);
-                }
-            } else {
-                terminalService.writeToSession(sessionId, message.getBytes(StandardCharsets.UTF_8));
-            }
-        } catch (Exception e) {
-            LOG.debugf("Error processing terminal input: %s", e.getMessage());
+    @OnBinaryMessage
+    public void onBinaryMessage(WebSocketConnection connection, Buffer message) {
+        java.net.http.WebSocket upstream = connection.userData().get(UPSTREAM_KEY);
+        if (upstream != null) {
+            ByteBuffer data = ByteBuffer.wrap(message.getBytes());
+            upstream.sendBinary(data, true);
         }
     }
 
     @OnClose
     public void onClose(WebSocketConnection connection) {
-        String sessionId = (String) connection.userData().get(SESSION_KEY);
+        String sessionId = connection.userData().get(SESSION_KEY);
+        java.net.http.WebSocket upstream = connection.userData().get(UPSTREAM_KEY);
+
+        if (upstream != null) {
+            upstream.sendClose(java.net.http.WebSocket.NORMAL_CLOSURE, "client disconnected");
+        }
         if (sessionId != null) {
             LOG.infof("Terminal WebSocket closed, destroying session %s (connection %s)",
                     sessionId, connection.id());

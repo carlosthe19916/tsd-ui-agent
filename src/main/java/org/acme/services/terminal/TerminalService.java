@@ -1,13 +1,12 @@
 package org.acme.services.terminal;
 
-import com.pty4j.WinSize;
-
 import jakarta.annotation.PreDestroy;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
 import org.acme.models.jpa.entity.WorkspaceEntity;
 import org.acme.services.workspace.WorkspaceManagerResolver;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.jboss.logging.Logger;
 
 import java.io.IOException;
@@ -22,6 +21,12 @@ public class TerminalService {
     @Inject
     WorkspaceManagerResolver workspaceManagerResolver;
 
+    @Inject
+    TtydPortAllocator portAllocator;
+
+    @ConfigProperty(name = "tsd-agent.ttyd.command", defaultValue = "ttyd")
+    String ttydCommand;
+
     private final ConcurrentHashMap<String, TerminalSession> sessions = new ConcurrentHashMap<>();
 
     public TerminalSession createSession(WorkspaceEntity entity, int cols, int rows) throws IOException {
@@ -29,35 +34,31 @@ public class TerminalService {
         var workspace = manager.getWorkspace(entity.workspaceId)
                 .orElseThrow(() -> new IllegalStateException("Workspace not found: " + entity.workspaceId));
 
-        var process = workspace.createPtyProcess(cols, rows);
         var sessionId = UUID.randomUUID().toString();
-        var session = new TerminalSession(sessionId, process);
-        sessions.put(sessionId, session);
+        int port = portAllocator.allocate(sessionId);
 
-        LOG.infof("Terminal session %s created for workspace %s", sessionId, entity.workspaceId);
-        return session;
-    }
+        try {
+            var ttydInfo = workspace.startTtyd(ttydCommand, port);
+            var session = new TerminalSession(sessionId, ttydInfo.process(), ttydInfo.port());
+            sessions.put(sessionId, session);
 
-    public void resize(String sessionId, int cols, int rows) {
-        var session = sessions.get(sessionId);
-        if (session != null) {
-            session.process().setWinSize(new WinSize(cols, rows));
+            LOG.infof("Terminal session %s created for workspace %s on port %d", sessionId, entity.workspaceId, port);
+            return session;
+        } catch (IOException e) {
+            portAllocator.release(sessionId);
+            throw e;
         }
     }
 
-    public void writeToSession(String sessionId, byte[] data) throws IOException {
-        var session = sessions.get(sessionId);
-        if (session != null) {
-            var os = session.process().getOutputStream();
-            os.write(data);
-            os.flush();
-        }
+    public TerminalSession getSession(String sessionId) {
+        return sessions.get(sessionId);
     }
 
     public void destroySession(String sessionId) {
         var session = sessions.remove(sessionId);
         if (session != null) {
-            session.process().destroyForcibly();
+            session.ttydProcess().destroyForcibly();
+            portAllocator.release(sessionId);
             LOG.infof("Terminal session %s destroyed", sessionId);
         }
     }
@@ -66,7 +67,8 @@ public class TerminalService {
     void cleanup() {
         sessions.values().forEach(session -> {
             try {
-                session.process().destroyForcibly();
+                session.ttydProcess().destroyForcibly();
+                portAllocator.release(session.id());
             } catch (Exception e) {
                 LOG.warnf("Failed to destroy terminal session %s: %s", session.id(), e.getMessage());
             }

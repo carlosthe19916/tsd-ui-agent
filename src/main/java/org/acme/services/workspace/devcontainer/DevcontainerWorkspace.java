@@ -7,9 +7,6 @@ import org.acme.services.workspace.WorkspaceCommandType;
 import org.acme.services.workspace.WorkspaceException;
 import org.acme.services.workspace.WorkspaceHealthStatus;
 
-import com.pty4j.PtyProcess;
-import com.pty4j.PtyProcessBuilder;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -18,7 +15,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -136,19 +132,32 @@ public class DevcontainerWorkspace implements Workspace {
     }
 
     @Override
-    public PtyProcess createPtyProcess(int cols, int rows) throws IOException {
-        return new PtyProcessBuilder()
-                .setCommand(new String[]{
-                        containerRuntime, "exec", "-it",
-                        "--user", remoteUser,
-                        "-w", containerWorkingDir,
-                        containerId,
-                        "/bin/bash"
-                })
-                .setEnvironment(new HashMap<>(System.getenv()))
-                .setInitialColumns(cols)
-                .setInitialRows(rows)
-                .start();
+    public TtydInfo startTtyd(String ttydCommand, int port) throws IOException {
+        ProcessBuilder pb = new ProcessBuilder(
+                ttydCommand, "-W", "--once", "--port", String.valueOf(port),
+                containerRuntime, "exec", "-it",
+                "--user", remoteUser,
+                "-w", containerWorkingDir,
+                containerId,
+                "/bin/bash");
+        pb.environment().putAll(System.getenv());
+        Process process = pb.start();
+
+        // Wait for ttyd to be ready
+        for (int i = 0; i < 50; i++) {
+            try (var socket = new java.net.Socket("localhost", port)) {
+                return new TtydInfo(process, port);
+            } catch (IOException e) {
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw new IOException("Interrupted waiting for ttyd to start", ie);
+                }
+            }
+        }
+        process.destroyForcibly();
+        throw new IOException("ttyd did not start within 5 seconds on port " + port);
     }
 
     @Override

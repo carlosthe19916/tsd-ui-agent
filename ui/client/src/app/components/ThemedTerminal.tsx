@@ -1,10 +1,15 @@
-import React, { use } from "react";
+import React from "react";
 
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 
-import { ThemeContext } from "@app/components/ThemeContext";
+import {
+  encodeTtydInput,
+  encodeTtydResize,
+  decodeTtydMessage,
+  isOutputMessage,
+} from "@app/utils/ttyd-protocol";
 
 const SOH = "\x01";
 
@@ -20,7 +25,7 @@ const DARK_THEME = {
   blue: "#2472c8",
   magenta: "#bc3fbc",
   cyan: "#11a8cd",
-  white: "#e5e5e5",
+  white: "#a0a0a0",
   brightBlack: "#666666",
   brightRed: "#f14c4c",
   brightGreen: "#23d18b",
@@ -28,29 +33,6 @@ const DARK_THEME = {
   brightBlue: "#3b8eea",
   brightMagenta: "#d670d6",
   brightCyan: "#29b8db",
-  brightWhite: "#e5e5e5",
-};
-
-const LIGHT_THEME = {
-  background: "#f3f3f3",
-  foreground: "#383a42",
-  cursor: "#383a42",
-  selectionBackground: "#add6ff",
-  black: "#383a42",
-  red: "#e45649",
-  green: "#50a14f",
-  yellow: "#c18401",
-  blue: "#4078f2",
-  magenta: "#a626a4",
-  cyan: "#0184bc",
-  white: "#fafafa",
-  brightBlack: "#4f525e",
-  brightRed: "#e06c75",
-  brightGreen: "#98c379",
-  brightYellow: "#e5c07b",
-  brightBlue: "#61afef",
-  brightMagenta: "#c678dd",
-  brightCyan: "#56b6c2",
   brightWhite: "#ffffff",
 };
 
@@ -63,9 +45,6 @@ export const ThemedTerminal: React.FC<ThemedTerminalProps> = ({
   workspaceEntityId,
   height = "35vh",
 }) => {
-  const { isDark } = use(ThemeContext);
-  const isDarkRef = React.useRef(isDark);
-  isDarkRef.current = isDark;
   const containerRef = React.useRef<HTMLDivElement>(null);
   const initializedRef = React.useRef(false);
   const terminalRef = React.useRef<Terminal | null>(null);
@@ -81,7 +60,7 @@ export const ThemedTerminal: React.FC<ThemedTerminalProps> = ({
       cursorBlink: true,
       fontSize: 14,
       fontFamily: "'Cascadia Code', 'Fira Code', 'Consolas', monospace",
-      theme: isDarkRef.current ? DARK_THEME : LIGHT_THEME,
+      theme: DARK_THEME,
     });
     terminalRef.current = terminal;
 
@@ -96,35 +75,34 @@ export const ThemedTerminal: React.FC<ThemedTerminalProps> = ({
       `${protocol}//${location.host}/ws/terminal/${workspaceEntityId}`,
     );
     wsRef.current = ws;
+    ws.binaryType = "arraybuffer";
 
     ws.onopen = () => {
-      ws.send(
-        SOH +
-          JSON.stringify({
-            type: "resize",
-            cols: terminal.cols,
-            rows: terminal.rows,
-          }),
-      );
+      ws.send(encodeTtydResize(terminal.cols, terminal.rows));
     };
 
     ws.onmessage = (event) => {
-      const data = event.data as string;
-      if (data.startsWith(SOH)) {
-        try {
-          const msg = JSON.parse(data.substring(1));
-          if (msg.type === "error") {
-            terminal.writeln(`\r\n\x1b[31mError: ${msg.message}\x1b[0m`);
-          } else if (msg.type === "exit") {
-            terminal.writeln(
-              `\r\n\x1b[33mProcess exited with code ${msg.code}\x1b[0m`,
-            );
+      if (typeof event.data === "string") {
+        const data = event.data;
+        if (data.startsWith(SOH)) {
+          try {
+            const msg = JSON.parse(data.substring(1));
+            if (msg.type === "error") {
+              terminal.writeln(`\r\n\x1b[31mError: ${msg.message}\x1b[0m`);
+            } else if (msg.type === "exit") {
+              terminal.writeln(
+                `\r\n\x1b[33mProcess exited with code ${msg.code}\x1b[0m`,
+              );
+            }
+          } catch {
+            // Ignore parse errors
           }
-        } catch {
-          // Ignore parse errors
         }
-      } else {
-        terminal.write(data);
+      } else if (event.data instanceof ArrayBuffer) {
+        const msg = decodeTtydMessage(event.data);
+        if (isOutputMessage(msg)) {
+          terminal.write(msg.payload);
+        }
       }
     };
 
@@ -138,13 +116,13 @@ export const ThemedTerminal: React.FC<ThemedTerminalProps> = ({
 
     terminal.onData((data) => {
       if (ws.readyState === WebSocket.OPEN) {
-        ws.send(data);
+        ws.send(encodeTtydInput(data));
       }
     });
 
     terminal.onResize(({ cols, rows }) => {
       if (ws.readyState === WebSocket.OPEN) {
-        ws.send(SOH + JSON.stringify({ type: "resize", cols, rows }));
+        ws.send(encodeTtydResize(cols, rows));
       }
     });
 
@@ -164,13 +142,6 @@ export const ThemedTerminal: React.FC<ThemedTerminalProps> = ({
     };
   }, [workspaceEntityId]);
 
-  React.useEffect(() => {
-    const terminal = terminalRef.current;
-    if (terminal) {
-      terminal.options.theme = isDark ? DARK_THEME : LIGHT_THEME;
-    }
-  }, [isDark]);
-
   return (
     <div
       style={{
@@ -178,8 +149,8 @@ export const ThemedTerminal: React.FC<ThemedTerminalProps> = ({
         width: "100%",
         borderRadius: 4,
         overflow: "hidden",
-        border: `1px solid ${isDark ? "#333" : "#ddd"}`,
-        background: isDark ? DARK_THEME.background : LIGHT_THEME.background,
+        border: "1px solid #333",
+        background: DARK_THEME.background,
       }}
     >
       <div ref={containerRef} style={{ height: "100%", width: "100%" }} />

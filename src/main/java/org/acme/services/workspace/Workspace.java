@@ -1,15 +1,15 @@
 package org.acme.services.workspace;
 
-import com.pty4j.PtyProcess;
-import com.pty4j.PtyProcessBuilder;
-
 import java.io.IOException;
+import java.net.Socket;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
 public interface Workspace {
+
+    record TtydInfo(Process process, int port) {}
 
     String id();
 
@@ -39,15 +39,34 @@ public interface Workspace {
         return List.of();
     }
 
-    default PtyProcess createPtyProcess(int cols, int rows) throws IOException {
+    default TtydInfo startTtyd(String ttydCommand, int port) throws IOException {
         Map<String, String> env = new HashMap<>(System.getenv());
         env.put("TERM", "xterm-256color");
-        return new PtyProcessBuilder()
-                .setCommand(new String[]{"/bin/bash", "-l"})
-                .setDirectory(workingDirectory())
-                .setEnvironment(env)
-                .setInitialColumns(cols)
-                .setInitialRows(rows)
-                .start();
+
+        ProcessBuilder pb = new ProcessBuilder(
+                ttydCommand, "-W", "--once", "--port", String.valueOf(port),
+                "/bin/bash", "-l")
+                .directory(new java.io.File(workingDirectory()));
+        pb.environment().putAll(env);
+        Process process = pb.start();
+
+        waitForPort(port);
+        return new TtydInfo(process, port);
+    }
+
+    private static void waitForPort(int port) throws IOException {
+        for (int i = 0; i < 50; i++) {
+            try (Socket socket = new Socket("localhost", port)) {
+                return;
+            } catch (IOException e) {
+                try {
+                    Thread.sleep(100);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw new IOException("Interrupted waiting for ttyd to start", ie);
+                }
+            }
+        }
+        throw new IOException("ttyd did not start within 5 seconds on port " + port);
     }
 }
