@@ -10,15 +10,18 @@ The application supports three workspace types, selectable per-workspace from th
 - **Git** - Version control
 - **JDK 25** - Java Development Kit
 - **Maven** - Build tool (wrapper included via `./mvnw`)
+- **PostgreSQL 14+** - Database (17 recommended; automatically provided by Quarkus Dev Services in dev mode)
 
 ### Filesystem Mode (Local Development)
 - **Coding Agent** - Claude CLI or OpenCode (see Coding Agent section below)
 
-Note: PostgreSQL is automatically provided by Quarkus Dev Services in dev mode - no manual installation required.
+Note: In dev mode, PostgreSQL is automatically provided by Quarkus Dev Services — no manual installation required.
 
 ### Docker Mode (Default)
 - **Docker or Podman** - Container runtime
 - **Devcontainer CLI** - Install with `npm install -g @devcontainers/cli`
+
+The `docker-compose.yaml` uses the `POSTGRESQL_IMAGE` environment variable. Set it to a PostgreSQL 14+ image (e.g., `docker.io/library/postgres:17`).
 
 ### Kubernetes Mode
 - **Kubernetes Cluster** - With Eclipse Che or Devfile support
