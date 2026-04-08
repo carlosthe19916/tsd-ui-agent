@@ -11,10 +11,13 @@ The application supports three workspace types, selectable per-workspace from th
 - **JDK 25** - Java Development Kit
 - **Maven** - Build tool (wrapper included via `./mvnw`)
 
+### Database
+- **PostgreSQL 17+** - Required for production deployments. In dev mode, Quarkus Dev Services automatically starts a PostgreSQL container — no manual installation needed.
+
 ### Filesystem Mode (Local Development)
 - **Coding Agent** - Claude CLI or OpenCode (see Coding Agent section below)
 
-Note: PostgreSQL is automatically provided by Quarkus Dev Services in dev mode - no manual installation required.
+Note: In dev mode, PostgreSQL is provided automatically by Quarkus Dev Services (see Database section above).
 
 ### Docker Mode (Default)
 - **Docker or Podman** - Container runtime
@@ -85,6 +88,21 @@ npm run start:dev
 - UI available at http://localhost:3000/q/dev
 
 ## Configuration
+
+### Database
+
+The application requires **PostgreSQL 17** or later. The default Docker Compose setup uses the `postgres:17` image (configurable via `POSTGRESQL_IMAGE` in `.env`).
+
+| Mode | Database Setup |
+|------|---------------|
+| **Dev mode** (`quarkus:dev`) | Automatic via Quarkus Dev Services — no setup needed |
+| **Docker Compose** | Started automatically by `docker-compose.yaml` |
+| **Production** | Provide connection details via `QUARKUS_DATASOURCE_JDBC_URL` environment variable |
+
+An **H2 profile** is also available for standalone/offline use:
+```shell
+./mvnw quarkus:dev -Dquarkus.profile=h2
+```
 
 ### Application Properties
 
