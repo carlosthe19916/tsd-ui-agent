@@ -89,3 +89,12 @@ npm run start:dev
 ### Application Properties
 
 Edit `src/main/resources/application.properties` to customize the app
+
+---
+
+## Developer Humor
+
+**Q:** Why did the AI coding agent refuse to write the code?  
+**A:** It was waiting for better requirements... still waiting... forever waiting.
+
+*(Just kidding - our AI agents actually read your tasks and get to work!)*
