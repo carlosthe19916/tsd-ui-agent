@@ -10,11 +10,12 @@ The application supports three workspace types, selectable per-workspace from th
 - **Git** - Version control
 - **JDK 25** - Java Development Kit
 - **Maven** - Build tool (wrapper included via `./mvnw`)
+- **PostgreSQL 13–17** - Required for production; in dev mode, Quarkus Dev Services starts a container automatically
 
 ### Filesystem Mode (Local Development)
 - **Coding Agent** - Claude CLI or OpenCode (see Coding Agent section below)
 
-Note: PostgreSQL is automatically provided by Quarkus Dev Services in dev mode - no manual installation required.
+Note: In dev mode, Quarkus Dev Services automatically provisions a PostgreSQL instance — no manual installation required. For production or manual setup, PostgreSQL **13** through **17** is supported.
 
 ### Docker Mode (Default)
 - **Docker or Podman** - Container runtime
