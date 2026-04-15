@@ -1,0 +1,82 @@
+credentials:
+  - name: jira-redhat
+    token: ${REDHAT_JIRA_TOKEN}
+  - name: github
+    token: ${GITHUB_PAT}
+  - name: gitlab-redhat
+    token: ${REDHAT_GITLAB_PAT}
+
+gits:
+  - url: https://github.com/carlosthe19916/tsd-ui-agent.git
+    credential: github
+    vendorType: GITHUB
+
+  - url: https://github.com/guacsec/trustify.git
+    credential: github
+    vendorType: GITHUB
+    forkUrl: https://github.com/carlosthe19916/trustify.git
+  - url: https://github.com/guacsec/trustify-ui.git
+    credential: github
+    vendorType: GITHUB
+    forkUrl: https://github.com/carlosthe19916/trustify-ui.git
+
+  - url: https://github.com/securesign/rhtas-console-ui.git
+    credential: github
+    vendorType: GITHUB
+    forkUrl: https://github.com/carlosthe19916/rhtas-console.git
+  - url: https://github.com/securesign/rhtas-console.git
+    credential: github
+    vendorType: GITHUB
+    forkUrl: https://github.com/carlosthe19916/rhtas-console-ui.git
+
+  - url: https://github.com/tsd-ui/tsd-ui.git
+    credential: github
+    vendorType: GITHUB
+    forkUrl: https://github.com/carlosthe19916/tsd-ui.git
+
+  - url: https://gitlab.cee.redhat.com/hosted-pulp/ui-packages.redhat.com.git
+    credential: gitlab-redhat
+    vendorType: GITLAB
+    forkUrl: https://gitlab.cee.redhat.com/cferiavi/ui-packages.redhat.com.git
+
+projects:
+  - name: tsd-ui-agent
+    type: GITHUB
+    apiUrl: https://api.github.com/repos/carlosthe19916/tsd-ui-agent
+    credential: github
+    query: "is:issue state:open "
+    sync: true
+
+  - name: trustify
+    type: GITHUB
+    apiUrl: https://api.github.com/repos/guacsec/trustify
+    credential: github
+    query: "is:issue state:open "
+    sync: true
+
+  - name: trustify-ui
+    type: GITHUB
+    apiUrl: https://api.github.com/repos/guacsec/trustify-ui
+    credential: github
+    query: "is:issue state:open "
+    sync: true
+
+  - name: atlasian-redhat
+    type: JIRA
+    apiUrl: https://redhat.atlassian.net/
+    credential: jira-redhat
+    query: "labels in (TSD-UI) AND statusCategory != Done"
+    sync: true
+    gitMappings:
+      - gitUrl: https://github.com/guacsec/trustify-ui.git
+        space: TC
+        labels:
+          - TSD-UI
+      - gitUrl: https://gitlab.cee.redhat.com/hosted-pulp/ui-packages.redhat.com.git
+        space: PULP
+        labels:
+          - TSD-UI
+      - gitUrl: https://github.com/securesign/rhtas-console-ui.git
+        space: SECURESIGN
+        labels:
+          - TSD-UI

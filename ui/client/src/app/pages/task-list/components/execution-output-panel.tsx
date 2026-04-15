@@ -20,7 +20,7 @@ export const ExecutionOutputPanel: React.FC<ExecutionOutputPanelProps> = ({
   const [logLines, setLogLines] = React.useState<string[]>([]);
   const [isStreaming, setIsStreaming] = React.useState(false);
   const linesRef = React.useRef<string[]>([]);
-  const rafRef = React.useRef<number>();
+  const rafRef = React.useRef<number | undefined>(undefined);
 
   React.useEffect(() => {
     if (!isActive) return;
@@ -75,7 +75,7 @@ export const ExecutionOutputPanel: React.FC<ExecutionOutputPanelProps> = ({
         scrollToRow={rowCount}
         theme={isDark ? "dark" : "light"}
         header={
-          <Banner variant={isStreaming ? "blue" : "green"}>
+          <Banner color={isStreaming ? "blue" : "green"}>
             {isStreaming ? (
               <>
                 <Spinner size="sm" /> Streaming output... ({logLines.length}{" "}
